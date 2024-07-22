@@ -1,0 +1,5 @@
+CREATE TABLE topics (
+	id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+	title TEXT NOT NULL,
+	content TEXT NOT NULL
+);

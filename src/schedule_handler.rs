@@ -1,0 +1,167 @@
+use std::sync::Arc;
+use tokio::sync::RwLock;
+
+use askama_axum::IntoResponse;
+use axum::extract::Query;
+use axum::extract::State;
+use axum::response::Response;
+use axum::Json;
+use axum::debug_handler;
+use tracing::trace;
+use utoipa::OpenApi;
+use axum::extract::Path;
+use crate::pagination::Pagination;
+use crate::schedule_model::Schedule;
+use crate::schedule_model::ScheduleError;
+use crate::timeslot_model::TimeSlot;
+use crate::StatusCode;
+
+use crate::schedule_model as schedule;
+use crate::schedule_model::*;
+use crate::UnconfData;
+
+#[derive(OpenApi)]
+#[openapi(
+    paths(
+        schedules,
+        get_schedule,
+        post_schedule,
+        delete_schedule,
+        update_schedule,
+    ),
+    components(
+        schemas(Schedule, ScheduleError, TimeSlot)
+    ),
+    tags(
+        (name = "Schedules Server API", description = "Schedules Server API")
+    )
+)]
+pub struct ApiDocSchedule;
+
+#[utoipa::path(
+    get,
+    path = "/api/v1/schedules",
+    params(
+        ("page" = i32, Query, description = "Page", minimum = 1),
+        ("limit" = i32, Query, description = "Limit", minimum = 1)
+    ),
+    responses(
+        (status = 200, description = "List schedules", body = Vec<Schedule>),
+        (status = 404, description = "No schedules in that range")
+    )
+)]
+pub async fn schedules(
+    State(schedules): State<Arc<RwLock<UnconfData>>>,
+    Query(params): Query<Pagination>,
+) -> Response {
+    //let page = params.page;
+    //let limit = params.limit;
+
+    let read_lock = schedules.read().await;
+    match schedule_paginated_get(&read_lock.unconf_db, params.page, params.limit).await {
+        Ok(res) => {
+            tracing::trace!("Retrieved {} schedules", res.len());
+            Json(res).into_response()
+        }
+        Err(e) => {
+            tracing::trace!("Paginated get error");
+            ScheduleError::response(
+                StatusCode::NOT_FOUND,
+                Box::new(ScheduleErr::DoesNotExist(e.to_string())),
+            )
+        }
+    }
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/v1/schedules/{id}",
+    responses(
+        (status = 200, description = "Return specified schedule", body = Schedule),
+        (status = 404, description = "No schedule with this id", body = ScheduleError),
+    )
+)]
+pub async fn get_schedule(
+    State(schedules): State<Arc<RwLock<UnconfData>>>,
+    Path(schedule_id): Path<i32>,
+) -> Response {
+    let read_lock = schedules.read().await;
+    match schedule_get(&read_lock.unconf_db, schedule_id).await {
+        Ok(schedule) => Json(schedule).into_response(),
+        Err(e) => ScheduleError::response(StatusCode::NOT_FOUND, e),
+    }
+}
+
+#[utoipa::path(
+    post,
+    path = "/api/v1/schedules/add",
+    request_body(
+        content = inline(Schedule),
+        description = "Schedule to add"
+    ),
+    responses(
+        (status = 201, description = "Added schedule", body = ()),
+        (status = 400, description = "Bad request", body = ScheduleError)
+    )
+)]
+pub async fn post_schedule(
+    State(schedules): State<Arc<RwLock<UnconfData>>>,
+    Json(schedule): Json<Schedule>,
+) -> Response {
+    tracing::info!("post schedule!");
+    let write_lock = schedules.write().await;
+    match schedule_add(&write_lock.unconf_db, schedule).await {
+        Ok(id) => {
+            trace!("id: {:?}\n", id);
+            StatusCode::CREATED.into_response()
+        },
+        Err(e) => ScheduleError::response(StatusCode::BAD_REQUEST, e),
+    }
+}
+
+#[utoipa::path(
+    delete,
+    path = "/api/v1/schedules/{id}",
+    responses(
+        (status = 200, description = "Deleted schedule", body = ()),
+        (status = 400, description = "Bad request", body = ScheduleError),
+    )
+)]
+pub async fn delete_schedule(
+    State(schedules): State<Arc<RwLock<UnconfData>>>,
+    Path(schedule_id): Path<i32>,
+) -> Response {
+    tracing::info!("delete schedule");
+    let write_lock = schedules.write().await;
+    match schedule_delete(&write_lock.unconf_db, schedule_id).await {
+        Ok(()) => StatusCode::OK.into_response(),
+        Err(e) => ScheduleError::response(StatusCode::BAD_REQUEST, e),
+    }
+}
+
+#[utoipa::path(
+    put,
+    path = "/api/v1/schedules/{id}",
+    request_body(
+        content = inline(Schedule),
+        description = "Schedule to update"
+    ),
+    responses(
+        (status = 200, description = "Updated schedule", body = ()),
+        (status = 400, description = "Bad request", body = ScheduleError),
+        (status = 404, description = "Schedule not found", body = ScheduleError),
+        (status = 422, description = "Unprocessable entity", body = ScheduleError),
+    )
+)]
+#[debug_handler]
+pub async fn update_schedule(
+    State(schedules): State<Arc<RwLock<UnconfData>>>,
+    Path(schedule_id): Path<i32>,
+    Json(schedule): Json<Schedule>,
+) -> Response {
+    let write_lock = schedules.write().await;
+    match schedule_update(&write_lock.unconf_db, schedule_id, schedule).await {
+        Ok(_) => StatusCode::OK.into_response(),
+        Err(e) => ScheduleError::response(StatusCode::BAD_REQUEST, e),
+    }
+}
