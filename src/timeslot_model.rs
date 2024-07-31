@@ -19,6 +19,26 @@ pub enum TimeSlotErr {
     PaginationInvalid(String),
 }
 
+/*
+#[derive(OpenApi)]
+#[openapi(
+    paths(
+        ,
+        get_topic,
+        post_topic,
+        delete_topic,
+        update_topic,
+    ),
+    components(
+        schemas(TopicWithoutId, TopicError)
+    ),
+    tags(
+        (name = "Topics Server API", description = "Topics Server API")
+    )
+)]
+pub struct ApiDocTimeslot;
+*/
+
 impl From<std::io::Error> for TimeSlotErr {
     /// Converts a `std::io::Error` into a `TimeSlotErr`.
     ///
@@ -114,32 +134,55 @@ impl TimeSlotError {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, FromRow)]
+pub struct TimeSlotWithoutId {
+    pub start_time: i64, // unix timestamp (seconds since epoch)
+    pub end_time: i64, // unix timestamp (seconds since epoch)
+    pub duration: i64, // duration in seconds
+}
+
+impl TimeSlotWithoutId {
+    pub fn new(
+        start_time: i64,
+        end_time: i64,
+        duration: i64,
+    )
+    -> Self {
+        Self {
+            start_time,
+            end_time,
+            duration,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, FromRow)]
 pub struct TimeSlot {
-    pub id: Option<i32>,
+    pub id: i32,
     pub start_time: i64, // unix timestamp (seconds since epoch)
     pub end_time: i64, // unix timestamp (seconds since epoch)
     pub duration: i64, // duration in seconds
     // pub timeslot: Option<TimeSlot>,
-    pub timeslots_id: Option<i32>,
-    pub timeslot_id: Option<i32>,
+    // pub timeslots_id: Option<i32>,
+    // pub timeslot_id: Option<i32>,
 }
 
 impl TimeSlot {
-    fn new(
-        id: Option<i32>,
+    pub fn new(
+        id: i32,
         start_time: i64,
         end_time: i64,
         duration: i64,
-        timeslots_id: Option<i32>,
-        timeslot_id: Option<i32>)
+        // timeslots_id: Option<i32>,
+        // timeslot_id: Option<i32>
+    )
     -> Self {
         Self {
             id,
             start_time,
             end_time,
             duration,
-            timeslots_id,
-            timeslot_id,
+            //timeslots_id,
+            //timeslot_id,
         }
     }
 }

@@ -4,7 +4,7 @@ use std::error::Error;
 use askama_axum::IntoResponse;
 use axum::{http::StatusCode, Json, response::Response};
 use serde::{ser::SerializeStruct, Deserialize, Serialize, Serializer};
-use sqlx::{FromRow, Pool, Postgres, Row};
+use sqlx::{Pool, Postgres, FromRow};
 use utoipa::{openapi::{ObjectBuilder, RefOr, Schema, SchemaType}, ToSchema};
 
 use crate::timeslot_model::*;
@@ -116,9 +116,33 @@ impl ScheduleError {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, FromRow)]
+pub struct ScheduleWithoutId {
+    #[sqlx(skip)]
+    pub timeslots: Vec<TimeSlotWithoutId>,
+}
+
+impl ScheduleWithoutId {
+    /// Creates a new `Schedule` instance.
+    ///
+    /// # Parameters
+    ///
+    /// * `timeslots`: Vector of TimeSlots for the schedule
+    ///
+    /// # Returns
+    ///
+    /// A new `Schedule` instance with the provided parameters.
+    pub fn new(timeslots: Vec<TimeSlotWithoutId>) -> Self {
+        Self {
+            timeslots,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, FromRow)]
 pub struct Schedule {
-    #[sqlx(flatten)]
-    timeslots: Vec<TimeSlot>,
+    pub id: i32,
+    #[sqlx(skip)]
+    pub timeslots: Vec<TimeSlot>,
 }
 
 impl Schedule {
@@ -131,8 +155,9 @@ impl Schedule {
     /// # Returns
     ///
     /// A new `Schedule` instance with the provided parameters.
-    pub fn new(timeslots: Vec<TimeSlot>) -> Self {
+    pub fn new(id: i32, timeslots: Vec<TimeSlot>) -> Self {
         Self {
+            id,
             timeslots,
         }
     }
@@ -163,20 +188,19 @@ impl IntoResponse for &Schedule {
 /// A vector of Schedule's
 /// If the pagination parameters are invalid, returns a `ScheduleErr` error.
 pub async fn schedule_paginated_get(
-    schedules: &Pool<Postgres>,
+    db_pool: &Pool<Postgres>,
     page: i32,
     limit: i32,
-) -> Result<Vec<Schedule>, Box<dyn Error>> {
+) -> Result<Option<Schedule>, Box<dyn Error>> {
     if page < 1 || limit < 1 {
         return Err(Box::new(ScheduleErr::PaginationInvalid(
             "Page and limit must be positive".to_string(),
         )));
     }
 
-    let num_schedules: i64 = sqlx::query("SELECT COUNT(*) FROM schedules")
-        .fetch_one(schedules)
-        .await?
-        .get(0);
+    let num_schedules: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM schedules")
+        .fetch_one(db_pool)
+        .await?;
 
     let start_index = ((page - 1) * limit) as i64;
     if start_index > num_schedules {
@@ -185,7 +209,7 @@ pub async fn schedule_paginated_get(
         )));
     }
 
-    let schedules: Vec<Schedule> = sqlx::query_as::<>(
+    let mut schedules: Vec<Schedule> = sqlx::query_as::<_, Schedule>(
         r#"
         SELECT * FROM schedules
         ORDER BY id
@@ -193,35 +217,21 @@ pub async fn schedule_paginated_get(
     )
         .bind(limit)
         .bind(start_index)
-        .fetch_all(schedules)
+        .fetch_all(db_pool)
         .await?;
 
-    Ok(schedules)
-/*
+    for schedule in &mut schedules {
+        let timeslots = sqlx::query_as::<_, TimeSlot>(
+            "SELECT * FROM time_slots WHERE schedule_id = $1 ORDER BY start_time;",
+        )
+        .bind(schedule.id)
+        .fetch_all(db_pool)
+        .await?;
 
+        schedule.timeslots = timeslots;
+    }
 
-
-
-
-    let row = sqlx::query_as::<Postgres, TimeSlot>(
-        "SELECT * FROM time_slots;"
-    )
-    .fetch_one(schedules)
-    .await?;
-
-    let time_slots = sqlx::query_as::<Postgres, TimeSlot>(
-        "SELECT * FROM time_slots"
-    )
-    .fetch_all(schedules)
-    .await?;
-
-    let mut schedule_vec: Vec<Schedule> = Vec::new();
-    /*
-    for row in schedules {
-        schedule_vec.push(row.into() );
-    }*/
-
-    Ok(schedule_vec)*/
+    Ok(schedules.first().cloned())
 }
 
 /// Retrieves a schedule by its ID.
@@ -258,7 +268,7 @@ pub async fn schedule_get(schedules: &Pool<Postgres>, index: i32) -> Result<Vec<
 ///
 /// A `Result` indicating whether the schedule was added successfully.
 /// If the schedule already exists, returns a `ScheduleErr` error.
-pub async fn schedule_add(schedules: &Pool<Postgres>,) -> Result<(), Box<dyn Error>> {
+pub async fn schedule_add(schedules: &Pool<Postgres>, schedule: ScheduleWithoutId) -> Result<(), Box<dyn Error>> {
     sqlx::query(r#"INSERT INTO schedules DEFAULT VALUES RETURNING id"#)
         .fetch_one(schedules)
         .await?;
@@ -280,6 +290,20 @@ pub async fn schedule_delete(schedules: &Pool<Postgres>, index: i32) -> Result<(
     sqlx::query(
         r#"
         DELETE FROM schedules
+        WHERE id = $1
+        "#,
+    )
+    .bind(index)
+    .execute(schedules)
+    .await?;
+
+    Ok(())
+}
+
+pub async fn schedule_update(schedules: &Pool<Postgres>, index: i32, schedule: Schedule) -> Result<(), Box<dyn Error>> {
+    sqlx::query(
+        r#"
+        UPDATE FROM schedules
         WHERE id = $1
         "#,
     )

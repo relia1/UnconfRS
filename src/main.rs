@@ -1,16 +1,22 @@
 mod config;
 mod db_config;
 mod topics_model;
-// mod schedule_model;
+mod schedule_model;
 mod timeslot_model;
+mod speakers_model;
 mod topics_handler;
-//mod schedule_handler;
+mod schedule_handler;
 mod pagination;
 
 use config::*;
+use pagination::Pagination;
+use schedule_model::{schedule_add, schedule_paginated_get, Schedule, ScheduleWithoutId};
+use timeslot_model::TimeSlot;
+// use timeslot_model::ApiDocTimeslot;
 use topics_handler::*;
-//use schedule_handler::*;
+use schedule_handler::*;
 
+use topics_model::{paginated_get, Topic};
 use tower::ServiceBuilder;
 use tower_http::{
     cors::{Any, CorsLayer},
@@ -20,12 +26,12 @@ use tracing_subscriber::{fmt, EnvFilter};
 extern crate serde_json;
 extern crate thiserror;
 use axum::{
-    http::StatusCode,
-    response::{IntoResponse, Response},
-    routing::{delete, get, post, put},
-    Router,
+    extract::State, extract::Query, http::StatusCode, response::{Html, IntoResponse, Response}, routing::{delete, get, post, put}, Router
 };
 
+// use askama_axum::Template;
+use askama_axum::Template;
+//use askama::Template;
 use utoipa::OpenApi;
 
 use std::net::SocketAddr;
@@ -74,21 +80,26 @@ async fn main() {
     let swagger_ui = SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi());
     let redoc_ui = Redoc::with_url("/redoc", ApiDoc::openapi());
     let rapidoc_ui = RapiDoc::new("/api-docs/openapi.json").path("/rapidoc");
-    /*let swagger_ui2 =
-        SwaggerUi::new("/swagger-ui2").url("/api-docs/openapi2.json", ApiDoc2::openapi());
-    let redoc_ui2 = Redoc::with_url("/redoc2", ApiDoc2::openapi());
-    let rapidoc_ui2 = RapiDoc::new("/api-docs/openapi.json2").path("/rapidoc2");*/
+    let schedule_docs =
+        SwaggerUi::new("/swagger-sched").url("/api-docs/openapi_sched.json", ApiDocSchedule::openapi());
+    let redoc_sched = Redoc::with_url("/redoc2", ApiDocSchedule::openapi());
+    let rapidoc_sched = RapiDoc::new("/api-docs/openapi_sched.json").path("/rapidoc_sched");
+    /*let timeslots_docs =
+        SwaggerUi::new("/swagger-timeslots").url("/api-docs/openapi_timeslots.json", ApiDocSchedule::openapi());
+    let redoc_timeslot = Redoc::with_url("/redoc3", ApiDocTimeslot::openapi());
+    let rapidoc_timeslot = RapiDoc::new("/api-docs/openapi_timeslots.json").path("/rapidoc_timeslots");*/
+
 
     let app = Router::new()
+        .route("/", get(handler))
+        .route("/schedule", get(schedule_handler))
         .nest("/api/v1", apis)
         .merge(swagger_ui)
         .merge(redoc_ui)
         .merge(rapidoc_ui)
-        /*
-        .merge(swagger_ui2)
-        .merge(redoc_ui2)
-        .merge(rapidoc_ui2)
-        */
+        .merge(schedule_docs)
+        .merge(redoc_sched)
+        .merge(rapidoc_sched)
         .with_state(topics_db)
         .fallback(handler_404)
         .layer(
@@ -108,4 +119,68 @@ async fn main() {
     let listener = tokio::net::TcpListener::bind(ip).await.unwrap();
     tracing::debug!("serving {}", listener.local_addr().unwrap());
     axum::serve(listener, app).await.unwrap();
+}
+
+
+#[derive(Template, Debug)]
+#[template(path = "index.html")]
+struct IndexTemplate {
+    topics: Vec<Topic>,
+}
+
+async fn handler(
+    State(state): State<Arc<RwLock<UnconfData>>>,
+    Query(params): Query<Pagination>,
+) -> Response {
+    let write_lock = state.write().await;
+    let topics = paginated_get(&write_lock.unconf_db, params.page, params.limit).await;
+
+    match topics {
+        Ok(topics) => {
+            tracing::debug!("{:?}", topics);
+            let template = IndexTemplate { topics };
+
+            match template.render() {
+                Ok(html) => Html(html).into_response(),
+                Err(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+            }
+        },
+        _ => Html("<h1>Error fetching topics</h1>".to_string()).into_response(),
+    }
+}
+
+#[derive(Template, Debug)]
+#[template(path = "schedule.html")]
+struct ScheduleTemplate {
+    schedule: Option<Schedule>,
+}
+
+async fn schedule_handler(
+    State(state): State<Arc<RwLock<UnconfData>>>,
+    Query(params): Query<Pagination>,
+) -> Response {
+    let write_lock = state.write().await;
+    let timeslot = timeslot_model::TimeSlotWithoutId::new( 0, 10, 10);
+    let timeslot_vec = vec![timeslot];
+    let schedule = ScheduleWithoutId::new(timeslot_vec);
+    schedule_add(&write_lock.unconf_db, schedule).await;
+    let schedule_response = schedule_paginated_get(&write_lock.unconf_db, params.page, params.limit).await;
+    //topics(State(state), Query(params)).await;
+
+
+    match schedule_response {
+        Ok(schedule) => {
+            tracing::debug!("{:?}", schedule);
+            let template = ScheduleTemplate { schedule };
+
+            match template.render() {
+                Ok(html) => Html(html).into_response(),
+                Err(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+            }
+
+        },
+        _ => Html("<h1>Error fetching schedule</h1>".to_string()).into_response(),
+    }
+
+    // Html(include_str!("./web/index.html"))
 }

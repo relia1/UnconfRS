@@ -1,3 +1,4 @@
+use core::fmt;
 use std::error::Error;
 
 
@@ -7,13 +8,19 @@ use serde::{ser::SerializeStruct, Deserialize, Serialize, Serializer};
 use sqlx::{FromRow, Pool, Postgres, Row};
 use utoipa::{openapi::{ObjectBuilder, RefOr, Schema, SchemaType}, ToSchema};
 
-
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, FromRow)]
-pub struct Topic {
-    pub id: Option<i32>,
+pub struct TopicWithoutId {
     pub title: String,
     pub content: String,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, FromRow)]
+pub struct Topic {
+    pub id: i32,
+    pub title: String,
+    pub content: String,
+}
+
 
 /// An enumeration of errors that may occur
 #[derive(Debug, thiserror::Error, ToSchema, Serialize)]
@@ -112,7 +119,7 @@ impl Topic {
     /// # Returns
     ///
     /// A new `Topic` instance with the provided parameters.
-    pub fn new(id: Option<i32>, title: &str, content: &str) -> Self {
+    pub fn new(id: i32, title: &str, content: &str) -> Self {
         let title = title.into();
         let content = content.into();
         Self {
@@ -216,7 +223,7 @@ pub async fn get(topics: &Pool<Postgres>, index: i32) -> Result<Vec<Topic>, Box<
 ///
 /// A `Result` indicating whether the topic was added successfully.
 /// If the topic already exists, returns a `TopicErr` error.
-pub async fn add(topics: &Pool<Postgres>, topic: Topic) -> Result<i32, Box<dyn Error>> {
+pub async fn add(topics: &Pool<Postgres>, topic: TopicWithoutId) -> Result<i32, Box<dyn Error>> {
     let row: (i32,) = sqlx::query_as(
         "INSERT INTO topics (title, content) VALUES ($1, $2) RETURNING id",
         )

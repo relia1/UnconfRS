@@ -16,7 +16,6 @@ use crate::schedule_model::ScheduleError;
 use crate::timeslot_model::TimeSlot;
 use crate::StatusCode;
 
-use crate::schedule_model as schedule;
 use crate::schedule_model::*;
 use crate::UnconfData;
 
@@ -30,7 +29,7 @@ use crate::UnconfData;
         update_schedule,
     ),
     components(
-        schemas(Schedule, ScheduleError, TimeSlot)
+        schemas(ScheduleWithoutId, ScheduleError, TimeSlot)
     ),
     tags(
         (name = "Schedules Server API", description = "Schedules Server API")
@@ -54,13 +53,9 @@ pub async fn schedules(
     State(schedules): State<Arc<RwLock<UnconfData>>>,
     Query(params): Query<Pagination>,
 ) -> Response {
-    //let page = params.page;
-    //let limit = params.limit;
-
     let read_lock = schedules.read().await;
     match schedule_paginated_get(&read_lock.unconf_db, params.page, params.limit).await {
         Ok(res) => {
-            tracing::trace!("Retrieved {} schedules", res.len());
             Json(res).into_response()
         }
         Err(e) => {
@@ -106,7 +101,7 @@ pub async fn get_schedule(
 )]
 pub async fn post_schedule(
     State(schedules): State<Arc<RwLock<UnconfData>>>,
-    Json(schedule): Json<Schedule>,
+    Json(schedule): Json<ScheduleWithoutId>,
 ) -> Response {
     tracing::info!("post schedule!");
     let write_lock = schedules.write().await;

@@ -6,12 +6,14 @@ WORKDIR /app
 COPY *.toml /app/
 RUN \
     mkdir /app/src && \
+    mkdir /app/templates && \
     echo 'fn main() {}' > /app/src/main.rs && \
     cargo build --release && \
     rm -Rvf /repo/src
 
 # Build our actual code
 COPY src /app/src
+COPY templates /app/templates
 COPY migrations /app/migrations
 RUN \
     touch src/main.rs && \
