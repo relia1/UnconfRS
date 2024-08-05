@@ -7,10 +7,39 @@ use serde::{ser::SerializeStruct, Deserialize, Serialize, Serializer};
 use sqlx::{FromRow, Pool, Postgres, Row};
 use utoipa::{openapi::{ObjectBuilder, RefOr, Schema, SchemaType}, ToSchema};
 
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, FromRow)]
+pub struct SpeakerWithoutId {
+    pub name: String,
+    pub email: String,
+    pub phone_number: String,
+}
+
+impl SpeakerWithoutId {
+    /// Creates a new `SpeakerWithoutId` instance.
+    ///
+    /// # Parameters
+    ///
+    /// * `Name`: The name of the speaker.
+    /// * `Email`: The email of the speaker.
+    /// * `Phone Number`: Phone number of the speaker.
+    ///
+    /// # Returns
+    ///
+    /// A new `Speaker` instance with the provided parameters.
+    pub fn new(name: String, email: String, phone_number: String) -> Self {
+        Self {
+            name,
+            email,
+            phone_number,
+        }
+    }
+}
+
+
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, FromRow)]
 pub struct Speaker {
-    pub speaker_id: Option<i32>,
+    pub speaker_id: i32,
     pub name: String,
     pub email: String,
     pub phone_number: String,
@@ -107,13 +136,14 @@ impl Speaker {
     /// # Parameters
     ///
     /// * `id`: ID for the speaker.
-    /// * `title`: The title of the speaker.
-    /// * `content`: The content of the speaker.
+    /// * `Name`: The name of the speaker.
+    /// * `Email`: The email of the speaker.
+    /// * `Phone Number`: The phone number of the speaker.
     ///
     /// # Returns
     ///
     /// A new `Speaker` instance with the provided parameters.
-    pub fn new(speaker_id: Option<i32>, name: String, email: String, phone_number: String) -> Self {
+    pub fn new(speaker_id: i32, name: String, email: String, phone_number: String) -> Self {
         Self {
             speaker_id,
             name,
@@ -147,7 +177,7 @@ impl IntoResponse for &Speaker {
 ///
 /// A vector of Speaker's
 /// If the pagination parameters are invalid, returns a `SpeakerErr` error.
-pub async fn paginated_get(
+pub async fn speaker_paginated_get(
     speakers: &Pool<Postgres>,
     page: i32,
     limit: i32,
@@ -192,7 +222,7 @@ pub async fn paginated_get(
 /// # Returns
 ///
 /// A reference to the `Speaker` instance with the specified ID, or a `SpeakerErr` error if the speaker does not exist.
-pub async fn get(speakers: &Pool<Postgres>, index: i32) -> Result<Vec<Speaker>, Box<dyn Error>> {
+pub async fn speaker_get(speakers: &Pool<Postgres>, index: i32) -> Result<Vec<Speaker>, Box<dyn Error>> {
     let mut speaker_vec = vec![];
     let speaker = sqlx::query_as::<Postgres, Speaker>(
         "SELECT * FROM speakers where id = $1"
@@ -216,9 +246,10 @@ pub async fn get(speakers: &Pool<Postgres>, index: i32) -> Result<Vec<Speaker>, 
 ///
 /// A `Result` indicating whether the speaker was added successfully.
 /// If the speaker already exists, returns a `SpeakerErr` error.
-pub async fn add(speakers: &Pool<Postgres>, speaker: Speaker) -> Result<i32, Box<dyn Error>> {
+pub async fn speaker_add(speakers: &Pool<Postgres>, speaker: SpeakerWithoutId) -> Result<i32, Box<dyn Error>> {
+    tracing::debug!("adding speaker");
     let row: (i32,) = sqlx::query_as(
-        "INSERT INTO speakers (name, email, phone) VALUES ($1, $2, $3) RETURNING id",
+        "INSERT INTO speakers (name, email, phone_number) VALUES ($1, $2, $3) RETURNING id",
         )
         .bind(speaker.name)
         .bind(speaker.email)
@@ -239,7 +270,7 @@ pub async fn add(speakers: &Pool<Postgres>, speaker: Speaker) -> Result<i32, Box
 ///
 /// A `Result` indicating whether the speaker was removed successfully.
 /// If the speaker does not exist, returns a `SpeakerErr` error.
-pub async fn delete(speakers: &Pool<Postgres>, index: i32) -> Result<(), Box<dyn Error>> {
+pub async fn speaker_delete(speakers: &Pool<Postgres>, index: i32) -> Result<(), Box<dyn Error>> {
     sqlx::query_as::<Postgres, Speaker>(
         "DELETE FROM speakers
         WHERE id = $1;",
@@ -263,7 +294,7 @@ pub async fn delete(speakers: &Pool<Postgres>, index: i32) -> Result<(), Box<dyn
 /// A `Result` indicating whether the speaker was updated successfully.
 /// If the speaker does not exist or is unprocessable, returns a `SpeakerErr` error.
 /// If successful, returns a `StatusCode` of 200.
-pub async fn update(
+pub async fn speaker_update(
     speakers: &Pool<Postgres>,
     index: i32,
     speaker: Speaker,
@@ -272,14 +303,14 @@ pub async fn update(
     let email = speaker.email;
     let phone_number = speaker.phone_number;
 
-    let mut speaker_to_update = get(speakers, index).await?;
+    let mut speaker_to_update = speaker_get(speakers, index).await?;
     speaker_to_update[0].name.clone_from(&name);
     speaker_to_update[0].email.clone_from(&email);
     speaker_to_update[0].phone_number.clone_from(&phone_number);
 
-    sqlx::query_as::<Postgres, Speaker>(
+    sqlx::query_as::<Postgres, SpeakerWithoutId>(
         "UPDATE speakers
-        SET title = $1, content = $2
+        SET name = $1, email = $2, phone_number = $3
         WHERE id = $3;",
     )
     .bind(name)

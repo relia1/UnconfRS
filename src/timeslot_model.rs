@@ -7,7 +7,6 @@ use serde::{ser::SerializeStruct, Deserialize, Serialize, Serializer};
 use sqlx::{FromRow, Pool, Postgres, Row};
 use utoipa::{openapi::{ObjectBuilder, RefOr, Schema, SchemaType}, ToSchema};
 
-
 /// An enumeration of errors that may occur
 #[derive(Debug, thiserror::Error, ToSchema, Serialize)]
 pub enum TimeSlotErr {
@@ -135,22 +134,31 @@ impl TimeSlotError {
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, FromRow)]
 pub struct TimeSlotWithoutId {
-    pub start_time: i64, // unix timestamp (seconds since epoch)
-    pub end_time: i64, // unix timestamp (seconds since epoch)
-    pub duration: i64, // duration in seconds
+    pub start_time: i32, // unix timestamp (seconds since epoch)
+    pub end_time: i32, // unix timestamp (seconds since epoch)
+    pub duration: i32, // duration in seconds
+    pub speaker_id: i32,
+    pub schedule_id: i32,
+    pub topic_id: Option<i32>
 }
 
 impl TimeSlotWithoutId {
     pub fn new(
-        start_time: i64,
-        end_time: i64,
-        duration: i64,
+        start_time: i32,
+        end_time: i32,
+        duration: i32,
+        speaker_id: i32,
+        schedule_id: i32,
+        topic_id: Option<i32>
     )
     -> Self {
         Self {
             start_time,
             end_time,
             duration,
+            speaker_id,
+            schedule_id,
+            topic_id
         }
     }
 }
@@ -158,22 +166,23 @@ impl TimeSlotWithoutId {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, FromRow)]
 pub struct TimeSlot {
     pub id: i32,
-    pub start_time: i64, // unix timestamp (seconds since epoch)
-    pub end_time: i64, // unix timestamp (seconds since epoch)
-    pub duration: i64, // duration in seconds
-    // pub timeslot: Option<TimeSlot>,
-    // pub timeslots_id: Option<i32>,
-    // pub timeslot_id: Option<i32>,
+    pub start_time: i32, // unix timestamp (seconds since epoch)
+    pub end_time: i32, // unix timestamp (seconds since epoch)
+    pub duration: i32, // duration in seconds
+    pub speaker_id: i32, // id of the speaker
+    pub schedule_id: i32, // id of the schedule
+    pub topic_id: Option<i32> // id of the topic or none
 }
 
 impl TimeSlot {
     pub fn new(
         id: i32,
-        start_time: i64,
-        end_time: i64,
-        duration: i64,
-        // timeslots_id: Option<i32>,
-        // timeslot_id: Option<i32>
+        start_time: i32,
+        end_time: i32,
+        duration: i32,
+        speaker_id: i32,
+        schedule_id: i32,
+        topic_id: Option<i32>
     )
     -> Self {
         Self {
@@ -181,8 +190,9 @@ impl TimeSlot {
             start_time,
             end_time,
             duration,
-            //timeslots_id,
-            //timeslot_id,
+            speaker_id,
+            schedule_id,
+            topic_id
         }
     }
 }
@@ -209,12 +219,12 @@ pub async fn timeslot_paginated_get(
         )));
     }
 
-    let num_timeslots: i64 = sqlx::query("SELECT COUNT(*) FROM timeslots")
+    let num_timeslots: i32 = sqlx::query("SELECT COUNT(*) FROM timeslots")
         .fetch_one(timeslots)
         .await?
         .get(0);
 
-    let start_index = ((page - 1) * limit) as i64;
+    let start_index = (page - 1) * limit;
     if start_index > num_timeslots {
         return Err(Box::new(TimeSlotErr::PaginationInvalid(
             "Invalid query parameter values".to_string(),
@@ -223,7 +233,7 @@ pub async fn timeslot_paginated_get(
 
     let timeslots: Vec<TimeSlot> = sqlx::query_as(
         r#"
-        SELECT * FROM timeslots
+        SELECT * FROM time_slots
         ORDER BY id
         LIMIT $1 OFFSET $2;"#,
     )
@@ -233,32 +243,33 @@ pub async fn timeslot_paginated_get(
         .await?;
 
     Ok(timeslots)
-/*
-
-
-
-
-
-    let row = sqlx::query_as::<Postgres, TimeSlot>(
-        "SELECT * FROM time_slots;"
-    )
-    .fetch_one(timeslots)
-    .await?;
-
-    let time_slots = sqlx::query_as::<Postgres, TimeSlot>(
-        "SELECT * FROM time_slots"
-    )
-    .fetch_all(timeslots)
-    .await?;
-
-    let mut timeslot_vec: Vec<TimeSlot> = Vec::new();
-    /*
-    for row in timeslots {
-        timeslot_vec.push(row.into() );
-    }*/
-
-    Ok(timeslot_vec)*/
 }
+
+
+/// Retrieves a list of timeslots.
+///
+/// # Parameters
+///
+/// * `timeslots`: Pooled db connection
+///
+/// # Returns
+///
+/// A vector of TimeSlot's
+/// If the pagination parameters are invalid, returns a `TimeSlotErr` error.
+pub async fn get_all_timeslots(
+    timeslots: &Pool<Postgres>,
+) -> Result<Vec<TimeSlot>, Box<dyn Error>> {
+    let timeslots: Vec<TimeSlot> = sqlx::query_as(
+        r#"
+        SELECT * FROM time_slots
+        ORDER BY id"#
+    )
+        .fetch_all(timeslots)
+        .await?;
+
+    Ok(timeslots)
+}
+
 
 /// Retrieves a timeslot by its ID.
 ///
@@ -293,12 +304,16 @@ pub async fn timeslot_get(timeslots: &Pool<Postgres>, index: i32) -> Result<Vec<
 ///
 /// A `Result` indicating whether the timeslot was added successfully.
 /// If the timeslot already exists, returns a `TimeSlotErr` error.
-pub async fn timeslot_add(timeslots: &Pool<Postgres>,) -> Result<(), Box<dyn Error>> {
-    sqlx::query(r#"INSERT INTO timeslots DEFAULT VALUES RETURNING id"#)
+pub async fn timeslot_add(timeslots: &Pool<Postgres>, timeslot: TimeSlotWithoutId) -> Result<i32, Box<dyn Error>> {
+    let timeslot_id: (i32,) = sqlx::query_as(r#"INSERT INTO time_slots (start_time, end_time, duration, speaker_id) VALUES ($1, $2, $3, $4) RETURNING id"#)
+        .bind(timeslot.start_time)
+        .bind(timeslot.end_time)
+        .bind(timeslot.duration)
+        .bind(timeslot.speaker_id)
         .fetch_one(timeslots)
         .await?;
 
-    Ok(())
+    Ok(timeslot_id.0)
 }
 
 /// Removes a timeslot by its ID.

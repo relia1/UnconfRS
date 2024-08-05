@@ -1,4 +1,3 @@
-use core::fmt;
 use std::error::Error;
 
 
@@ -10,6 +9,7 @@ use utoipa::{openapi::{ObjectBuilder, RefOr, Schema, SchemaType}, ToSchema};
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, FromRow)]
 pub struct TopicWithoutId {
+    pub speaker_id: i32,
     pub title: String,
     pub content: String,
 }
@@ -17,6 +17,7 @@ pub struct TopicWithoutId {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, FromRow)]
 pub struct Topic {
     pub id: i32,
+    pub speaker_id: i32,
     pub title: String,
     pub content: String,
 }
@@ -119,11 +120,12 @@ impl Topic {
     /// # Returns
     ///
     /// A new `Topic` instance with the provided parameters.
-    pub fn new(id: i32, title: &str, content: &str) -> Self {
+    pub fn new(id: i32, speaker_id: i32, title: &str, content: &str) -> Self {
         let title = title.into();
         let content = content.into();
         Self {
             id,
+            speaker_id,
             title,
             content,
         }
@@ -190,6 +192,30 @@ pub async fn paginated_get(
     Ok(topics)
 }
 
+
+/// Retrieves a list of topics from the topic bank.
+///
+/// # Parameters
+///
+/// # Pooled db connection
+///
+/// # Returns
+///
+/// A vector of Topic's
+pub async fn get_all_topics(
+    topics: &Pool<Postgres>,
+) -> Result<Vec<Topic>, Box<dyn Error>> {
+    let topics: Vec<Topic> = sqlx::query_as(
+        r#"
+        SELECT * FROM topics"#
+    )
+        .fetch_all(topics)
+        .await?;
+
+    Ok(topics)
+}
+
+
 /// Retrieves a topic by its ID.
 ///
 /// # Parameters
@@ -225,8 +251,9 @@ pub async fn get(topics: &Pool<Postgres>, index: i32) -> Result<Vec<Topic>, Box<
 /// If the topic already exists, returns a `TopicErr` error.
 pub async fn add(topics: &Pool<Postgres>, topic: TopicWithoutId) -> Result<i32, Box<dyn Error>> {
     let row: (i32,) = sqlx::query_as(
-        "INSERT INTO topics (title, content) VALUES ($1, $2) RETURNING id",
+        "INSERT INTO topics (speaker_id, title, content) VALUES ($1, $2, $3) RETURNING id",
         )
+        .bind(topic.speaker_id)
         .bind(topic.title)
         .bind(topic.content)
         .fetch_one(topics)

@@ -3,6 +3,7 @@ mod db_config;
 mod topics_model;
 mod schedule_model;
 mod timeslot_model;
+mod speakers_handler;
 mod speakers_model;
 mod topics_handler;
 mod schedule_handler;
@@ -10,11 +11,12 @@ mod pagination;
 
 use config::*;
 use pagination::Pagination;
-use schedule_model::{schedule_add, schedule_paginated_get, Schedule, ScheduleWithoutId};
-use timeslot_model::TimeSlot;
+use schedule_model::{schedules_get, Schedule};
+use speakers_handler::ApiDocSpeaker;
 // use timeslot_model::ApiDocTimeslot;
 use topics_handler::*;
 use schedule_handler::*;
+use speakers_handler::*;
 
 use topics_model::{paginated_get, Topic};
 use tower::ServiceBuilder;
@@ -74,16 +76,31 @@ async fn main() {
         .route("/topics/:id", get(get_topic))
         .route("/topics/add", post(post_topic))
         .route("/topics/:id", delete(delete_topic))
-        .route("/topics/:id", put(update_topic));
+        .route("/topics/:id", put(update_topic))
+        .route("/speakers", get(speakers))
+        .route("/speakers/:id", get(get_speaker))
+        .route("/speakers/add", post(post_speaker))
+        .route("/speakers/:id", delete(delete_speaker))
+        .route("/speakers/:id", put(update_speaker))
+        .route("/schedules/:id", get(get_schedule))
+        .route("/schedules/generate", post(generate));
+
 
     // handy openai auto generated docs!
     let swagger_ui = SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi());
     let redoc_ui = Redoc::with_url("/redoc", ApiDoc::openapi());
     let rapidoc_ui = RapiDoc::new("/api-docs/openapi.json").path("/rapidoc");
+
     let schedule_docs =
         SwaggerUi::new("/swagger-sched").url("/api-docs/openapi_sched.json", ApiDocSchedule::openapi());
     let redoc_sched = Redoc::with_url("/redoc2", ApiDocSchedule::openapi());
     let rapidoc_sched = RapiDoc::new("/api-docs/openapi_sched.json").path("/rapidoc_sched");
+
+    let speaker_docs =
+        SwaggerUi::new("/swagger-speaker").url("/api-docs/openapi_speaker.json", ApiDocSpeaker::openapi());
+    let redoc_speaker = Redoc::with_url("/redoc3", ApiDocSpeaker::openapi());
+    let rapidoc_speaker = RapiDoc::new("/api-docs/openapi_speaker.json").path("/rapidoc_speaker");
+
     /*let timeslots_docs =
         SwaggerUi::new("/swagger-timeslots").url("/api-docs/openapi_timeslots.json", ApiDocSchedule::openapi());
     let redoc_timeslot = Redoc::with_url("/redoc3", ApiDocTimeslot::openapi());
@@ -92,7 +109,7 @@ async fn main() {
 
     let app = Router::new()
         .route("/", get(handler))
-        .route("/schedule", get(schedule_handler))
+        .route("/schedules", get(schedule_handler))
         .nest("/api/v1", apis)
         .merge(swagger_ui)
         .merge(redoc_ui)
@@ -100,6 +117,9 @@ async fn main() {
         .merge(schedule_docs)
         .merge(redoc_sched)
         .merge(rapidoc_sched)
+        .merge(speaker_docs)
+        .merge(redoc_speaker)
+        .merge(rapidoc_speaker)
         .with_state(topics_db)
         .fallback(handler_404)
         .layer(
@@ -145,7 +165,10 @@ async fn handler(
                 Err(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
             }
         },
-        _ => Html("<h1>Error fetching topics</h1>".to_string()).into_response(),
+        Err(e) => {
+            tracing::debug!(e);
+            Html("<h1>Error fetching topics</h1>".to_string()).into_response()
+        },
     }
 }
 
@@ -157,18 +180,17 @@ struct ScheduleTemplate {
 
 async fn schedule_handler(
     State(state): State<Arc<RwLock<UnconfData>>>,
-    Query(params): Query<Pagination>,
 ) -> Response {
     let write_lock = state.write().await;
-    let timeslot = timeslot_model::TimeSlotWithoutId::new( 0, 10, 10);
-    let timeslot_vec = vec![timeslot];
-    let schedule = ScheduleWithoutId::new(timeslot_vec);
-    schedule_add(&write_lock.unconf_db, schedule).await;
-    let schedule_response = schedule_paginated_get(&write_lock.unconf_db, params.page, params.limit).await;
-    //topics(State(state), Query(params)).await;
+    //let speaker = Speaker::new(1, "name".to_string(), "email".to_string(), "5555555555".to_string());
+    //let timeslot = timeslot_model::TimeSlotWithoutId::new(0, 10, 10, speaker.speaker_id, 1);
+    //let timeslot_vec = vec![timeslot];
+    //let schedule = ScheduleWithoutId::new(10);
+    //schedule_add(&write_lock.unconf_db, schedule).await;
+    let schedules = schedules_get(&write_lock.unconf_db).await;
+    tracing::trace!("schedules {:?}", schedules);
 
-
-    match schedule_response {
+    match schedules {
         Ok(schedule) => {
             tracing::debug!("{:?}", schedule);
             let template = ScheduleTemplate { schedule };
@@ -177,10 +199,7 @@ async fn schedule_handler(
                 Ok(html) => Html(html).into_response(),
                 Err(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
             }
-
         },
         _ => Html("<h1>Error fetching schedule</h1>".to_string()).into_response(),
     }
-
-    // Html(include_str!("./web/index.html"))
 }

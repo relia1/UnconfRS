@@ -2,7 +2,6 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 
 use askama_axum::IntoResponse;
-use axum::extract::Query;
 use axum::extract::State;
 use axum::response::Response;
 use axum::Json;
@@ -10,7 +9,6 @@ use axum::debug_handler;
 use tracing::trace;
 use utoipa::OpenApi;
 use axum::extract::Path;
-use crate::pagination::Pagination;
 use crate::schedule_model::Schedule;
 use crate::schedule_model::ScheduleError;
 use crate::timeslot_model::TimeSlot;
@@ -27,6 +25,7 @@ use crate::UnconfData;
         post_schedule,
         delete_schedule,
         update_schedule,
+        generate,
     ),
     components(
         schemas(ScheduleWithoutId, ScheduleError, TimeSlot)
@@ -40,21 +39,15 @@ pub struct ApiDocSchedule;
 #[utoipa::path(
     get,
     path = "/api/v1/schedules",
-    params(
-        ("page" = i32, Query, description = "Page", minimum = 1),
-        ("limit" = i32, Query, description = "Limit", minimum = 1)
-    ),
     responses(
         (status = 200, description = "List schedules", body = Vec<Schedule>),
-        (status = 404, description = "No schedules in that range")
     )
 )]
 pub async fn schedules(
     State(schedules): State<Arc<RwLock<UnconfData>>>,
-    Query(params): Query<Pagination>,
 ) -> Response {
     let read_lock = schedules.read().await;
-    match schedule_paginated_get(&read_lock.unconf_db, params.page, params.limit).await {
+    match schedules_get(&read_lock.unconf_db).await {
         Ok(res) => {
             Json(res).into_response()
         }
@@ -157,6 +150,30 @@ pub async fn update_schedule(
     let write_lock = schedules.write().await;
     match schedule_update(&write_lock.unconf_db, schedule_id, schedule).await {
         Ok(_) => StatusCode::OK.into_response(),
+        Err(e) => ScheduleError::response(StatusCode::BAD_REQUEST, e),
+    }
+}
+
+#[utoipa::path(
+    post,
+    path = "/api/v1/schedules/generate",
+    responses(
+        (status = 200, description = "Generating schedule", body = ()),
+        (status = 400, description = "Bad request", body = ScheduleError),
+        (status = 404, description = "Schedule not found", body = ScheduleError),
+        (status = 422, description = "Unprocessable entity", body = ScheduleError),
+    )
+)]
+pub async fn generate(
+    State(topics): State<Arc<RwLock<UnconfData>>>,
+) -> Response {
+    let write_lock = topics.write().await;
+    let res = schedule_generate(&write_lock.unconf_db, 5).await;
+    match res {
+        Ok(schedule) => {
+            Json(schedule).into_response()
+            //StatusCode::OK.into_response()
+        },
         Err(e) => ScheduleError::response(StatusCode::BAD_REQUEST, e),
     }
 }
