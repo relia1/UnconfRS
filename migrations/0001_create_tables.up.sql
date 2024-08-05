@@ -1,5 +1,6 @@
 CREATE TABLE topics (
 	id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    speaker_id INT NOT NULL,
 	title TEXT NOT NULL,
 	content TEXT NOT NULL
 );

@@ -4,5 +4,6 @@ CREATE TABLE time_slots (
     end_time INTEGER NOT NULL,
     duration INTEGER NOT NULL,
     schedule_id INTEGER NOT NULL DEFAULT 1,
-    topics_id INTEGER REFERENCES topics(id)
+    speaker_id INTEGER NOT NULL,
+    topic_id INTEGER REFERENCES topics(id)
 );
