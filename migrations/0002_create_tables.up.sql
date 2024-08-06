@@ -3,7 +3,7 @@ CREATE TABLE time_slots (
     start_time INTEGER NOT NULL,
     end_time INTEGER NOT NULL,
     duration INTEGER NOT NULL,
-    schedule_id INTEGER NOT NULL DEFAULT 1,
-    speaker_id INTEGER NOT NULL,
+    schedule_id INTEGER,
+    speaker_id INTEGER,
     topic_id INTEGER REFERENCES topics(id)
 );
