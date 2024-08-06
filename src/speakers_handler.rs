@@ -25,7 +25,7 @@ use crate::{speakers_model::*, UnconfData};
         update_speaker,
     ),
     components(
-        schemas(SpeakerWithoutId, SpeakerError)
+        schemas(Speaker, SpeakerError)
     ),
     tags(
         (name = "Speakers Server API", description = "Speakers Server API")
@@ -87,7 +87,7 @@ pub async fn get_speaker(
     post,
     path = "/api/v1/speakers/add",
     request_body(
-        content = inline(SpeakerWithoutId),
+        content = inline(Speaker),
         description = "Speaker to add"
     ),
     responses(
@@ -97,7 +97,7 @@ pub async fn get_speaker(
 )]
 pub async fn post_speaker(
     State(speakers): State<Arc<RwLock<UnconfData>>>,
-    Json(speaker): Json<SpeakerWithoutId>,
+    Json(speaker): Json<Speaker>,
 ) -> Response {
     tracing::info!("post speaker!");
     let write_lock = speakers.write().await;

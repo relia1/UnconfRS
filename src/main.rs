@@ -182,11 +182,6 @@ async fn schedule_handler(
     State(state): State<Arc<RwLock<UnconfData>>>,
 ) -> Response {
     let write_lock = state.write().await;
-    //let speaker = Speaker::new(1, "name".to_string(), "email".to_string(), "5555555555".to_string());
-    //let timeslot = timeslot_model::TimeSlotWithoutId::new(0, 10, 10, speaker.speaker_id, 1);
-    //let timeslot_vec = vec![timeslot];
-    //let schedule = ScheduleWithoutId::new(10);
-    //schedule_add(&write_lock.unconf_db, schedule).await;
     let schedules = schedules_get(&write_lock.unconf_db).await;
     tracing::trace!("schedules {:?}", schedules);
 

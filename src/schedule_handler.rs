@@ -28,7 +28,7 @@ use crate::UnconfData;
         generate,
     ),
     components(
-        schemas(ScheduleWithoutId, ScheduleError, TimeSlot)
+        schemas(Schedule, ScheduleError, TimeSlot)
     ),
     tags(
         (name = "Schedules Server API", description = "Schedules Server API")
@@ -94,7 +94,7 @@ pub async fn get_schedule(
 )]
 pub async fn post_schedule(
     State(schedules): State<Arc<RwLock<UnconfData>>>,
-    Json(schedule): Json<ScheduleWithoutId>,
+    Json(schedule): Json<Schedule>,
 ) -> Response {
     tracing::info!("post schedule!");
     let write_lock = schedules.write().await;

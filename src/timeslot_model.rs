@@ -29,7 +29,7 @@ pub enum TimeSlotErr {
         update_topic,
     ),
     components(
-        schemas(TopicWithoutId, TopicError)
+        schemas(Topic, TopicError)
     ),
     tags(
         (name = "Topics Server API", description = "Topics Server API")
@@ -133,55 +133,24 @@ impl TimeSlotError {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, FromRow)]
-pub struct TimeSlotWithoutId {
-    pub start_time: i32, // unix timestamp (seconds since epoch)
-    pub end_time: i32, // unix timestamp (seconds since epoch)
-    pub duration: i32, // duration in seconds
-    pub speaker_id: i32,
-    pub schedule_id: i32,
-    pub topic_id: Option<i32>
-}
-
-impl TimeSlotWithoutId {
-    pub fn new(
-        start_time: i32,
-        end_time: i32,
-        duration: i32,
-        speaker_id: i32,
-        schedule_id: i32,
-        topic_id: Option<i32>
-    )
-    -> Self {
-        Self {
-            start_time,
-            end_time,
-            duration,
-            speaker_id,
-            schedule_id,
-            topic_id
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, FromRow)]
 pub struct TimeSlot {
-    pub id: i32,
+    pub id: Option<i32>,
     pub start_time: i32, // unix timestamp (seconds since epoch)
     pub end_time: i32, // unix timestamp (seconds since epoch)
     pub duration: i32, // duration in seconds
-    pub speaker_id: i32, // id of the speaker
-    pub schedule_id: i32, // id of the schedule
+    pub speaker_id: Option<i32>, // id of the speaker
+    pub schedule_id: Option<i32>, // id of the schedule
     pub topic_id: Option<i32> // id of the topic or none
 }
 
 impl TimeSlot {
     pub fn new(
-        id: i32,
+        id: Option<i32>,
         start_time: i32,
         end_time: i32,
         duration: i32,
-        speaker_id: i32,
-        schedule_id: i32,
+        speaker_id: Option<i32>,
+        schedule_id: Option<i32>,
         topic_id: Option<i32>
     )
     -> Self {
@@ -304,12 +273,14 @@ pub async fn timeslot_get(timeslots: &Pool<Postgres>, index: i32) -> Result<Vec<
 ///
 /// A `Result` indicating whether the timeslot was added successfully.
 /// If the timeslot already exists, returns a `TimeSlotErr` error.
-pub async fn timeslot_add(timeslots: &Pool<Postgres>, timeslot: TimeSlotWithoutId) -> Result<i32, Box<dyn Error>> {
-    let timeslot_id: (i32,) = sqlx::query_as(r#"INSERT INTO time_slots (start_time, end_time, duration, speaker_id) VALUES ($1, $2, $3, $4) RETURNING id"#)
+pub async fn timeslot_add(timeslots: &Pool<Postgres>, timeslot: TimeSlot) -> Result<i32, Box<dyn Error>> {
+    let timeslot_id: (i32,) = sqlx::query_as(r#"INSERT INTO time_slots (start_time, end_time, duration, speaker_id, schedule_id, topic_id) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id"#)
         .bind(timeslot.start_time)
         .bind(timeslot.end_time)
         .bind(timeslot.duration)
         .bind(timeslot.speaker_id)
+        .bind(timeslot.schedule_id)
+        .bind(timeslot.topic_id)
         .fetch_one(timeslots)
         .await?;
 

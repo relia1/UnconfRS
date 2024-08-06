@@ -5,6 +5,7 @@ use askama_axum::IntoResponse;
 use axum::{http::StatusCode, Json, response::Response};
 use serde::{ser::SerializeStruct, Deserialize, Serialize, Serializer};
 use sqlx::{Pool, Postgres, FromRow};
+use tracing::trace;
 use utoipa::{openapi::{ObjectBuilder, RefOr, Schema, SchemaType}, ToSchema};
 
 use crate::{timeslot_model::*, topics_model::get_all_topics};
@@ -116,33 +117,9 @@ impl ScheduleError {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, FromRow)]
-pub struct ScheduleWithoutId {
-    pub num_of_timeslots: i32,
-    //#[sqlx(skip)]
-    //pub timeslots: Vec<TimeSlotWithoutId>,
-}
-
-impl ScheduleWithoutId {
-    /// Creates a new `Schedule` instance.
-    ///
-    /// # Parameters
-    ///
-    /// * `timeslots`: Vector of TimeSlots for the schedule
-    ///
-    /// # Returns
-    ///
-    /// A new `Schedule` instance with the provided parameters.
-    pub fn new(num_of_timeslots: i32/*, timeslots: Vec<TimeSlotWithoutId>*/) -> Self {
-        Self {
-            num_of_timeslots,
-            //timeslots,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, FromRow)]
 pub struct Schedule {
-    pub id: i32,
+    #[serde(skip_deserializing)]
+    pub id: Option<i32>,
     pub num_of_timeslots: i32,
     #[sqlx(skip)]
     pub timeslots: Vec<TimeSlot>,
@@ -158,7 +135,7 @@ impl Schedule {
     /// # Returns
     ///
     /// A new `Schedule` instance with the provided parameters.
-    pub fn new(id: i32, num_of_timeslots: i32, timeslots: Vec<TimeSlot>) -> Self {
+    pub fn new(id: Option<i32>, num_of_timeslots: i32, timeslots: Vec<TimeSlot>) -> Self {
         Self {
             id,
             num_of_timeslots,
@@ -201,15 +178,17 @@ pub async fn schedules_get(
     )
         .fetch_all(db_pool)
         .await?;
+    trace!("schedules get vec: {:?}", &schedules);
 
     for schedule in &mut schedules {
-        let timeslots = sqlx::query_as::<_, TimeSlot>(
+        let timeslots = sqlx::query_as::<Postgres, TimeSlot>(
             "SELECT * FROM time_slots WHERE schedule_id = $1 ORDER BY start_time;",
         )
-        .bind(schedule.id)
+        .bind(schedule.id.unwrap())
         .fetch_all(db_pool)
         .await?;
 
+        tracing::trace!("timeslots from schedule get: \n{:?}", &timeslots);
         schedule.timeslots = timeslots;
     }
 
@@ -226,70 +205,18 @@ pub async fn schedules_get(
 ///
 /// A reference to the `Schedule` instance with the specified ID, or a `ScheduleErr` error if the schedule does not exist.
 pub async fn schedule_get(schedules: &Pool<Postgres>, index: i32) -> Result<Schedule, Box<dyn Error>> {
-    /*
-    let schedule_vec = vec![];
-    let schedule_info = sqlx::query_as<Postgres, Schedule>(
-        "SELECT * FROM schedules WHERE id = $1;"
-    )
-        .bind(index)
-        .fetch_one(schedules)
-        .await?;
-
-    let time_slots = sqlx::query_as::<Postgres, TimeSlot>(
-        "SELECT ts.*, t.title, t.content, s.name as speaker_name, s.email, s.phone_number
-        FROM time_slots ts
-        JOIN topics t ON ts.topic_id = t.id
-        JOIN speakers s ON ts.speaker_id = s.id
-        WHERE ts.schedule_id = $1;",
-    )
-        .bind(index)
-        .fetch_all(schedules)
-        .await?;
-
-    let schedule = Schedule {
-        id: index,
-        num_of_timeslots: schedule_info.num_of_timeslots,
-        timeslots: time_slots.into_iter().map(|ts| {
-            id: ts.id,
-        })
-    }
-*/
     let schedule_vec = sqlx::query_as::<Postgres, Schedule>(
-        "select ts.*, t.*, sched.*, s.* from time_slots ts
-join schedules sched on ts.schedule_id = sched.id
-left join topics t on t.id = ts.topic_id
-left join speakers s on ts.speaker_id = s.id
-where ts.schedule_id = 1
-group by ts.id, t.id, s.id, sched.id;"/*
-        "SELECT ts.id, ts.start_time, ts.end_time, ts.duration, ts.speaker_id,
-             t.id as topic_id, t.title, t.content,
-             s.id as speaker_id, s.name, s.email, s.phone_number,
-             sched.num_of_timeslots
-        FROM time_slots ts
-        JOIN schedules sched ON ts.speaker_id = sched.id
-        JOIN topics t ON ts.topic_id = t.id
-        JOIN speakers s ON ts.speaker_id = s.id
-        WHERE ts.schedule_id = $1
-        GROUP BY ts.id, t.id, s.id, sched.num_of_timeslots;",*/
+        r#"select ts.*, t.*, sched.*, s.* from time_slots ts
+        join schedules sched on ts.schedule_id = sched.id
+        left join topics t on t.id = ts.topic_id
+        left join speakers s on ts.speaker_id = s.id
+        where ts.schedule_id = $1
+        group by ts.id, t.id, s.id, sched.id;"#
     )
     .bind(index)
     .fetch_one(schedules)
     .await?;
 
-
-
-/*
-    let schedule_vec = vec![];
-    let schedule = sqlx::query_as::<Postgres, TimeSlot>(
-        "SELECT *
-        FROM time_slots
-        WHERE id = $1;",
-    )
-        .bind(index)
-        .fetch_all(schedules)
-        .await?;
-
-    //schedule_vec.push(<Schedule as std::convert::From<PgRow>>::from(schedule));*/
     Ok(schedule_vec)
 }
 
@@ -303,7 +230,7 @@ group by ts.id, t.id, s.id, sched.id;"/*
 ///
 /// A `Result` indicating whether the schedule was added successfully.
 /// If the schedule already exists, returns a `ScheduleErr` error.
-pub async fn schedule_add(schedules: &Pool<Postgres>, schedule: ScheduleWithoutId) -> Result<i32, Box<dyn Error>> {
+pub async fn schedule_add(schedules: &Pool<Postgres>, schedule: Schedule) -> Result<i32, Box<dyn Error>> {
     let sched_row: (i32,) = sqlx::query_as(r#"INSERT INTO schedules (num_of_timeslots) VALUES ($1) RETURNING id"#)
         .bind(schedule.num_of_timeslots)
         .fetch_one(schedules)
@@ -354,25 +281,29 @@ pub async fn schedule_update(schedules: &Pool<Postgres>, index: i32, schedule: S
 pub async fn schedule_generate(db_pool: &Pool<Postgres>, num_of_timeslots: i32) -> Result<Schedule, Box<dyn Error>> {
     let topics = get_all_topics(db_pool).await?;
     let num_of_topics = topics.len();
-    let schedule = ScheduleWithoutId::new(num_of_timeslots);
+    let timeslots = vec![];
+    let mut schedule = Schedule::new(None, num_of_timeslots, timeslots);
     let sched_id = schedule_add(db_pool, schedule.clone()).await?;
-    let mut timeslots = vec![];
+    schedule.id = Some(sched_id);
     tracing::debug!("num timeslots: {}", num_of_timeslots);
 
     for i in 0..(num_of_timeslots as usize) {
         if i < num_of_topics {
             let topic = &topics[i];
-            let new_timeslot = TimeSlotWithoutId::new(0, 0, 0, topic.speaker_id, sched_id, Some(topic.id));
-            let timeslot_id = timeslot_add(db_pool, new_timeslot.clone()).await?;
-            timeslots.push(TimeSlot::new(timeslot_id, 0, 0, 0, topic.speaker_id, sched_id, Some(topic.id)));
+            trace!("new topic: {:?}", &topic);
+            let mut new_timeslot = TimeSlot::new(None, 0, 0, 0, Some(topic.speaker_id), Some(sched_id), topic.id);
+            new_timeslot.id = Some(timeslot_add(db_pool, new_timeslot.clone()).await?);
+            trace!("new timeslot: {:?}", &new_timeslot);
+            schedule.timeslots.push(new_timeslot);
         } else {
-            let new_timeslot = TimeSlotWithoutId::new(-1, -1, -1, -1, sched_id, None);
-            let timeslot_id = timeslot_add(db_pool, new_timeslot.clone()).await?;
-            timeslots.push(TimeSlot::new(timeslot_id, -1, -1, -1, -1, sched_id, None));
+            let mut new_timeslot = TimeSlot::new(None, 0, 0, 0, None, Some(sched_id), None);
+            // let new_timeslot = TimeSlot::new(-1, -1, -1, None, sched_id, None);
+            new_timeslot.id = Some(timeslot_add(db_pool, new_timeslot.clone()).await?);
+            schedule.timeslots.push(new_timeslot);
         }
     }
 
-    let sched = Schedule::new(sched_id, num_of_timeslots, timeslots);
-    tracing::trace!("schedule generate sched: {:?}", &sched);
-    Ok(sched)
+    //let sched = Schedule::new(Some(sched_id), num_of_timeslots, timeslots);
+    tracing::trace!("schedule generate sched: {:?}", &schedule);
+    Ok(schedule)
 }

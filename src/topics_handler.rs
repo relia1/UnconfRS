@@ -26,7 +26,7 @@ use crate::UnconfData;
         update_topic,
     ),
     components(
-        schemas(TopicWithoutId, TopicError)
+        schemas(Topic, TopicError)
     ),
     tags(
         (name = "Topics Server API", description = "Topics Server API")
@@ -102,7 +102,7 @@ pub async fn get_topic(
 )]
 pub async fn post_topic(
     State(topics): State<Arc<RwLock<UnconfData>>>,
-    Json(topic): Json<TopicWithoutId>,
+    Json(topic): Json<Topic>,
 ) -> Response {
     tracing::info!("post topic!");
     let write_lock = topics.write().await;

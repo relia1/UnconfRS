@@ -7,15 +7,16 @@ use serde::{ser::SerializeStruct, Deserialize, Serialize, Serializer};
 use sqlx::{FromRow, Pool, Postgres, Row};
 use utoipa::{openapi::{ObjectBuilder, RefOr, Schema, SchemaType}, ToSchema};
 
+/*
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, FromRow)]
-pub struct SpeakerWithoutId {
+pub struct Speaker {
     pub name: String,
     pub email: String,
     pub phone_number: String,
 }
 
-impl SpeakerWithoutId {
-    /// Creates a new `SpeakerWithoutId` instance.
+impl Speaker {
+    /// Creates a new `Speaker` instance.
     ///
     /// # Parameters
     ///
@@ -34,12 +35,12 @@ impl SpeakerWithoutId {
         }
     }
 }
-
+*/
 
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, FromRow)]
 pub struct Speaker {
-    pub speaker_id: i32,
+    pub speaker_id: Option<i32>,
     pub name: String,
     pub email: String,
     pub phone_number: String,
@@ -143,7 +144,7 @@ impl Speaker {
     /// # Returns
     ///
     /// A new `Speaker` instance with the provided parameters.
-    pub fn new(speaker_id: i32, name: String, email: String, phone_number: String) -> Self {
+    pub fn new(speaker_id: Option<i32>, name: String, email: String, phone_number: String) -> Self {
         Self {
             speaker_id,
             name,
@@ -246,7 +247,7 @@ pub async fn speaker_get(speakers: &Pool<Postgres>, index: i32) -> Result<Vec<Sp
 ///
 /// A `Result` indicating whether the speaker was added successfully.
 /// If the speaker already exists, returns a `SpeakerErr` error.
-pub async fn speaker_add(speakers: &Pool<Postgres>, speaker: SpeakerWithoutId) -> Result<i32, Box<dyn Error>> {
+pub async fn speaker_add(speakers: &Pool<Postgres>, speaker: Speaker) -> Result<i32, Box<dyn Error>> {
     tracing::debug!("adding speaker");
     let row: (i32,) = sqlx::query_as(
         "INSERT INTO speakers (name, email, phone_number) VALUES ($1, $2, $3) RETURNING id",
@@ -308,7 +309,7 @@ pub async fn speaker_update(
     speaker_to_update[0].email.clone_from(&email);
     speaker_to_update[0].phone_number.clone_from(&phone_number);
 
-    sqlx::query_as::<Postgres, SpeakerWithoutId>(
+    sqlx::query_as::<Postgres, Speaker>(
         "UPDATE speakers
         SET name = $1, email = $2, phone_number = $3
         WHERE id = $3;",
