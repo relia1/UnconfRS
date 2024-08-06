@@ -74,7 +74,7 @@
         <h1>Topics</h1>
         <ul>
             {% for topic in topics %}
-                <li>{{ topic.id }}: {{ topic.title }} </li>
+                <li>{{ topic.id.unwrap_or(-1) }}: {{ topic.title }} </li>
                 <p>{{ topic.content }} </p>
                 <p>speaker id: {{ topic.speaker_id }} </p>
             {% endfor %}
