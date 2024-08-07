@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block title %}MVP{% endblock %}
+
+{% block head %}
+<script>
+
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('generate_slots').addEventListener('click', function() {
+        const numSlots = document.getElementById('num_of_timeslots').value;
+        const container = document.getElementById('timeslots_container');
+        const template = document.getElementById('timeslot_template');
+
+        container.innerHTML = '';
+        for (let i = 0; i < numSlots; i++) {
+            const clone = template.content.cloneNode(true);
+            clone.querySelector('.slot-number').textContent = i + 1;
+            container.appendChild(clone);
+        }
+    });
+});
+
+async function submitForm(event) {
+    event.preventDefault(); // Prevent the default form submission
+    const form = document.getElementById('scheduleForm');
+    const formData = new FormData(form);
+
+    const data = {
+        num_of_timeslots: Number(formData.get('num_of_timeslots')),
+        start_time: formData.getAll('start_time[]'),
+        end_time: formData.getAll('end_time[]'),
+    };
+
+    fetch('api/v1/schedules/add', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+    })
+    .then(response => response.json());
+}
+</script>
+{% endblock %}
+
+{% block content %}
+<h1>Create Schedule</h1>
+<form id="scheduleForm" onSubmit="submitForm(event)">
+    <label for="num_of_timeslots">Number of Time Slots:</label>
+    <input type="number" id="num_of_timeslots" name="num_of_timeslots" min="1" max="20" value="5">
+    <button type="button" id="generate_slots">Generate Time Slots</button>
+
+    <div id="timeslots_container">
+        <!-- Time slots will be dynamically added here -->
+    </div>
+
+    <button type="submit">Create Schedule</button>
+</form>
+
+<template id="timeslot_template">
+    <div class="timeslot">
+        <h3>Time Slot <span class="slot-number"></span></h3>
+        <label>Start Time:
+            <input type="time" name="start_time[]" required>
+        </label>
+        <label>End Time:
+            <input type="time" name="end_time[]" required>
+        </label>
+    </div>
+</template>
+{% endblock %}
