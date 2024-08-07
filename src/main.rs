@@ -12,6 +12,7 @@ mod pagination;
 use config::*;
 use pagination::Pagination;
 use schedule_model::{schedules_get, Schedule};
+use serde::Deserialize;
 use speakers_handler::ApiDocSpeaker;
 // use timeslot_model::ApiDocTimeslot;
 use topics_handler::*;
@@ -36,7 +37,7 @@ use askama_axum::Template;
 //use askama::Template;
 use utoipa::OpenApi;
 
-use std::net::SocketAddr;
+use std::{collections::HashMap, net::SocketAddr};
 use std::sync::Arc;
 use tokio::{self, sync::RwLock};
 extern crate tracing;
@@ -83,6 +84,8 @@ async fn main() {
         .route("/speakers/:id", delete(delete_speaker))
         .route("/speakers/:id", put(update_speaker))
         .route("/schedules/:id", get(get_schedule))
+        .route("/schedules/:id/update", put(update_schedule))
+        .route("/schedules/add", post(post_schedule))
         .route("/schedules/generate", post(generate));
 
 
@@ -173,9 +176,26 @@ async fn handler(
 }
 
 #[derive(Template, Debug)]
-#[template(path = "schedule.html")]
+#[template(path = "create_schedule.html")]
 struct ScheduleTemplate {
     schedule: Option<Schedule>,
+}
+
+/*
+#[derive(Debug, Deserialize)]
+struct CreateScheduleForm {
+    num_of_timeslots: i32,
+    //#[serde(flatten)]
+    timeslot: Vec<TimeSlotData>
+}*/
+
+#[derive(Debug, Deserialize)]
+struct CreateScheduleForm {
+    num_of_timeslots: i32,
+    //#[serde(rename = "start_time[]")]
+    start_time: Vec<String>,
+    //#[serde(rename = "end_time[]")]
+    end_time: Vec<String>,
 }
 
 async fn schedule_handler(

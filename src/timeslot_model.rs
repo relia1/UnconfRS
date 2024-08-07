@@ -6,6 +6,7 @@ use axum::{http::StatusCode, Json, response::Response};
 use serde::{ser::SerializeStruct, Deserialize, Serialize, Serializer};
 use sqlx::{FromRow, Pool, Postgres, Row};
 use utoipa::{openapi::{ObjectBuilder, RefOr, Schema, SchemaType}, ToSchema};
+use chrono::NaiveTime;
 
 /// An enumeration of errors that may occur
 #[derive(Debug, thiserror::Error, ToSchema, Serialize)]
@@ -135,9 +136,8 @@ impl TimeSlotError {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, FromRow)]
 pub struct TimeSlot {
     pub id: Option<i32>,
-    pub start_time: i32, // unix timestamp (seconds since epoch)
-    pub end_time: i32, // unix timestamp (seconds since epoch)
-    pub duration: i32, // duration in seconds
+    pub start_time: NaiveTime, // unix timestamp (seconds since epoch)
+    pub end_time: NaiveTime, // unix timestamp (seconds since epoch)
     pub speaker_id: Option<i32>, // id of the speaker
     pub schedule_id: Option<i32>, // id of the schedule
     pub topic_id: Option<i32> // id of the topic or none
@@ -146,9 +146,8 @@ pub struct TimeSlot {
 impl TimeSlot {
     pub fn new(
         id: Option<i32>,
-        start_time: i32,
-        end_time: i32,
-        duration: i32,
+        start_time: NaiveTime,
+        end_time: NaiveTime,
         speaker_id: Option<i32>,
         schedule_id: Option<i32>,
         topic_id: Option<i32>
@@ -158,7 +157,6 @@ impl TimeSlot {
             id,
             start_time,
             end_time,
-            duration,
             speaker_id,
             schedule_id,
             topic_id
@@ -277,7 +275,7 @@ pub async fn timeslot_add(timeslots: &Pool<Postgres>, timeslot: TimeSlot) -> Res
     let timeslot_id: (i32,) = sqlx::query_as(r#"INSERT INTO time_slots (start_time, end_time, duration, speaker_id, schedule_id, topic_id) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id"#)
         .bind(timeslot.start_time)
         .bind(timeslot.end_time)
-        .bind(timeslot.duration)
+        .bind(timeslot.end_time - timeslot.start_time)
         .bind(timeslot.speaker_id)
         .bind(timeslot.schedule_id)
         .bind(timeslot.topic_id)
@@ -307,6 +305,35 @@ pub async fn timeslot_delete(timeslots: &Pool<Postgres>, index: i32) -> Result<(
     .bind(index)
     .execute(timeslots)
     .await?;
+
+    Ok(())
+}
+
+/// Removes a timeslot by its ID.
+///
+/// # Parameters
+///
+/// * `index`: The ID of the timeslot.
+///
+/// # Returns
+///
+/// A `Result` indicating whether the timeslot was removed successfully.
+/// If the timeslot does not exist, returns a `TimeSlotErr` error.
+pub async fn timeslot_update(timeslots: &Pool<Postgres>, timeslot: &TimeSlot) -> Result<(), Box<dyn Error>> {
+    sqlx::query(
+        r#"
+        UPDATE time_slots SET start_time = $2, end_time = $3, speaker_id = $4, schedule_id = $5, topic_id = $6
+        WHERE id = $1
+        "#,
+    )
+        .bind(timeslot.id)
+        .bind(timeslot.start_time)
+        .bind(timeslot.end_time)
+        .bind(timeslot.speaker_id)
+        .bind(timeslot.schedule_id)
+        .bind(timeslot.topic_id)
+        .execute(timeslots)
+        .await?;
 
     Ok(())
 }

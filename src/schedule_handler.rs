@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use axum::Form;
 use tokio::sync::RwLock;
 
 use askama_axum::IntoResponse;
@@ -12,6 +13,7 @@ use axum::extract::Path;
 use crate::schedule_model::Schedule;
 use crate::schedule_model::ScheduleError;
 use crate::timeslot_model::TimeSlot;
+use crate::CreateScheduleForm;
 use crate::StatusCode;
 
 use crate::schedule_model::*;
@@ -94,11 +96,12 @@ pub async fn get_schedule(
 )]
 pub async fn post_schedule(
     State(schedules): State<Arc<RwLock<UnconfData>>>,
-    Json(schedule): Json<Schedule>,
+    Json(schedule_form): Json<CreateScheduleForm>
+    //Json(schedule): Json<Schedule>,
 ) -> Response {
-    tracing::info!("post schedule!");
+    tracing::info!("\n\nposting schedule!\n\n");
     let write_lock = schedules.write().await;
-    match schedule_add(&write_lock.unconf_db, schedule).await {
+    match schedule_add(&write_lock.unconf_db, Json(schedule_form)).await {
         Ok(id) => {
             trace!("id: {:?}\n", id);
             StatusCode::CREATED.into_response()
@@ -168,7 +171,7 @@ pub async fn generate(
     State(topics): State<Arc<RwLock<UnconfData>>>,
 ) -> Response {
     let write_lock = topics.write().await;
-    let res = schedule_generate(&write_lock.unconf_db, 5).await;
+    let res = schedule_generate(&write_lock.unconf_db).await;
     match res {
         Ok(schedule) => {
             Json(schedule).into_response()
