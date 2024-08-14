@@ -35,6 +35,7 @@ USER appuser
 
 # Copy the executable from the "build" stage.
 COPY --from=build /app/target/release/Thesis /bin/
+COPY --from=build /app/templates/ /
 RUN ls -l
 # COPY --chown=appuser:appuser ./assets ./assets
 #COPY --chown=appuser:appuser migrations/ /migrations/
