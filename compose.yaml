@@ -45,6 +45,9 @@ services:
       - POSTGRES_DB=db
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD_FILE=/run/secrets/db-password
+      - POSTGRES_LOGGING_COLLECTOR=on
+      - POSTGRES_LOG_STATEMENT=all
+
     expose:
       - 5432:5432
     ports:
@@ -54,6 +57,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    command: ["postgres", "-c", "log_statement=all", "-c", "log_destination=stderr"]
+
 volumes:
   db-data:
 secrets:
