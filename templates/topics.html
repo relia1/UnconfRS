@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+
+    {% block title %}MVP{% endblock %}
+
+    {% block head %}
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.11.3/css/jquery.dataTables.css"/>
+    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/rowreorder/1.2.8/css/rowReorder.dataTables.css"/>
+
+    <script type="text/javascript" src="https://cdn.datatables.net/1.11.3/js/jquery.dataTables.js"></script>
+    <script type="text/javascript" src="https://cdn.datatables.net/rowreorder/1.2.8/js/dataTables.rowReorder.js"></script>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        let table;
+
+        $(document).ready(function () {
+            table = $('.topicsTable').DataTable({
+                searching: true,
+                ordering: true,
+                paging: true,
+                responsive: true
+            });
+        });
+    });
+
+    async function submitForm(event) {
+        event.preventDefault(); // Prevent the default form submission
+
+        const title = document.getElementById('title').value;
+        const content = document.getElementById('topicContent').value;
+        const name = document.getElementById('name').value;
+        const phone_number = document.getElementById('phone_number').value;
+        const email = document.getElementById('email').value;
+
+        try {
+            const add_speaker = await fetch('/api/v1/speakers/add', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ content, name, email, phone_number })
+            })
+                .then(response => response.json());
+            //.catch(error => console.error('Error:', error));
+            const speaker_id = await JSON.parse(add_speaker).id;
+
+            try {
+                fetch('/api/v1/topics/add', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ speaker_id, title, content })
+                });
+                //.then(response => response.json())
+                //.then(data => alert('Topic submitted successfully!'));
+                //.catch(error => console.error('Error:', error));
+            } catch (error) {
+                console.log('Error submitting topic: ', error);
+            }
+        } catch (error) {
+            console.log('Error adding speaker: ', error);
+        }
+    }
+    </script>
+
+    {% endblock %}
+
+    {% block content %}
+    <h1>Submit a Topic</h1>
+    <form id="topicForm" onSubmit="submitForm(event)">
+        <div>
+            <label for="title">Title:</label>
+            <input type="text" id="title" name="title" required>
+        </div>
+        <div>
+            <label for="content">Content:</label>
+            <textarea id="topicContent" name="content" required></textarea>
+        </div>
+        <div>
+            <label for="name">Name:</label>
+            <input id="name" name="name" required></label>
+        </div>
+        <div>
+            <label for="email">Email:</label>
+            <input type="email" id="email" name="email" required></label>
+        </div>
+        <div>
+            <label for="phone_number">Phone Number:</label>
+            <input type="tel" id="phone_number" name="phone_number" required></label>
+        </div>
+        <button type="submit">Submit</button>
+    </form>
+    </br></br>
+
+    <h1>Topics</h1>
+    <div class="grid-container-element">
+        <div class="grid-child-element">
+            <table class="topicsTable">
+                <thead>
+                    <tr>
+                        <th>Topic ID</th>
+                        <th>Title</th>
+                        <th>Speaker ID</th>
+                        <th>Content</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for topic in topics %}
+                    <tr data-topic-id={{ topic.id.unwrap() }}>
+                        <td>
+                            {{ topic.id.unwrap() }}
+                        </td>
+                        <td>
+                            {{ topic.title }}
+                        </td>
+                        <td>
+                            {{ topic.speaker_id }}
+                        </td>
+                        <td>
+                            {{ topic.content }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endblock %}

@@ -1,71 +1,166 @@
 {% extends "base.html" %}
 
-{% block title %}MVP{% endblock %}
+    {% block title %}MVP{% endblock %}
 
-{% block head %}
-<script>
+    {% block head %}
+    <script src="scripts/create_schedule.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.11.3/css/jquery.dataTables.css"/>
+    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/rowreorder/1.2.8/css/rowReorder.dataTables.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 
-document.addEventListener('DOMContentLoaded', function() {
-    document.getElementById('generate_slots').addEventListener('click', function() {
-        const numSlots = document.getElementById('num_of_timeslots').value;
-        const container = document.getElementById('timeslots_container');
-        const template = document.getElementById('timeslot_template');
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr">
 
-        container.innerHTML = '';
-        for (let i = 0; i < numSlots; i++) {
-            const clone = template.content.cloneNode(true);
-            clone.querySelector('.slot-number').textContent = i + 1;
-            container.appendChild(clone);
-        }
-    });
-});
+    </script>
+    <script type="text/javascript" src="https://cdn.datatables.net/1.11.3/js/jquery.dataTables.js"></script>
+    <script type="text/javascript" src="https://cdn.datatables.net/rowreorder/1.2.8/js/dataTables.rowReorder.js"></script>
 
-async function submitForm(event) {
-    event.preventDefault(); // Prevent the default form submission
-    const form = document.getElementById('scheduleForm');
-    const formData = new FormData(form);
-
-    const data = {
-        num_of_timeslots: Number(formData.get('num_of_timeslots')),
-        start_time: formData.getAll('start_time[]'),
-        end_time: formData.getAll('end_time[]'),
-    };
-
-    fetch('api/v1/schedules/add', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-    })
-    .then(response => response.json());
+    <style>
+.grid-container-element {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-gap: 20px;
 }
-</script>
-{% endblock %}
+.grid-child-element {
+    margin: 10px;
+}
+    </style>
+    {% endblock %}
 
-{% block content %}
-<h1>Create Schedule</h1>
-<form id="scheduleForm" onSubmit="submitForm(event)">
-    <label for="num_of_timeslots">Number of Time Slots:</label>
-    <input type="number" id="num_of_timeslots" name="num_of_timeslots" min="1" max="20" value="5">
-    <button type="button" id="generate_slots">Generate Time Slots</button>
+    {% block content %}
+    <!--
+    If we have a schedule then we need to display it and give the option to
+    populate the schedule with our topics.
 
-    <div id="timeslots_container">
-        <!-- Time slots will be dynamically added here -->
+    Otherwise show the form to allow the user to create a schedule
+    -->
+    {% if let Some(value) = schedule %}
+    <h1>Schedule</h1>
+    <div>
+        <form id="generateScheduleForm" onSubmit="generate(event)">
+            <button type="submit">Populate Schedule</button>
+        </form>
+        <form id="updateSchedule" onSubmit="updateSchedule(event, '{{ value.id.unwrap() }}')">
+            <button type="submit">Update Schedule</button>
+        </form>
+
+
+        <div class="grid-container-element">
+            <div class="grid-child-element">
+                <table class="scheduleTable">
+                    <thead>
+                        <tr>
+                            <th>Start Time</th>
+                            <th>End Time</th>
+                            <th>Speaker</th>
+                            <th>Topic</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for timeslot in value.timeslots %}
+                        <tr data-timeslot-id={{ timeslot.id.unwrap() }}>
+                            <td>
+                                {{ timeslot.start_time }}
+                            </td>
+                            <td>
+                                {{ timeslot.end_time }}
+                            </td>
+                            <td>
+                                {% if let Some(speaker_id) = timeslot.speaker_id  %}
+                                {{ speaker_id }}
+                                {% else %}
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if let Some(topic_id) = timeslot.topic_id  %}
+                                {{ topic_id }}
+                                {% else %}
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="grid-child-element">
+                <table class="scheduleTable">
+                    <thead>
+                        <tr>
+                            <th>Start Time</th>
+                            <th>End Time</th>
+                            <th>Speaker</th>
+                            <th>Topic</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for timeslot in value.timeslots %}
+                        <tr data-timeslot-id={{ timeslot.id.unwrap() }}>
+                            <td>
+                                {{ timeslot.start_time }}
+                            </td>
+                            <td>
+                                {{ timeslot.end_time }}
+                            </td>
+                            <td>
+                                {% if let Some(speaker_id) = timeslot.speaker_id  %}
+                                {{ speaker_id }}
+                                {% else %}
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if let Some(topic_id) = timeslot.topic_id  %}
+                                {{ topic_id }}
+                                {% else %}
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+
+            </div>
+        </div>
     </div>
 
-    <button type="submit">Create Schedule</button>
-</form>
+    {% else %}
+    <h1>Unconf Schedule</h1>
+    <script>
+window.onload = function() {
+    createScheduleTemplate();
+    flatpickr(".time-picker", {
+        enableTime: true,
+        noCalendar: true,
+        dateFormat: "H:i",
+        time_24hr: true,
+        minuteIncrement: 30 // Only shows minutes like 00, 15, 30, 45
+    });
 
-<template id="timeslot_template">
-    <div class="timeslot">
-        <h3>Time Slot <span class="slot-number"></span></h3>
-        <label>Start Time:
-            <input type="time" name="start_time[]" required>
-        </label>
-        <label>End Time:
-            <input type="time" name="end_time[]" required>
-        </label>
-    </div>
-</template>
-{% endblock %}
+};
+    </script>
+    <h1>Create Schedule</h1>
+    <form id="scheduleForm" onSubmit="submitForm(event)">
+        <!--
+<label for="num_of_timeslots">Number of Time Slots:</label>
+<input type="number" id="num_of_timeslots" name="num_of_timeslots" min="1" max="20" value="5">
+<button type="button" id="generate_slots">Generate Time Slots</button>
+-->
+        <div id="timeslots_container">
+            <!-- Time slots will be dynamically added here -->
+        </div>
+
+        <button type="submit">Create Schedule</button>
+    </form>
+
+    <template id="timeslot_template">
+        <div class="timeslot">
+            <h3>Time Slot <span class="slot-number"></span></h3>
+            <label>Start Time:
+                <input type="text" name="start_time[]" class=".time-picker" required>
+            </label>
+            <label>End Time:
+                <input type="text" name="end_time[]" class=".time-picker" required>
+            </label>
+        </div>
+    </template>
+    {% endif %}
+    {% endblock %}

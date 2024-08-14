@@ -1,83 +1,13 @@
-<html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>MVP</title>
-        <script>
-        async function submitForm(event) {
-            event.preventDefault(); // Prevent the default form submission
+{% extends "base.html" %}
 
-            const title = document.getElementById('title').value;
-            const content = document.getElementById('content').value;
-            const name = document.getElementById('name').value;
-            const phone_number = document.getElementById('phone_number').value;
-            const email = document.getElementById('email').value;
+{% block title %}MVP{% endblock %}
 
-            try {
-                const add_speaker = await fetch('/api/v1/speakers/add', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ name, email, phone_number })
-                })
-                .then(response => response.json());
-                //.catch(error => console.error('Error:', error));
-                const speaker_id = await JSON.parse(add_speaker).id;
+{% block head %}
+{% endblock %}
 
-                try {
-                    fetch('/api/v1/topics/add', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({ speaker_id, title, content })
-                    });
-                    //.then(response => response.json())
-                    //.then(data => alert('Topic submitted successfully!'));
-                    //.catch(error => console.error('Error:', error));
-                } catch (error) {
-                    console.log('Error submitting topic: ', error);
-                }
-            } catch (error) {
-                console.log('Error adding speaker: ', error);
-            }
-        }
-    </script>
-    </head>
-    <body>
-        <h1>Submit a Topic</h1>
-        <form id="topicForm" onSubmit="submitForm(event)">
-            <div>
-                <label for="title">Title:</label>
-                <input type="text" id="title" name="title" required>
-            </div>
-            <div>
-                <label for="content">Content:</label>
-                <textarea id="content" name="content" required></textarea>
-            </div>
-            <div>
-                <label for="name">Name:</label>
-                <input id="name" name="name" required></label>
-            </div>
-            <div>
-                <label for="email">Email:</label>
-                <input type="email" id="email" name="email" required></label>
-            </div>
-            <div>
-                <label for="phone_number">Phone Number:</label>
-                <input type="tel" id="phone_number" name="phone_number" required></label>
-            </div>
-            <button type="submit">Submit</button>
-        </form>
-        </br></br>
-        <h1>Topics</h1>
-        <ul>
-            {% for topic in topics %}
-                <li>{{ topic.id.unwrap_or(-1) }}: {{ topic.title }} </li>
-                <p>{{ topic.content }} </p>
-                <p>speaker id: {{ topic.speaker_id }} </p>
-            {% endfor %}
-        </ul>
-    </body>
-</html>
+{% block content %}
+<h1>Landing Page</h1>
+<p>
+    Information about the tool relating to topics/schedules
+</p>
+{% endblock %}
