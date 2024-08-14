@@ -133,6 +133,7 @@ impl TimeSlotError {
     }
 }
 
+#[serde_with::skip_serializing_none]
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, FromRow)]
 pub struct TimeSlot {
     pub id: Option<i32>,

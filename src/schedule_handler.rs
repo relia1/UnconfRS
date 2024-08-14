@@ -150,9 +150,10 @@ pub async fn update_schedule(
     Path(schedule_id): Path<i32>,
     Json(schedule): Json<Schedule>,
 ) -> Response {
+    trace!("schedule id: {:?}", &schedule.id);
     let write_lock = schedules.write().await;
     match schedule_update(&write_lock.unconf_db, schedule_id, schedule).await {
-        Ok(_) => StatusCode::OK.into_response(),
+        Ok(schedule) => Json(schedule).into_response(),
         Err(e) => ScheduleError::response(StatusCode::BAD_REQUEST, e),
     }
 }

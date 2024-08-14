@@ -294,11 +294,12 @@ pub async fn schedule_delete(schedules: &Pool<Postgres>, index: i32) -> Result<(
 }
 
 pub async fn schedule_update(schedules: &Pool<Postgres>, index: i32, schedule: Schedule) -> Result<Schedule, Box<dyn Error>> {
+    let mut tx = schedules.begin().await?;
     let mut schedule_to_update = sqlx::query_as::<Postgres, Schedule>(
         r#"SELECT * FROM schedules WHERE id = $1"#,
     )
         .bind(index)
-        .fetch_one(schedules)
+        .fetch_one(&mut *tx)
         .await?;
 
     if schedule.num_of_timeslots != schedule_to_update.num_of_timeslots {
@@ -311,18 +312,58 @@ pub async fn schedule_update(schedules: &Pool<Postgres>, index: i32, schedule: S
         )
             .bind(schedule.num_of_timeslots)
             .bind(index)
-            .execute(schedules)
+            .execute(&mut *tx)
             .await?;
     }
 
-    for timeslot in schedule.timeslots {
-        if let Some(timeslot_to_update) = schedule_to_update.timeslots.iter_mut().find(|t| t.id == timeslot.id) {
-            *timeslot_to_update = timeslot.clone();
-            timeslot_update(schedules, &timeslot_to_update).await?;
-        }
+    sqlx::query(
+        "CREATE TEMPORARY TABLE temp_updates (
+                 id INT,
+                 start_time TIME,
+                 end_time TIME,
+                 duration INTERVAL,
+                 speaker_id INT,
+                 topic_id INT,
+                 schedule_id INT
+             ) ON COMMIT DROP"
+    )
+        .execute(&mut *tx)
+        .await?;
+
+    for timeslot in &schedule.timeslots {
+        sqlx::query(
+            "INSERT INTO temp_updates (id, start_time, end_time, duration, speaker_id, topic_id, schedule_id)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)"
+        )
+            .bind(timeslot.id)
+            .bind(timeslot.start_time)
+            .bind(timeslot.end_time)
+            .bind(timeslot.end_time - timeslot.start_time)
+            .bind(timeslot.speaker_id)
+            .bind(timeslot.topic_id)
+            .bind(index)
+            .execute(&mut *tx)
+            .await?;
     }
 
-    Ok(schedule_to_update)
+    sqlx::query(
+        "UPDATE time_slots ts
+        SET
+            start_time = tu.start_time,
+            end_time = tu.end_time,
+            duration = tu.duration,
+            speaker_id = tu.speaker_id,
+            topic_id = tu.topic_id
+        FROM temp_updates tu
+        WHERE ts.id = tu.id AND ts.schedule_id = $1"
+    )
+        .bind(index)
+        .execute(&mut *tx)
+        .await?;
+
+    tx.commit().await?;
+
+    Ok(schedule)
 }
 
 

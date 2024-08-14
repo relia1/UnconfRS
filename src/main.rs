@@ -14,6 +14,7 @@ use pagination::Pagination;
 use schedule_model::{schedules_get, Schedule};
 use serde::Deserialize;
 use speakers_handler::ApiDocSpeaker;
+use timeslot_model::TimeSlot;
 // use timeslot_model::ApiDocTimeslot;
 use topics_handler::*;
 use schedule_handler::*;
@@ -29,7 +30,7 @@ use tracing_subscriber::{fmt, EnvFilter};
 extern crate serde_json;
 extern crate thiserror;
 use axum::{
-    extract::State, extract::Query, http::StatusCode, response::{Html, IntoResponse, Response}, routing::{delete, get, post, put}, Router
+    extract::{Path, Query, State}, http::StatusCode, response::{Html, IntoResponse, Response}, routing::{delete, get, post, put}, Router
 };
 
 // use askama_axum::Template;
@@ -37,9 +38,9 @@ use askama_axum::Template;
 //use askama::Template;
 use utoipa::OpenApi;
 
-use std::{collections::HashMap, net::SocketAddr};
+use std::net::SocketAddr;
 use std::sync::Arc;
-use tokio::{self, sync::RwLock};
+use tokio::{self, sync::RwLock, fs::read_to_string};
 extern crate tracing;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use utoipa_rapidoc::RapiDoc;
@@ -48,6 +49,13 @@ use utoipa_swagger_ui::SwaggerUi;
 
 async fn handler_404() -> Response {
     (StatusCode::NOT_FOUND, "404 Not Found").into_response()
+}
+
+// handler to load js scripts
+async fn script_handler(path: Path<String>) -> String {
+    let path = path.to_string();
+    let formatted_path = format!("scripts/{}", path);
+    read_to_string(formatted_path).await.unwrap()
 }
 
 #[tokio::main]
@@ -84,7 +92,7 @@ async fn main() {
         .route("/speakers/:id", delete(delete_speaker))
         .route("/speakers/:id", put(update_speaker))
         .route("/schedules/:id", get(get_schedule))
-        .route("/schedules/:id/update", put(update_schedule))
+        .route("/schedules/:id", put(update_schedule))
         .route("/schedules/add", post(post_schedule))
         .route("/schedules/generate", post(generate));
 
@@ -111,8 +119,10 @@ async fn main() {
 
 
     let app = Router::new()
-        .route("/", get(handler))
+        .route("/", get(index_handler))
         .route("/schedules", get(schedule_handler))
+        .route("/topics", get(topic_handler))
+        .route("/scripts/:path", get(script_handler))
         .nest("/api/v1", apis)
         .merge(swagger_ui)
         .merge(redoc_ui)
@@ -147,55 +157,33 @@ async fn main() {
 
 #[derive(Template, Debug)]
 #[template(path = "index.html")]
-struct IndexTemplate {
-    topics: Vec<Topic>,
-}
+struct IndexTemplate;
 
-async fn handler(
-    State(state): State<Arc<RwLock<UnconfData>>>,
-    Query(params): Query<Pagination>,
-) -> Response {
-    let write_lock = state.write().await;
-    let topics = paginated_get(&write_lock.unconf_db, params.page, params.limit).await;
-
-    match topics {
-        Ok(topics) => {
-            tracing::debug!("{:?}", topics);
-            let template = IndexTemplate { topics };
-
-            match template.render() {
-                Ok(html) => Html(html).into_response(),
-                Err(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
-            }
-        },
-        Err(e) => {
-            tracing::debug!(e);
-            Html("<h1>Error fetching topics</h1>".to_string()).into_response()
-        },
-    }
+async fn index_handler() -> Response {
+    IndexTemplate.into_response()
 }
 
 #[derive(Template, Debug)]
 #[template(path = "create_schedule.html")]
 struct ScheduleTemplate {
     schedule: Option<Schedule>,
+    /*
+    * We need to have topic and speaker data returned back as well
+    */
 }
 
-/*
 #[derive(Debug, Deserialize)]
 struct CreateScheduleForm {
     num_of_timeslots: i32,
-    //#[serde(flatten)]
-    timeslot: Vec<TimeSlotData>
-}*/
+    start_time: Vec<String>,
+    end_time: Vec<String>,
+}
 
 #[derive(Debug, Deserialize)]
-struct CreateScheduleForm {
+struct UpdateSchedule {
+    id: i32,
     num_of_timeslots: i32,
-    //#[serde(rename = "start_time[]")]
-    start_time: Vec<String>,
-    //#[serde(rename = "end_time[]")]
-    end_time: Vec<String>,
+    timeslots: Vec<TimeSlot>,
 }
 
 async fn schedule_handler(
@@ -216,5 +204,36 @@ async fn schedule_handler(
             }
         },
         _ => Html("<h1>Error fetching schedule</h1>".to_string()).into_response(),
+    }
+}
+
+
+#[derive(Template, Debug)]
+#[template(path = "topics.html")]
+struct TopicsTemplate {
+    topics: Vec<Topic>,
+}
+
+async fn topic_handler(
+    State(state): State<Arc<RwLock<UnconfData>>>,
+    Query(params): Query<Pagination>,
+) -> Response {
+    let write_lock = state.write().await;
+    let topics = paginated_get(&write_lock.unconf_db, params.page, params.limit).await;
+
+    match topics {
+        Ok(topics) => {
+            tracing::debug!("{:?}", topics);
+            let template = TopicsTemplate { topics };
+
+            match template.render() {
+                Ok(html) => Html(html).into_response(),
+                Err(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+            }
+        },
+        Err(e) => {
+            tracing::debug!(e);
+            Html("<h1>Error fetching topics</h1>".to_string()).into_response()
+        },
     }
 }
