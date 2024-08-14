@@ -208,7 +208,7 @@ pub async fn schedules_get(
 /// # Returns
 ///
 /// A reference to the `Schedule` instance with the specified ID, or a `ScheduleErr` error if the schedule does not exist.
-pub async fn schedule_get(schedules: &Pool<Postgres>, index: i32) -> Result<Schedule, Box<dyn Error>> {
+pub async fn schedule_get(db_pool: &Pool<Postgres>, index: i32) -> Result<Schedule, Box<dyn Error>> {
     let schedule_vec = sqlx::query_as::<Postgres, Schedule>(
         r#"select ts.*, t.*, sched.*, s.* from time_slots ts
         join schedules sched on ts.schedule_id = sched.id
@@ -218,7 +218,7 @@ pub async fn schedule_get(schedules: &Pool<Postgres>, index: i32) -> Result<Sche
         group by ts.id, t.id, s.id, sched.id;"#
     )
     .bind(index)
-    .fetch_one(schedules)
+    .fetch_one(db_pool)
     .await?;
 
     Ok(schedule_vec)
@@ -235,12 +235,12 @@ pub async fn schedule_get(schedules: &Pool<Postgres>, index: i32) -> Result<Sche
 /// A `Result` indicating whether the schedule was added successfully.
 /// If the schedule already exists, returns a `ScheduleErr` error.
 pub async fn schedule_add(
-    schedules: &Pool<Postgres>,
+    db_pool: &Pool<Postgres>,
     Json(schedule_form): Json<CreateScheduleForm>
 ) -> Result<Schedule, Box<dyn Error>> {
     let schedule_row: (i32,) = sqlx::query_as(r#"INSERT INTO schedules (num_of_timeslots) VALUES ($1) RETURNING id"#)
         .bind(schedule_form.num_of_timeslots)
-        .fetch_one(schedules)
+        .fetch_one(db_pool)
         .await?;
 
     let schedule_id = schedule_row.0;
@@ -259,7 +259,7 @@ pub async fn schedule_add(
             Some(schedule_id),
             None
         );
-        let timeslot_id = timeslot_add(schedules, timeslot.clone()).await?;
+        let timeslot_id = timeslot_add(db_pool, timeslot.clone()).await?;
         timeslot.id = Some(timeslot_id);
         timeslots.push(timeslot);
     }
@@ -279,7 +279,7 @@ pub async fn schedule_add(
 ///
 /// A `Result` indicating whether the schedule was removed successfully.
 /// If the schedule does not exist, returns a `ScheduleErr` error.
-pub async fn schedule_delete(schedules: &Pool<Postgres>, index: i32) -> Result<(), Box<dyn Error>> {
+pub async fn schedule_delete(db_pool: &Pool<Postgres>, index: i32) -> Result<(), Box<dyn Error>> {
     sqlx::query(
         r#"
         DELETE FROM schedules
@@ -287,14 +287,14 @@ pub async fn schedule_delete(schedules: &Pool<Postgres>, index: i32) -> Result<(
         "#,
     )
     .bind(index)
-    .execute(schedules)
+    .execute(db_pool)
     .await?;
 
     Ok(())
 }
 
-pub async fn schedule_update(schedules: &Pool<Postgres>, index: i32, schedule: Schedule) -> Result<Schedule, Box<dyn Error>> {
-    let mut tx = schedules.begin().await?;
+pub async fn schedule_update(db_pool: &Pool<Postgres>, index: i32, schedule: Schedule) -> Result<Schedule, Box<dyn Error>> {
+    let mut tx = db_pool.begin().await?;
     let mut schedule_to_update = sqlx::query_as::<Postgres, Schedule>(
         r#"SELECT * FROM schedules WHERE id = $1"#,
     )

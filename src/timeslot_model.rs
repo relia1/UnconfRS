@@ -177,7 +177,7 @@ impl TimeSlot {
 /// A vector of TimeSlot's
 /// If the pagination parameters are invalid, returns a `TimeSlotErr` error.
 pub async fn timeslot_paginated_get(
-    timeslots: &Pool<Postgres>,
+    db_pool: &Pool<Postgres>,
     page: i32,
     limit: i32,
 ) -> Result<Vec<TimeSlot>, Box<dyn Error>> {
@@ -188,7 +188,7 @@ pub async fn timeslot_paginated_get(
     }
 
     let num_timeslots: i32 = sqlx::query("SELECT COUNT(*) FROM timeslots")
-        .fetch_one(timeslots)
+        .fetch_one(db_pool)
         .await?
         .get(0);
 
@@ -207,7 +207,7 @@ pub async fn timeslot_paginated_get(
     )
         .bind(limit)
         .bind(start_index)
-        .fetch_all(timeslots)
+        .fetch_all(db_pool)
         .await?;
 
     Ok(timeslots)
@@ -225,14 +225,14 @@ pub async fn timeslot_paginated_get(
 /// A vector of TimeSlot's
 /// If the pagination parameters are invalid, returns a `TimeSlotErr` error.
 pub async fn get_all_timeslots(
-    timeslots: &Pool<Postgres>,
+    db_pool: &Pool<Postgres>,
 ) -> Result<Vec<TimeSlot>, Box<dyn Error>> {
     let timeslots: Vec<TimeSlot> = sqlx::query_as(
         r#"
         SELECT * FROM time_slots
         ORDER BY id"#
     )
-        .fetch_all(timeslots)
+        .fetch_all(db_pool)
         .await?;
 
     Ok(timeslots)
@@ -248,14 +248,14 @@ pub async fn get_all_timeslots(
 /// # Returns
 ///
 /// A reference to the `TimeSlot` instance with the specified ID, or a `TimeSlotErr` error if the timeslot does not exist.
-pub async fn timeslot_get(timeslots: &Pool<Postgres>, index: i32) -> Result<Vec<TimeSlot>, Box<dyn Error>> {
+pub async fn timeslot_get(db_pool: &Pool<Postgres>, index: i32) -> Result<Vec<TimeSlot>, Box<dyn Error>> {
     let timeslots: Vec<_> = sqlx::query_as::<Postgres, TimeSlot>(
         "SELECT *
         FROM time_slots
         WHERE id = $1;",
     )
     .bind(index)
-    .fetch_all(timeslots)
+    .fetch_all(db_pool)
     .await?;
 
     //timeslot_vec.push(<TimeSlot as std::convert::From<PgRow>>::from(timeslot));
@@ -272,7 +272,7 @@ pub async fn timeslot_get(timeslots: &Pool<Postgres>, index: i32) -> Result<Vec<
 ///
 /// A `Result` indicating whether the timeslot was added successfully.
 /// If the timeslot already exists, returns a `TimeSlotErr` error.
-pub async fn timeslot_add(timeslots: &Pool<Postgres>, timeslot: TimeSlot) -> Result<i32, Box<dyn Error>> {
+pub async fn timeslot_add(db_pool: &Pool<Postgres>, timeslot: TimeSlot) -> Result<i32, Box<dyn Error>> {
     let timeslot_id: (i32,) = sqlx::query_as(r#"INSERT INTO time_slots (start_time, end_time, duration, speaker_id, schedule_id, topic_id) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id"#)
         .bind(timeslot.start_time)
         .bind(timeslot.end_time)
@@ -280,7 +280,7 @@ pub async fn timeslot_add(timeslots: &Pool<Postgres>, timeslot: TimeSlot) -> Res
         .bind(timeslot.speaker_id)
         .bind(timeslot.schedule_id)
         .bind(timeslot.topic_id)
-        .fetch_one(timeslots)
+        .fetch_one(db_pool)
         .await?;
 
     Ok(timeslot_id.0)
@@ -296,7 +296,7 @@ pub async fn timeslot_add(timeslots: &Pool<Postgres>, timeslot: TimeSlot) -> Res
 ///
 /// A `Result` indicating whether the timeslot was removed successfully.
 /// If the timeslot does not exist, returns a `TimeSlotErr` error.
-pub async fn timeslot_delete(timeslots: &Pool<Postgres>, index: i32) -> Result<(), Box<dyn Error>> {
+pub async fn timeslot_delete(db_pool: &Pool<Postgres>, index: i32) -> Result<(), Box<dyn Error>> {
     sqlx::query(
         r#"
         DELETE FROM timeslots
@@ -304,7 +304,7 @@ pub async fn timeslot_delete(timeslots: &Pool<Postgres>, index: i32) -> Result<(
         "#,
     )
     .bind(index)
-    .execute(timeslots)
+    .execute(db_pool)
     .await?;
 
     Ok(())
@@ -320,7 +320,7 @@ pub async fn timeslot_delete(timeslots: &Pool<Postgres>, index: i32) -> Result<(
 ///
 /// A `Result` indicating whether the timeslot was removed successfully.
 /// If the timeslot does not exist, returns a `TimeSlotErr` error.
-pub async fn timeslot_update(timeslots: &Pool<Postgres>, timeslot: &TimeSlot) -> Result<(), Box<dyn Error>> {
+pub async fn timeslot_update(db_pool: &Pool<Postgres>, timeslot: &TimeSlot) -> Result<(), Box<dyn Error>> {
     sqlx::query(
         r#"
         UPDATE time_slots SET start_time = $2, end_time = $3, speaker_id = $4, schedule_id = $5, topic_id = $6
@@ -333,7 +333,7 @@ pub async fn timeslot_update(timeslots: &Pool<Postgres>, timeslot: &TimeSlot) ->
         .bind(timeslot.speaker_id)
         .bind(timeslot.schedule_id)
         .bind(timeslot.topic_id)
-        .execute(timeslots)
+        .execute(db_pool)
         .await?;
 
     Ok(())

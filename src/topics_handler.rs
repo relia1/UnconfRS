@@ -47,13 +47,13 @@ pub struct ApiDoc;
     )
 )]
 pub async fn topics(
-    State(topics): State<Arc<RwLock<UnconfData>>>,
+    State(db_pool): State<Arc<RwLock<UnconfData>>>,
     Query(params): Query<Pagination>,
 ) -> Response {
     //let page = params.page;
     //let limit = params.limit;
 
-    let read_lock = topics.read().await;
+    let read_lock = db_pool.read().await;
     match paginated_get(&read_lock.unconf_db, params.page, params.limit).await {
         Ok(res) => {
             tracing::trace!("Retrieved {} topics", res.len());
@@ -78,10 +78,10 @@ pub async fn topics(
     )
 )]
 pub async fn get_topic(
-    State(topics): State<Arc<RwLock<UnconfData>>>,
+    State(db_pool): State<Arc<RwLock<UnconfData>>>,
     Path(topic_id): Path<i32>,
 ) -> Response {
-    let read_lock = topics.read().await;
+    let read_lock = db_pool.read().await;
     match get(&read_lock.unconf_db, topic_id).await {
         Ok(topic) => Json(topic).into_response(),
         Err(e) => TopicError::response(StatusCode::NOT_FOUND, e),
@@ -101,11 +101,11 @@ pub async fn get_topic(
     )
 )]
 pub async fn post_topic(
-    State(topics): State<Arc<RwLock<UnconfData>>>,
+    State(db_pool): State<Arc<RwLock<UnconfData>>>,
     Json(topic): Json<Topic>,
 ) -> Response {
     tracing::info!("post topic!");
-    let write_lock = topics.write().await;
+    let write_lock = db_pool.write().await;
     match add(&write_lock.unconf_db, topic).await {
         Ok(id) => {
             trace!("id: {:?}\n", id);
@@ -124,11 +124,11 @@ pub async fn post_topic(
     )
 )]
 pub async fn delete_topic(
-    State(topics): State<Arc<RwLock<UnconfData>>>,
+    State(db_pool): State<Arc<RwLock<UnconfData>>>,
     Path(topic_id): Path<i32>,
 ) -> Response {
     tracing::info!("delete topic");
-    let write_lock = topics.write().await;
+    let write_lock = db_pool.write().await;
     match delete(&write_lock.unconf_db, topic_id).await {
         Ok(()) => StatusCode::OK.into_response(),
         Err(e) => TopicError::response(StatusCode::BAD_REQUEST, e),
@@ -151,11 +151,11 @@ pub async fn delete_topic(
 )]
 #[debug_handler]
 pub async fn update_topic(
-    State(topics): State<Arc<RwLock<UnconfData>>>,
+    State(db_pool): State<Arc<RwLock<UnconfData>>>,
     Path(topic_id): Path<i32>,
     Json(topic): Json<Topic>,
 ) -> Response {
-    let write_lock = topics.write().await;
+    let write_lock = db_pool.write().await;
     match update(&write_lock.unconf_db, topic_id, topic).await {
         Ok(_) => StatusCode::OK.into_response(),
         Err(e) => TopicError::response(StatusCode::BAD_REQUEST, e),

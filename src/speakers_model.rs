@@ -179,7 +179,7 @@ impl IntoResponse for &Speaker {
 /// A vector of Speaker's
 /// If the pagination parameters are invalid, returns a `SpeakerErr` error.
 pub async fn speaker_paginated_get(
-    speakers: &Pool<Postgres>,
+    db_pool: &Pool<Postgres>,
     page: i32,
     limit: i32,
 ) -> Result<Vec<Speaker>, Box<dyn Error>> {
@@ -190,7 +190,7 @@ pub async fn speaker_paginated_get(
     }
 
     let num_speakers: i64 = sqlx::query(r#"SELECT COUNT(*) FROM speakers;"#)
-        .fetch_one(speakers)
+        .fetch_one(db_pool)
         .await?
         .get(0);
 
@@ -208,7 +208,7 @@ pub async fn speaker_paginated_get(
     )
         .bind(limit)
         .bind(start_index)
-        .fetch_all(speakers)
+        .fetch_all(db_pool)
         .await?;
 
     Ok(speakers)
@@ -223,13 +223,13 @@ pub async fn speaker_paginated_get(
 /// # Returns
 ///
 /// A reference to the `Speaker` instance with the specified ID, or a `SpeakerErr` error if the speaker does not exist.
-pub async fn speaker_get(speakers: &Pool<Postgres>, index: i32) -> Result<Vec<Speaker>, Box<dyn Error>> {
+pub async fn speaker_get(db_pool: &Pool<Postgres>, index: i32) -> Result<Vec<Speaker>, Box<dyn Error>> {
     let mut speaker_vec = vec![];
     let speaker = sqlx::query_as::<Postgres, Speaker>(
         "SELECT * FROM speakers where id = $1"
     )
     .bind(index)
-    .fetch_one(speakers)
+    .fetch_one(db_pool)
     .await?;
 
     // speaker_vec.push(<Speaker as std::convert::From<PgRow>>::from(speaker));
@@ -247,7 +247,7 @@ pub async fn speaker_get(speakers: &Pool<Postgres>, index: i32) -> Result<Vec<Sp
 ///
 /// A `Result` indicating whether the speaker was added successfully.
 /// If the speaker already exists, returns a `SpeakerErr` error.
-pub async fn speaker_add(speakers: &Pool<Postgres>, speaker: Speaker) -> Result<i32, Box<dyn Error>> {
+pub async fn speaker_add(db_pool: &Pool<Postgres>, speaker: Speaker) -> Result<i32, Box<dyn Error>> {
     tracing::debug!("adding speaker");
     let row: (i32,) = sqlx::query_as(
         "INSERT INTO speakers (name, email, phone_number) VALUES ($1, $2, $3) RETURNING id",
@@ -255,7 +255,7 @@ pub async fn speaker_add(speakers: &Pool<Postgres>, speaker: Speaker) -> Result<
         .bind(speaker.name)
         .bind(speaker.email)
         .bind(speaker.phone_number)
-        .fetch_one(speakers)
+        .fetch_one(db_pool)
         .await?;
 
     Ok(row.0)
@@ -271,13 +271,13 @@ pub async fn speaker_add(speakers: &Pool<Postgres>, speaker: Speaker) -> Result<
 ///
 /// A `Result` indicating whether the speaker was removed successfully.
 /// If the speaker does not exist, returns a `SpeakerErr` error.
-pub async fn speaker_delete(speakers: &Pool<Postgres>, index: i32) -> Result<(), Box<dyn Error>> {
+pub async fn speaker_delete(db_pool: &Pool<Postgres>, index: i32) -> Result<(), Box<dyn Error>> {
     sqlx::query_as::<Postgres, Speaker>(
         "DELETE FROM speakers
         WHERE id = $1;",
     )
     .bind(index)
-    .fetch_all(speakers)
+    .fetch_all(db_pool)
     .await?;
 
     Ok(())
@@ -296,7 +296,7 @@ pub async fn speaker_delete(speakers: &Pool<Postgres>, index: i32) -> Result<(),
 /// If the speaker does not exist or is unprocessable, returns a `SpeakerErr` error.
 /// If successful, returns a `StatusCode` of 200.
 pub async fn speaker_update(
-    speakers: &Pool<Postgres>,
+    db_pool: &Pool<Postgres>,
     index: i32,
     speaker: Speaker,
 ) -> Result<Vec<Speaker>, Box<dyn Error>> {
@@ -304,7 +304,7 @@ pub async fn speaker_update(
     let email = speaker.email;
     let phone_number = speaker.phone_number;
 
-    let mut speaker_to_update = speaker_get(speakers, index).await?;
+    let mut speaker_to_update = speaker_get(db_pool, index).await?;
     speaker_to_update[0].name.clone_from(&name);
     speaker_to_update[0].email.clone_from(&email);
     speaker_to_update[0].phone_number.clone_from(&phone_number);
@@ -318,7 +318,7 @@ pub async fn speaker_update(
     .bind(email)
     .bind(phone_number)
     .bind(index)
-    .fetch_all(speakers)
+    .fetch_all(db_pool)
     .await?;
 
     Ok(speaker_to_update)

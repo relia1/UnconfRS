@@ -46,9 +46,9 @@ pub struct ApiDocSchedule;
     )
 )]
 pub async fn schedules(
-    State(schedules): State<Arc<RwLock<UnconfData>>>,
+    State(db_pool): State<Arc<RwLock<UnconfData>>>,
 ) -> Response {
-    let read_lock = schedules.read().await;
+    let read_lock = db_pool.read().await;
     match schedules_get(&read_lock.unconf_db).await {
         Ok(res) => {
             Json(res).into_response()
@@ -72,10 +72,10 @@ pub async fn schedules(
     )
 )]
 pub async fn get_schedule(
-    State(schedules): State<Arc<RwLock<UnconfData>>>,
+    State(db_pool): State<Arc<RwLock<UnconfData>>>,
     Path(schedule_id): Path<i32>,
 ) -> Response {
-    let read_lock = schedules.read().await;
+    let read_lock = db_pool.read().await;
     match schedule_get(&read_lock.unconf_db, schedule_id).await {
         Ok(schedule) => Json(schedule).into_response(),
         Err(e) => ScheduleError::response(StatusCode::NOT_FOUND, e),
@@ -95,12 +95,12 @@ pub async fn get_schedule(
     )
 )]
 pub async fn post_schedule(
-    State(schedules): State<Arc<RwLock<UnconfData>>>,
+    State(db_pool): State<Arc<RwLock<UnconfData>>>,
     Json(schedule_form): Json<CreateScheduleForm>
     //Json(schedule): Json<Schedule>,
 ) -> Response {
     tracing::info!("\n\nposting schedule!\n\n");
-    let write_lock = schedules.write().await;
+    let write_lock = db_pool.write().await;
     match schedule_add(&write_lock.unconf_db, Json(schedule_form)).await {
         Ok(id) => {
             trace!("id: {:?}\n", id);
@@ -119,11 +119,11 @@ pub async fn post_schedule(
     )
 )]
 pub async fn delete_schedule(
-    State(schedules): State<Arc<RwLock<UnconfData>>>,
+    State(db_pool): State<Arc<RwLock<UnconfData>>>,
     Path(schedule_id): Path<i32>,
 ) -> Response {
     tracing::info!("delete schedule");
-    let write_lock = schedules.write().await;
+    let write_lock = db_pool.write().await;
     match schedule_delete(&write_lock.unconf_db, schedule_id).await {
         Ok(()) => StatusCode::OK.into_response(),
         Err(e) => ScheduleError::response(StatusCode::BAD_REQUEST, e),
@@ -146,12 +146,12 @@ pub async fn delete_schedule(
 )]
 #[debug_handler]
 pub async fn update_schedule(
-    State(schedules): State<Arc<RwLock<UnconfData>>>,
+    State(db_pool): State<Arc<RwLock<UnconfData>>>,
     Path(schedule_id): Path<i32>,
     Json(schedule): Json<Schedule>,
 ) -> Response {
     trace!("schedule id: {:?}", &schedule.id);
-    let write_lock = schedules.write().await;
+    let write_lock = db_pool.write().await;
     match schedule_update(&write_lock.unconf_db, schedule_id, schedule).await {
         Ok(schedule) => Json(schedule).into_response(),
         Err(e) => ScheduleError::response(StatusCode::BAD_REQUEST, e),

@@ -187,9 +187,9 @@ struct UpdateSchedule {
 }
 
 async fn schedule_handler(
-    State(state): State<Arc<RwLock<UnconfData>>>,
+    State(db_pool): State<Arc<RwLock<UnconfData>>>,
 ) -> Response {
-    let write_lock = state.write().await;
+    let write_lock = db_pool.write().await;
     let schedules = schedules_get(&write_lock.unconf_db).await;
     tracing::trace!("schedules {:?}", schedules);
 
@@ -215,10 +215,10 @@ struct TopicsTemplate {
 }
 
 async fn topic_handler(
-    State(state): State<Arc<RwLock<UnconfData>>>,
+    State(db_pool): State<Arc<RwLock<UnconfData>>>,
     Query(params): Query<Pagination>,
 ) -> Response {
-    let write_lock = state.write().await;
+    let write_lock = db_pool.write().await;
     let topics = paginated_get(&write_lock.unconf_db, params.page, params.limit).await;
 
     match topics {

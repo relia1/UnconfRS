@@ -46,10 +46,10 @@ pub struct ApiDocSpeaker;
     )
 )]
 pub async fn speakers(
-    State(speakers): State<Arc<RwLock<UnconfData>>>,
+    State(db_pool): State<Arc<RwLock<UnconfData>>>,
     Query(params): Query<Pagination>,
 ) -> Response {
-    let read_lock = speakers.read().await;
+    let read_lock = db_pool.read().await;
     match speaker_paginated_get(&read_lock.unconf_db, params.page, params.limit).await {
         Ok(res) => {
             Json(res).into_response()
@@ -73,10 +73,10 @@ pub async fn speakers(
     )
 )]
 pub async fn get_speaker(
-    State(speakers): State<Arc<RwLock<UnconfData>>>,
+    State(db_pool): State<Arc<RwLock<UnconfData>>>,
     Path(speaker_id): Path<i32>,
 ) -> Response {
-    let read_lock = speakers.read().await;
+    let read_lock = db_pool.read().await;
     match speaker_get(&read_lock.unconf_db, speaker_id).await {
         Ok(speaker) => Json(speaker).into_response(),
         Err(e) => SpeakerError::response(StatusCode::NOT_FOUND, e),
@@ -96,11 +96,11 @@ pub async fn get_speaker(
     )
 )]
 pub async fn post_speaker(
-    State(speakers): State<Arc<RwLock<UnconfData>>>,
+    State(db_pool): State<Arc<RwLock<UnconfData>>>,
     Json(speaker): Json<Speaker>,
 ) -> Response {
     tracing::info!("post speaker!");
-    let write_lock = speakers.write().await;
+    let write_lock = db_pool.write().await;
     match speaker_add(&write_lock.unconf_db, speaker).await {
         Ok(id) => {
             trace!("id: {:?}\n", id);
@@ -121,11 +121,11 @@ pub async fn post_speaker(
     )
 )]
 pub async fn delete_speaker(
-    State(speakers): State<Arc<RwLock<UnconfData>>>,
+    State(db_pool): State<Arc<RwLock<UnconfData>>>,
     Path(speaker_id): Path<i32>,
 ) -> Response {
     tracing::info!("delete speaker");
-    let write_lock = speakers.write().await;
+    let write_lock = db_pool.write().await;
     match speaker_delete(&write_lock.unconf_db, speaker_id).await {
         Ok(()) => StatusCode::OK.into_response(),
         Err(e) => SpeakerError::response(StatusCode::BAD_REQUEST, e),
@@ -148,11 +148,11 @@ pub async fn delete_speaker(
 )]
 #[debug_handler]
 pub async fn update_speaker(
-    State(speakers): State<Arc<RwLock<UnconfData>>>,
+    State(db_pool): State<Arc<RwLock<UnconfData>>>,
     Path(speaker_id): Path<i32>,
     Json(speaker): Json<Speaker>,
 ) -> Response {
-    let write_lock = speakers.write().await;
+    let write_lock = db_pool.write().await;
     match speaker_update(&write_lock.unconf_db, speaker_id, speaker).await {
         Ok(_) => StatusCode::OK.into_response(),
         Err(e) => SpeakerError::response(StatusCode::BAD_REQUEST, e),

@@ -147,7 +147,7 @@ impl IntoResponse for &Topic {
 /// A vector of Topic's
 /// If the pagination parameters are invalid, returns a `TopicErr` error.
 pub async fn paginated_get(
-    topics: &Pool<Postgres>,
+    db_pool: &Pool<Postgres>,
     page: i32,
     limit: i32,
 ) -> Result<Vec<Topic>, Box<dyn Error>> {
@@ -158,7 +158,7 @@ pub async fn paginated_get(
     }
 
     let num_topics: i64 = sqlx::query(r#"SELECT COUNT(*) FROM topics;"#)
-        .fetch_one(topics)
+        .fetch_one(db_pool)
         .await?
         .get(0);
 
@@ -176,7 +176,7 @@ pub async fn paginated_get(
     )
         .bind(limit)
         .bind(start_index)
-        .fetch_all(topics)
+        .fetch_all(db_pool)
         .await?;
 
     Ok(topics)
@@ -193,13 +193,13 @@ pub async fn paginated_get(
 ///
 /// A vector of Topic's
 pub async fn get_all_topics(
-    topics: &Pool<Postgres>,
+    db_pool: &Pool<Postgres>,
 ) -> Result<Vec<Topic>, Box<dyn Error>> {
     let topics: Vec<Topic> = sqlx::query_as(
         r#"
         SELECT * FROM topics"#
     )
-        .fetch_all(topics)
+        .fetch_all(db_pool)
         .await?;
 
     Ok(topics)
@@ -215,13 +215,13 @@ pub async fn get_all_topics(
 /// # Returns
 ///
 /// A reference to the `Topic` instance with the specified ID, or a `TopicErr` error if the topic does not exist.
-pub async fn get(topics: &Pool<Postgres>, index: i32) -> Result<Vec<Topic>, Box<dyn Error>> {
+pub async fn get(db_pool: &Pool<Postgres>, index: i32) -> Result<Vec<Topic>, Box<dyn Error>> {
     let mut topic_vec = vec![];
     let topic = sqlx::query_as::<Postgres, Topic>(
         "SELECT * FROM topics where id = $1"
     )
     .bind(index)
-    .fetch_one(topics)
+    .fetch_one(db_pool)
     .await?;
 
     // topic_vec.push(<Topic as std::convert::From<PgRow>>::from(topic));
@@ -239,14 +239,14 @@ pub async fn get(topics: &Pool<Postgres>, index: i32) -> Result<Vec<Topic>, Box<
 ///
 /// A `Result` indicating whether the topic was added successfully.
 /// If the topic already exists, returns a `TopicErr` error.
-pub async fn add(topics: &Pool<Postgres>, topic: Topic) -> Result<i32, Box<dyn Error>> {
+pub async fn add(db_pool: &Pool<Postgres>, topic: Topic) -> Result<i32, Box<dyn Error>> {
     let row: (i32,) = sqlx::query_as(
         "INSERT INTO topics (speaker_id, title, content) VALUES ($1, $2, $3) RETURNING id",
         )
         .bind(topic.speaker_id)
         .bind(topic.title)
         .bind(topic.content)
-        .fetch_one(topics)
+        .fetch_one(db_pool)
         .await?;
 
     Ok(row.0)
@@ -262,13 +262,13 @@ pub async fn add(topics: &Pool<Postgres>, topic: Topic) -> Result<i32, Box<dyn E
 ///
 /// A `Result` indicating whether the topic was removed successfully.
 /// If the topic does not exist, returns a `TopicErr` error.
-pub async fn delete(topics: &Pool<Postgres>, index: i32) -> Result<(), Box<dyn Error>> {
+pub async fn delete(db_pool: &Pool<Postgres>, index: i32) -> Result<(), Box<dyn Error>> {
     sqlx::query_as::<Postgres, Topic>(
         "DELETE FROM topics
         WHERE id = $1;",
     )
     .bind(index)
-    .fetch_all(topics)
+    .fetch_all(db_pool)
     .await?;
 
     Ok(())
@@ -287,14 +287,14 @@ pub async fn delete(topics: &Pool<Postgres>, index: i32) -> Result<(), Box<dyn E
 /// If the topic does not exist or is unprocessable, returns a `TopicErr` error.
 /// If successful, returns a `StatusCode` of 200.
 pub async fn update(
-    topics: &Pool<Postgres>,
+    db_pool: &Pool<Postgres>,
     index: i32,
     topic: Topic,
 ) -> Result<Vec<Topic>, Box<dyn Error>> {
     let title = topic.title;
     let content = topic.content;
 
-    let mut topic_to_update = get(topics, index).await?;
+    let mut topic_to_update = get(db_pool, index).await?;
     topic_to_update[0].title.clone_from(&title);
     topic_to_update[0].content.clone_from(&content);
 
@@ -306,7 +306,7 @@ pub async fn update(
     .bind(title)
     .bind(content)
     .bind(index)
-    .fetch_all(topics)
+    .fetch_all(db_pool)
     .await?;
 
     Ok(topic_to_update)
