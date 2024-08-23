@@ -2,14 +2,14 @@ use std::error::Error;
 
 
 use askama_axum::IntoResponse;
-use axum::{http::StatusCode, response::Response, Form, Json};
+use axum::{http::StatusCode, response::Response, Json};
 use chrono::NaiveTime;
 use serde::{ser::SerializeStruct, Deserialize, Serialize, Serializer};
 use sqlx::{Pool, Postgres, FromRow};
-use tracing::trace;
+use tracing::{debug, trace};
 use utoipa::{openapi::{ObjectBuilder, RefOr, Schema, SchemaType}, ToSchema};
 
-use crate::{timeslot_model::*, topics_model::get_all_topics, CreateScheduleForm};
+use crate::{room_model::rooms_get, timeslot_model::*, topics_model::get_all_topics, CreateScheduleForm};
 
 
 /// An enumeration of errors that may occur
@@ -19,8 +19,6 @@ pub enum ScheduleErr {
     IoError(String),
     #[error("Schedule {0} doesn't exist")]
     DoesNotExist(String),
-    #[error("Invalid query parameter values")]
-    PaginationInvalid(String),
     #[error("Invalid query parameter values")]
     InvalidTimeFormat(String),
 
@@ -165,13 +163,9 @@ impl IntoResponse for &Schedule {
 ///
 /// # Parameters
 ///
-/// * `page`: The page number to retrieve (starts at 1)
-/// * `limit`: The number of schedules to retrieve per page.
-///
 /// # Returns
 ///
-/// A vector of Schedule's
-/// If the pagination parameters are invalid, returns a `ScheduleErr` error.
+/// An option of Schedule
 pub async fn schedules_get(
     db_pool: &Pool<Postgres>,
 ) -> Result<Option<Schedule>, Box<dyn Error>> {
@@ -186,7 +180,7 @@ pub async fn schedules_get(
 
     for schedule in &mut schedules {
         let timeslots = sqlx::query_as::<Postgres, TimeSlot>(
-            "SELECT * FROM time_slots WHERE schedule_id = $1 ORDER BY start_time ASC;",
+            "SELECT * FROM time_slots WHERE schedule_id = $1 ORDER BY id;",
         )
         .bind(schedule.id)
         .fetch_all(db_pool)
@@ -257,6 +251,7 @@ pub async fn schedule_add(
             end_time,
             None,
             Some(schedule_id),
+            None,
             None
         );
         let timeslot_id = timeslot_add(db_pool, timeslot.clone()).await?;
@@ -294,110 +289,138 @@ pub async fn schedule_delete(db_pool: &Pool<Postgres>, index: i32) -> Result<(),
 }
 
 pub async fn schedule_update(db_pool: &Pool<Postgres>, index: i32, schedule: Schedule) -> Result<Schedule, Box<dyn Error>> {
-    let mut tx = db_pool.begin().await?;
-    let mut schedule_to_update = sqlx::query_as::<Postgres, Schedule>(
-        r#"SELECT * FROM schedules WHERE id = $1"#,
-    )
-        .bind(index)
-        .fetch_one(&mut *tx)
-        .await?;
-
-    if schedule.num_of_timeslots != schedule_to_update.num_of_timeslots {
-        schedule_to_update.num_of_timeslots = schedule.num_of_timeslots;
-        sqlx::query(
-            r#"
-            UPDATE FROM schedules (num_of_timeslots) VALUES ($1)
-            WHERE id = $2
-            "#,
-        )
-            .bind(schedule.num_of_timeslots)
-            .bind(index)
-            .execute(&mut *tx)
-            .await?;
-    }
-
+    // Update the schedule
     sqlx::query(
-        "CREATE TEMPORARY TABLE temp_updates (
-                 id INT,
-                 start_time TIME,
-                 end_time TIME,
-                 duration INTERVAL,
-                 speaker_id INT,
-                 topic_id INT,
-                 schedule_id INT
-             ) ON COMMIT DROP"
+        r#"
+        UPDATE schedules
+        SET num_of_timeslots = $1
+        WHERE id = $2
+        "#
     )
-        .execute(&mut *tx)
-        .await?;
+    .bind(schedule.num_of_timeslots)
+    .bind(index)
+    .execute(db_pool)
+    .await?;
 
+    // Update timeslots
     for timeslot in &schedule.timeslots {
         sqlx::query(
-            "INSERT INTO temp_updates (id, start_time, end_time, duration, speaker_id, topic_id, schedule_id)
-            VALUES ($1, $2, $3, $4, $5, $6, $7)"
+            r#"
+            UPDATE time_slots
+            SET
+                start_time = $1,
+                end_time = $2,
+                duration = $3,
+                speaker_id = $4,
+                topic_id = $5,
+                room_id = $6
+            WHERE id = $7 AND schedule_id = $8
+            "#
         )
-            .bind(timeslot.id)
-            .bind(timeslot.start_time)
-            .bind(timeslot.end_time)
-            .bind(timeslot.end_time - timeslot.start_time)
-            .bind(timeslot.speaker_id)
-            .bind(timeslot.topic_id)
-            .bind(index)
-            .execute(&mut *tx)
-            .await?;
+        .bind(timeslot.start_time)
+        .bind(timeslot.end_time)
+        .bind(timeslot.end_time - timeslot.start_time)
+        .bind(timeslot.speaker_id)
+        .bind(timeslot.topic_id)
+        .bind(timeslot.room_id)
+        .bind(timeslot.id)
+        .bind(index)
+        .execute(db_pool)
+        .await?;
     }
 
-    sqlx::query(
-        "UPDATE time_slots ts
-        SET
-            start_time = tu.start_time,
-            end_time = tu.end_time,
-            duration = tu.duration,
-            speaker_id = tu.speaker_id,
-            topic_id = tu.topic_id
-        FROM temp_updates tu
-        WHERE ts.id = tu.id AND ts.schedule_id = $1"
-    )
-        .bind(index)
-        .execute(&mut *tx)
-        .await?;
 
-    tx.commit().await?;
-
+    debug!("Schedule updated successfully: {:?}", schedule);
     Ok(schedule)
 }
 
-
 pub async fn schedule_generate(db_pool: &Pool<Postgres>) -> Result<Schedule, Box<dyn Error>> {
     let topics = get_all_topics(db_pool).await?;
+    let rooms = rooms_get(db_pool).await?.ok_or("No rooms found")?;
     let num_of_topics = topics.len();
-    let mut timeslots = vec![];
-    let mut schedule = schedules_get(db_pool).await?.ok_or("Error getting schedule")?;
-    let schedule_id = schedule.id.ok_or("Error getting schedule ID")?;
+    let mut schedule = schedules_get(db_pool).await?.ok_or("No schedule found")?;
+    let schedule_id = schedule.id.ok_or("Schedule ID not found")?;
 
-    for i in 0..(schedule.num_of_timeslots as usize) {
-        if i < num_of_topics {
-            let topic = &topics[i];
-            trace!("timeslots: {:?}", &schedule.timeslots);
-            let timeslot = &schedule.timeslots[i];
+    let mut timeslots = Vec::new();
+    let mut topic_index = 0;
+
+    for (room_index, room) in rooms.iter().enumerate() {
+        for i in 0..schedule.num_of_timeslots as usize {
+            if topic_index >= num_of_topics {
+                break;
+            }
+
+            let topic = &topics[topic_index];
+            let timeslot = &schedule.timeslots[i + (room_index * schedule.num_of_timeslots as usize)];
+        /*}
+    }
+
+    for i in 0..schedule.num_of_timeslots as usize {
+        for (room_index, room) in rooms.iter().enumerate() {
+            if topic_index >= num_of_topics {
+                break;
+            }
+
+            let topic = &topics[topic_index];
+            let timeslot = &schedule.timeslots[i + (room_index * schedule.num_of_timeslots as usize)];*/
+
             let updated_timeslot = TimeSlot::new(
                 timeslot.id,
                 timeslot.start_time,
                 timeslot.end_time,
                 Some(topic.speaker_id),
                 Some(schedule_id),
-                topic.id
+                topic.id,
+                room.id,
             );
 
-            timeslot_update(db_pool, &updated_timeslot).await?;
-            timeslots.push(updated_timeslot);
+            sqlx::query(
+                r#"
+                UPDATE time_slots
+                SET
+                    start_time = $1,
+                    end_time = $2,
+                    duration = $3,
+                    speaker_id = $4,
+                    topic_id = $5,
+                    room_id = $6
+                WHERE id = $7 AND schedule_id = $8
+                "#
+            )
+                .bind(updated_timeslot.start_time)
+                .bind(updated_timeslot.end_time)
+                .bind(updated_timeslot.end_time - updated_timeslot.start_time)
+                .bind(updated_timeslot.speaker_id)
+                .bind(updated_timeslot.topic_id)
+                .bind(updated_timeslot.room_id)
+                .bind(updated_timeslot.id)
+                .bind(schedule_id)
+                .execute(db_pool)
+                .await?;
 
-        } else {
+            timeslots.push(updated_timeslot);
+            topic_index += 1;
+        }
+        if topic_index >= num_of_topics {
             break;
         }
     }
 
-    schedule = schedule_update(db_pool, schedule_id, schedule.clone()).await?;
+    schedule.timeslots = timeslots;
 
-    tracing::trace!("schedule generate sched: {:?}", &schedule);
+    // Update the schedule
+    sqlx::query(
+        r#"
+        UPDATE schedules
+        SET num_of_timeslots = $1
+        WHERE id = $2
+        "#
+    )
+    .bind(schedule.num_of_timeslots)
+    .bind(schedule_id)
+    .execute(db_pool)
+    .await?;
+
+    debug!("Schedule generated successfully: {:?}", schedule);
     Ok(schedule)
 }

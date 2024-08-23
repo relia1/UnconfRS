@@ -5,5 +5,6 @@ CREATE TABLE time_slots (
     duration INTERVAL NOT NULL,
     schedule_id INTEGER,
     speaker_id INTEGER,
-    topic_id INTEGER REFERENCES topics(id)
+    topic_id INTEGER REFERENCES topics(id),
+    room_id INTEGER REFERENCES rooms(id)
 );

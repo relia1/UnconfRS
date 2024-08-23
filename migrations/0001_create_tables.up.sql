@@ -4,3 +4,10 @@ CREATE TABLE topics (
 	title TEXT NOT NULL,
 	content TEXT NOT NULL
 );
+
+CREATE TABLE rooms (
+	id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+	name TEXT NOT NULL,
+	location TEXT NOT NULL,
+    available_spots INT NOT NULL
+);

@@ -13,8 +13,6 @@ use chrono::NaiveTime;
 pub enum TimeSlotErr {
     #[error("TimeSlot io failed: {0}")]
     IoError(String),
-    #[error("TimeSlot {0} doesn't exist")]
-    DoesNotExist(String),
     #[error("Invalid query parameter values")]
     PaginationInvalid(String),
 }
@@ -141,7 +139,8 @@ pub struct TimeSlot {
     pub end_time: NaiveTime, // unix timestamp (seconds since epoch)
     pub speaker_id: Option<i32>, // id of the speaker
     pub schedule_id: Option<i32>, // id of the schedule
-    pub topic_id: Option<i32> // id of the topic or none
+    pub topic_id: Option<i32>, // id of the topic or none
+    pub room_id: Option<i32> // id of the topic or none
 }
 
 impl TimeSlot {
@@ -151,7 +150,8 @@ impl TimeSlot {
         end_time: NaiveTime,
         speaker_id: Option<i32>,
         schedule_id: Option<i32>,
-        topic_id: Option<i32>
+        topic_id: Option<i32>,
+        room_id: Option<i32>
     )
     -> Self {
         Self {
@@ -160,53 +160,27 @@ impl TimeSlot {
             end_time,
             speaker_id,
             schedule_id,
-            topic_id
+            topic_id,
+            room_id
         }
     }
 }
 
-/// Retrieves a paginated list of timeslots from the timeslot .
+/// Retrieves a list of timeslots.
 ///
 /// # Parameters
-///
-/// * `page`: The page number to retrieve (starts at 1)
-/// * `limit`: The number of timeslots to retrieve per page.
 ///
 /// # Returns
 ///
 /// A vector of TimeSlot's
-/// If the pagination parameters are invalid, returns a `TimeSlotErr` error.
-pub async fn timeslot_paginated_get(
+pub async fn timeslots_get(
     db_pool: &Pool<Postgres>,
-    page: i32,
-    limit: i32,
 ) -> Result<Vec<TimeSlot>, Box<dyn Error>> {
-    if page < 1 || limit < 1 {
-        return Err(Box::new(TimeSlotErr::PaginationInvalid(
-            "Page and limit must be positive".to_string(),
-        )));
-    }
-
-    let num_timeslots: i32 = sqlx::query("SELECT COUNT(*) FROM timeslots")
-        .fetch_one(db_pool)
-        .await?
-        .get(0);
-
-    let start_index = (page - 1) * limit;
-    if start_index > num_timeslots {
-        return Err(Box::new(TimeSlotErr::PaginationInvalid(
-            "Invalid query parameter values".to_string(),
-        )));
-    }
-
     let timeslots: Vec<TimeSlot> = sqlx::query_as(
         r#"
         SELECT * FROM time_slots
-        ORDER BY id
-        LIMIT $1 OFFSET $2;"#,
+        ORDER BY id"#
     )
-        .bind(limit)
-        .bind(start_index)
         .fetch_all(db_pool)
         .await?;
 
@@ -273,13 +247,14 @@ pub async fn timeslot_get(db_pool: &Pool<Postgres>, index: i32) -> Result<Vec<Ti
 /// A `Result` indicating whether the timeslot was added successfully.
 /// If the timeslot already exists, returns a `TimeSlotErr` error.
 pub async fn timeslot_add(db_pool: &Pool<Postgres>, timeslot: TimeSlot) -> Result<i32, Box<dyn Error>> {
-    let timeslot_id: (i32,) = sqlx::query_as(r#"INSERT INTO time_slots (start_time, end_time, duration, speaker_id, schedule_id, topic_id) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id"#)
+    let timeslot_id: (i32,) = sqlx::query_as(r#"INSERT INTO time_slots (start_time, end_time, duration, speaker_id, schedule_id, topic_id, room_id) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id"#)
         .bind(timeslot.start_time)
         .bind(timeslot.end_time)
         .bind(timeslot.end_time - timeslot.start_time)
         .bind(timeslot.speaker_id)
         .bind(timeslot.schedule_id)
         .bind(timeslot.topic_id)
+        .bind(timeslot.room_id)
         .fetch_one(db_pool)
         .await?;
 
@@ -323,7 +298,7 @@ pub async fn timeslot_delete(db_pool: &Pool<Postgres>, index: i32) -> Result<(),
 pub async fn timeslot_update(db_pool: &Pool<Postgres>, timeslot: &TimeSlot) -> Result<(), Box<dyn Error>> {
     sqlx::query(
         r#"
-        UPDATE time_slots SET start_time = $2, end_time = $3, speaker_id = $4, schedule_id = $5, topic_id = $6
+        UPDATE time_slots SET start_time = $2, end_time = $3, speaker_id = $4, schedule_id = $5, topic_id = $6, room_id = $7
         WHERE id = $1
         "#,
     )
@@ -332,7 +307,8 @@ pub async fn timeslot_update(db_pool: &Pool<Postgres>, timeslot: &TimeSlot) -> R
         .bind(timeslot.end_time)
         .bind(timeslot.speaker_id)
         .bind(timeslot.schedule_id)
-        .bind(timeslot.topic_id)
+        .bind(timeslot.topic_id.unwrap())
+        .bind(timeslot.room_id)
         .execute(db_pool)
         .await?;
 

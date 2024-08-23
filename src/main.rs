@@ -2,15 +2,19 @@ mod config;
 mod db_config;
 mod topics_model;
 mod schedule_model;
+mod room_model;
 mod timeslot_model;
 mod speakers_handler;
 mod speakers_model;
 mod topics_handler;
 mod schedule_handler;
+mod room_handler;
 mod pagination;
 
 use config::*;
 use pagination::Pagination;
+use room_handler::*;
+use room_model::{rooms_get, Room};
 use schedule_model::{schedules_get, Schedule};
 use serde::Deserialize;
 use speakers_handler::ApiDocSpeaker;
@@ -30,7 +34,7 @@ use tracing_subscriber::{fmt, EnvFilter};
 extern crate serde_json;
 extern crate thiserror;
 use axum::{
-    extract::{Path, Query, State}, http::StatusCode, response::{Html, IntoResponse, Response}, routing::{delete, get, post, put}, Router
+    debug_handler, extract::{Path, Query, State}, http::StatusCode, response::{Html, IntoResponse, Response}, routing::{delete, get, post, put}, Router
 };
 
 // use askama_axum::Template;
@@ -86,11 +90,15 @@ async fn main() {
         .route("/topics/add", post(post_topic))
         .route("/topics/:id", delete(delete_topic))
         .route("/topics/:id", put(update_topic))
+        .route("/rooms", get(rooms))
+        .route("/rooms/add", post(post_rooms))
+        .route("/rooms/:id", delete(delete_room))
         .route("/speakers", get(speakers))
         .route("/speakers/:id", get(get_speaker))
         .route("/speakers/add", post(post_speaker))
         .route("/speakers/:id", delete(delete_speaker))
         .route("/speakers/:id", put(update_speaker))
+        .route("/schedules", get(schedules))
         .route("/schedules/:id", get(get_schedule))
         .route("/schedules/:id", put(update_schedule))
         .route("/schedules/add", post(post_schedule))
@@ -101,6 +109,11 @@ async fn main() {
     let swagger_ui = SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi());
     let redoc_ui = Redoc::with_url("/redoc", ApiDoc::openapi());
     let rapidoc_ui = RapiDoc::new("/api-docs/openapi.json").path("/rapidoc");
+
+    let rooms_docs = SwaggerUi::new("/swagger-rooms").url("/api-docs/openapi_rooms.json", ApiDocRooms::openapi());
+    let redoc_rooms = Redoc::with_url("/redoc4", ApiDocRooms::openapi());
+    let rapidoc_rooms = RapiDoc::new("/api-docs/openapi_rooms.json").path("/rapidoc_rooms");
+
 
     let schedule_docs =
         SwaggerUi::new("/swagger-sched").url("/api-docs/openapi_sched.json", ApiDocSchedule::openapi());
@@ -133,6 +146,9 @@ async fn main() {
         .merge(speaker_docs)
         .merge(redoc_speaker)
         .merge(rapidoc_speaker)
+        .merge(rooms_docs)
+        .merge(redoc_rooms)
+        .merge(rapidoc_rooms)
         .with_state(topics_db)
         .fallback(handler_404)
         .layer(
@@ -167,6 +183,7 @@ async fn index_handler() -> Response {
 #[template(path = "create_schedule.html")]
 struct ScheduleTemplate {
     schedule: Option<Schedule>,
+    rooms: Option<Vec<Room>>,
     /*
     * We need to have topic and speaker data returned back as well
     */
@@ -180,30 +197,39 @@ struct CreateScheduleForm {
 }
 
 #[derive(Debug, Deserialize)]
+struct CreateRoomsForm {
+    rooms: Vec<Room>,
+}
+
+#[derive(Debug, Deserialize)]
 struct UpdateSchedule {
     id: i32,
     num_of_timeslots: i32,
     timeslots: Vec<TimeSlot>,
 }
 
+#[debug_handler]
 async fn schedule_handler(
     State(db_pool): State<Arc<RwLock<UnconfData>>>,
 ) -> Response {
-    let write_lock = db_pool.write().await;
-    let schedules = schedules_get(&write_lock.unconf_db).await;
+    let schedules = {
+        let read_lock = db_pool.read().await;
+        schedules_get(&read_lock.unconf_db).await.unwrap()
+    };
+    let rooms = {
+        let read_lock = db_pool.read().await;
+        match rooms_get(&read_lock.unconf_db).await {
+            Ok(None) => None,
+            Ok(val) => val,
+            _ => None,
+        }
+    };
+    tracing::trace!("rooms val {:?}", &rooms);
     tracing::trace!("schedules {:?}", schedules);
-
-    match schedules {
-        Ok(schedule) => {
-            tracing::debug!("{:?}", schedule);
-            let template = ScheduleTemplate { schedule };
-
-            match template.render() {
-                Ok(html) => Html(html).into_response(),
-                Err(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
-            }
-        },
-        _ => Html("<h1>Error fetching schedule</h1>".to_string()).into_response(),
+    let template = ScheduleTemplate { schedule: schedules, rooms };
+    match template.render() {
+        Ok(html) => Html(html).into_response(),
+        Err(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
     }
 }
 

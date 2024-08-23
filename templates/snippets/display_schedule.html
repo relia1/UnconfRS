@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Event Schedule</title>
+        <style>
+        .schedule-container {
+            display: flex;
+            overflow-x: auto;
+            font-family: Arial, sans-serif;
+        }
+
+        .time-column {
+            min-width: 100px;
+            background-color: #f8f9fa;
+            border-right: 1px solid #dee2e6;
+            position: sticky;
+            left: 0;
+            z-index: 10;
+        }
+
+        .room-column {
+            min-width: 200px;
+            border-right: 1px solid #dee2e6;
+            position: relative;
+        }
+
+        .time-slot,
+        .room-header {
+            height: 60px;
+            padding: 5px;
+            border-bottom: 1px solid #dee2e6;
+            display: flex;
+            justify-content: center;
+        }
+
+        .time-slot {
+            align-items: normal;
+        }
+
+        .room-header {
+            font-weight: bold;
+            background-color: #e9ecef;
+            position: sticky;
+            top: 0;
+            z-index: 5;
+            align-items: center;
+        }
+
+        .event-block {
+            position: absolute;
+            left: 5px;
+            right: 5px;
+            background-color: #007bff;
+            color: white;
+            padding: 5px;
+            border-radius: 4px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: move;
+        }
+        </style>
+    </head>
+    <body>
+        <div id="eventSchedule" style="display: none;">
+            <h1>Event Schedule</h1>
+            <div class="schedule-container">
+                <div class="time-column">
+                    <div class="room-header">Time</div>
+                    <!-- Time slots will be dynamically added here -->
+                </div>
+                <!-- Room columns will be dynamically added here -->
+            </div>
+
+            <script>
+            let numOf30MinSegments = 0;
+            const scheduleContainer = document.querySelector('.schedule-container');
+            const timeColumn = document.querySelector('.time-column');
+
+            const rooms = [
+                {% if let Some(vec_rooms) = rooms %}
+                    {% for room in vec_rooms %}
+                        { id: {{ room.id.unwrap() }}, name: "{{ room.name }}", available_spots: {{ room.available_spots }} },
+                {% endfor %}
+                    {% endif %}
+            ];
+
+            const events = [
+                {% if let Some(sched) = schedule %}
+                    {% for timeslot in sched.timeslots %}
+                        {% if let Some(_) = timeslot.topic_id %}
+                        {
+                            roomId: {{ timeslot.room_id.unwrap() }},
+                            startTime: "{{ timeslot.start_time }}",
+                            endTime: "{{ timeslot.end_time }}",
+                            title: "name here {{ timeslot.id.unwrap() }}"
+                        },
+                        {% endif %}
+                    {% endfor %}
+                {% endif %}
+            ];
+
+            // Create time slots
+            for (let hour = 8; hour < 18; hour++) {
+                for (let minute = 0; minute < 60; minute += 30) {
+                    numOf30MinSegments += 1;
+                    const timeSlot = document.createElement('div');
+                    timeSlot.className = 'time-slot';
+                    timeSlot.textContent = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+                    timeColumn.appendChild(timeSlot);
+                }
+            }
+
+            // Create room columns
+            rooms.forEach(room => {
+                const roomColumn = document.createElement('div');
+                roomColumn.className = 'room-column';
+                roomColumn.setAttribute('data-room-id', room.id);
+                roomColumn.innerHTML = `<div class="room-header">${room.name}</div>`;
+                roomColumn.addEventListener('dragover', handleDragOver);
+                roomColumn.addEventListener('drop', handleDrop);
+                scheduleContainer.appendChild(roomColumn);
+            });
+
+            // Add events to room columns
+            events.forEach(event => {
+                const roomColumn = document.querySelector(`.room-column[data-room-id="${event.roomId}"]`);
+                const eventBlock = createEventBlock(event);
+                roomColumn.appendChild(eventBlock);
+            });
+
+            // Takes an event and creates an event div element with the
+            // position within the room column applied to it
+            function createEventBlock(event) {
+                const eventBlock = document.createElement('div');
+                eventBlock.className = 'event-block';
+                eventBlock.textContent = event.title;
+                eventBlock.draggable = true;
+                eventBlock.setAttribute('data-start-time', event.startTime);
+                eventBlock.setAttribute('data-end-time', event.endTime);
+                eventBlock.addEventListener('dragstart', handleDragStart);
+
+                const { top, height } = calculateEventPosition(event.startTime, event.endTime);
+                eventBlock.style.top = top;
+                eventBlock.style.height = height;
+
+                return eventBlock;
+            }
+
+            // Calculate the position within the room column for the event
+            // to be shown at
+            function calculateEventPosition(startTime, endTime) {
+                // Multiplier used for determing position and height of event
+                // 1 is added due to the header taking up the first row of the
+                // room column
+                const timeHeightMultiplier = (1 / (numOf30MinSegments + 1)) * 100;
+                const startMinutes = timeToMinutes(startTime);
+                const endMinutes = timeToMinutes(endTime);
+                const duration = endMinutes - startMinutes;
+                // 8:00 AM in minutes
+                const scheduleStart = 8 * 60;
+                // 6:00 PM in minutes
+                const scheduleEnd = 18 * 60;
+                // Time in minutes from the start of the schedule
+                // to the end in minutes
+                const scheduleLength = scheduleEnd - scheduleStart;
+                // The amount of time that has elapsed since the start
+                // of the schedule
+                const timeSinceScheduleStart = startMinutes - scheduleStart;
+                // Number of segments into the rooms column
+                const numOf30MinSegmentsSinceStart = ((timeSinceScheduleStart) / 30) + 1;
+                /*
+                console.log('start minutes ' + `${startMinutes}`);
+                console.log('end minutes ' + `${endMinutes}`);
+                console.log('duration ' + `${duration}`);
+                console.log('schedule start ' + `${scheduleStart}`);
+                console.log('schedule end ' + `${scheduleEnd}`);
+                console.log('schedule length ' + `${scheduleLength}\n\n`);
+                console.log('num 30 min segs ' + `${numOf30MinSegmentsSinceStart}`);
+                console.log('time height multiplier ' + `${timeHeightMultiplier}`);
+                */
+
+                // Using the number of segments into the rooms column and
+                // the multiplier gives us the starting time location of
+                // the event
+                const top = (numOf30MinSegmentsSinceStart * timeHeightMultiplier) + '%';
+                // Using the number of segments for the duration of the event
+                // we determine how long the event lasts
+                const height = ((duration / 30.0) * timeHeightMultiplier) + '%';
+
+                return { top, height };
+            }
+
+            // Given time in the format of 'hours:minutes' return back
+            // time only in minutes
+            function timeToMinutes(time) {
+                const [hours, minutes] = time.split(':').map(Number);
+                return hours * 60 + minutes;
+            }
+
+            // Given time in minutes return back time in 'hours:minutes'
+            function minutesToTime(minutes) {
+                const hours = Math.floor(minutes / 60);
+                const mins = minutes % 60;
+                return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
+            }
+
+            // Drag and drop event handlers
+            let draggedEvent = null;
+
+            function handleDragStart(event) {
+                draggedEvent = (event.target;
+                (event.dataTransfer.effectAllowed = "move";
+                (event.dataTransfer.setData("text/plain", null);
+            }
+
+            function handleDragOver(event) {
+                (event.preventDefault();
+                (event.dataTransfer.dropEffect = "move";
+            }
+
+            function handleDrop(event) {
+                (event.preventDefault();
+                if (draggedEvent) {
+                    const roomColumn = (event.target.closest('.room-column');
+                    const rect = roomColumn.getBoundingClientRect();
+                    const y = (event.clientY - rect.top;
+                    // 10 hours in minutes
+                    const scheduleLength = 10 * 60;
+                    const minutesFromStart = Math.round((y / rect.height) * scheduleLength / 30) * 30;
+                    // 8:00 AM + mintues from start
+                    const newStartMinutes = 8 * 60 + minutesFromStart;
+                    const newStartTime = minutesToTime(newStartMinutes);
+
+                    // Calculate event duration
+                    const startTime = draggedEvent.getAttribute('data-start-time');
+                    const endTime = draggedEvent.getAttribute('data-end-time');
+                    const duration = timeToMinutes(endTime) - timeToMinutes(startTime);
+
+                    // Calculate new end time
+                    const newEndMinutes = newStartMinutes + duration;
+                    const newEndTime = minutesToTime(newEndMinutes);
+
+                    // Update event block
+                    draggedEvent.setAttribute('data-start-time', newStartTime);
+                    draggedEvent.setAttribute('data-end-time', newEndTime);
+
+                    const { top, height } = calculateEventPosition(newStartTime, newEndTime);
+                    draggedEvent.style.top = top;
+                    draggedEvent.style.height = height;
+
+                    roomColumn.appendChild(draggedEvent);
+                    draggedEvent = null;
+                }
+            }
+            </script>
+        </div>
+    </body>
