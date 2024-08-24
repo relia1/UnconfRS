@@ -295,7 +295,7 @@ pub async fn timeslot_delete(db_pool: &Pool<Postgres>, index: i32) -> Result<(),
 ///
 /// A `Result` indicating whether the timeslot was removed successfully.
 /// If the timeslot does not exist, returns a `TimeSlotErr` error.
-pub async fn timeslot_update(db_pool: &Pool<Postgres>, timeslot: &TimeSlot) -> Result<(), Box<dyn Error>> {
+pub async fn timeslot_update(db_pool: &Pool<Postgres>, timeslot_id: i32, timeslot: &TimeSlot) -> Result<(), Box<dyn Error>> {
     sqlx::query(
         r#"
         UPDATE time_slots SET start_time = $2, end_time = $3, speaker_id = $4, schedule_id = $5, topic_id = $6, room_id = $7

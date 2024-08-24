@@ -8,6 +8,7 @@ mod speakers_handler;
 mod speakers_model;
 mod topics_handler;
 mod schedule_handler;
+mod timeslot_handler;
 mod room_handler;
 mod pagination;
 
@@ -18,6 +19,7 @@ use room_model::{rooms_get, Room};
 use schedule_model::{schedules_get, Schedule};
 use serde::Deserialize;
 use speakers_handler::ApiDocSpeaker;
+use timeslot_handler::{update_timeslot, ApiDocTimeslot};
 use timeslot_model::TimeSlot;
 // use timeslot_model::ApiDocTimeslot;
 use topics_handler::*;
@@ -102,7 +104,8 @@ async fn main() {
         .route("/schedules/:id", get(get_schedule))
         .route("/schedules/:id", put(update_schedule))
         .route("/schedules/add", post(post_schedule))
-        .route("/schedules/generate", post(generate));
+        .route("/schedules/generate", post(generate))
+        .route("/timeslots/:id", put(update_timeslot));
 
 
     // handy openai auto generated docs!
@@ -125,10 +128,10 @@ async fn main() {
     let redoc_speaker = Redoc::with_url("/redoc3", ApiDocSpeaker::openapi());
     let rapidoc_speaker = RapiDoc::new("/api-docs/openapi_speaker.json").path("/rapidoc_speaker");
 
-    /*let timeslots_docs =
+    let timeslots_docs =
         SwaggerUi::new("/swagger-timeslots").url("/api-docs/openapi_timeslots.json", ApiDocSchedule::openapi());
-    let redoc_timeslot = Redoc::with_url("/redoc3", ApiDocTimeslot::openapi());
-    let rapidoc_timeslot = RapiDoc::new("/api-docs/openapi_timeslots.json").path("/rapidoc_timeslots");*/
+    let redoc_timeslot = Redoc::with_url("/redoc5", ApiDocTimeslot::openapi());
+    let rapidoc_timeslot = RapiDoc::new("/api-docs/openapi_timeslots.json").path("/rapidoc_timeslots");
 
 
     let app = Router::new()
@@ -149,6 +152,9 @@ async fn main() {
         .merge(rooms_docs)
         .merge(redoc_rooms)
         .merge(rapidoc_rooms)
+        .merge(timeslots_docs)
+        .merge(redoc_timeslot)
+        .merge(rapidoc_timeslot)
         .with_state(topics_db)
         .fallback(handler_404)
         .layer(

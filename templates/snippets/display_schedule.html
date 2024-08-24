@@ -91,12 +91,16 @@
             const events = [
                 {% if let Some(sched) = schedule %}
                     {% for timeslot in sched.timeslots %}
-                        {% if let Some(_) = timeslot.topic_id %}
+                        {% if let Some(topic_id) = timeslot.topic_id %}
                         {
                             roomId: {{ timeslot.room_id.unwrap() }},
                             startTime: "{{ timeslot.start_time }}",
                             endTime: "{{ timeslot.end_time }}",
-                            title: "name here {{ timeslot.id.unwrap() }}"
+                            timeslotId: {{ timeslot.id.unwrap() }},
+                            title: "name here {{ timeslot.id.unwrap() }}",
+                            topicId: {{ topic_id }},
+                            speakerId: {{ timeslot.speaker_id.unwrap() }},
+                            scheduleId: {{ sched.id.unwrap() }},
                         },
                         {% endif %}
                     {% endfor %}
@@ -141,6 +145,11 @@
                 eventBlock.draggable = true;
                 eventBlock.setAttribute('data-start-time', event.startTime);
                 eventBlock.setAttribute('data-end-time', event.endTime);
+                eventBlock.setAttribute('data-timeslot-id', event.timeslotId);
+                eventBlock.setAttribute('data-topic-id', event.topicId);
+                eventBlock.setAttribute('data-speaker-id', event.speakerId);
+                eventBlock.setAttribute('data-schedule-id', event.scheduleId);
+                eventBlock.setAttribute('data-room-id', event.roomId);
                 eventBlock.addEventListener('dragstart', handleDragStart);
 
                 const { top, height } = calculateEventPosition(event.startTime, event.endTime);
@@ -212,22 +221,22 @@
             let draggedEvent = null;
 
             function handleDragStart(event) {
-                draggedEvent = (event.target;
-                (event.dataTransfer.effectAllowed = "move";
-                (event.dataTransfer.setData("text/plain", null);
+                draggedEvent = (event.target);
+                (event.dataTransfer.effectAllowed = "move");
+                (event.dataTransfer.setData("text/plain", null));
             }
 
             function handleDragOver(event) {
-                (event.preventDefault();
-                (event.dataTransfer.dropEffect = "move";
+                (event.preventDefault());
+                (event.dataTransfer.dropEffect = "move");
             }
 
             function handleDrop(event) {
-                (event.preventDefault();
+                (event.preventDefault());
                 if (draggedEvent) {
-                    const roomColumn = (event.target.closest('.room-column');
+                    const roomColumn = (event.target.closest('.room-column'));
                     const rect = roomColumn.getBoundingClientRect();
-                    const y = (event.clientY - rect.top;
+                    const y = (event.clientY - rect.top);
                     // 10 hours in minutes
                     const scheduleLength = 10 * 60;
                     const minutesFromStart = Math.round((y / rect.height) * scheduleLength / 30) * 30;
@@ -247,12 +256,40 @@
                     // Update event block
                     draggedEvent.setAttribute('data-start-time', newStartTime);
                     draggedEvent.setAttribute('data-end-time', newEndTime);
+                    draggedEvent.setAttribute('data-room-id', roomColumn.getAttribute('data-room-id'));
 
                     const { top, height } = calculateEventPosition(newStartTime, newEndTime);
                     draggedEvent.style.top = top;
                     draggedEvent.style.height = height;
 
                     roomColumn.appendChild(draggedEvent);
+                    const timeslotId = draggedEvent.getAttribute('data-timeslot-id');
+                    const topicId = draggedEvent.getAttribute('data-topic-id');
+                    const speakerId = draggedEvent.getAttribute('data-speaker-id');
+                    const scheduleId = draggedEvent.getAttribute('data-schedule-id');
+                    const roomId = draggedEvent.getAttribute('data-room-id');
+                    // Update moved event
+                    const timeslot = {
+                        id: Number(timeslotId),
+                        start_time: newStartTime,
+                        end_time: newEndTime,
+                        speaker_id: Number(speakerId),
+                        topic_id: Number(topicId),
+                        room_id: Number(roomId),
+                        schedule_id: Number(scheduleId),
+                    };
+
+                    fetch(`api/v1/timeslots/${timeslot.id}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(timeslot),
+                    })
+                        .then(response => response.json());
+
+
+
                     draggedEvent = null;
                 }
             }
