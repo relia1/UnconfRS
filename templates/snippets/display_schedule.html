@@ -239,7 +239,7 @@
                     const y = (event.clientY - rect.top);
                     // 10 hours in minutes
                     const scheduleLength = 10 * 60;
-                    const minutesFromStart = Math.round((y / rect.height) * scheduleLength / 30) * 30;
+                    const minutesFromStart = (Math.round((y / rect.height) * ((scheduleLength / 30))) - 1) * 30;//Math.round((y / rect.height) * scheduleLength / 30) * 30;
                     // 8:00 AM + mintues from start
                     const newStartMinutes = 8 * 60 + minutesFromStart;
                     const newStartTime = minutesToTime(newStartMinutes);
