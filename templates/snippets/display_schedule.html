@@ -67,6 +67,7 @@
     <body>
         <div id="eventSchedule" style="display: none;">
             <h1>Event Schedule</h1>
+            <button type="button" id="populate-schedule">Populate Schedule</button>
             <div class="schedule-container">
                 <div class="time-column">
                     <div class="room-header">Time</div>
@@ -293,6 +294,27 @@
                     draggedEvent = null;
                 }
             }
+
+            document.getElementById('populate-schedule').addEventListener('click', async (e) => {
+                try {
+                    const response = await fetch('/api/v1/schedules/generate', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
+                    location.reload();
+                } catch (error) {
+                    console.error('Error populating schedule:', error);
+                    alert('There was an error populating the schedule. Please try again.');
+                }
+            });
+
             </script>
         </div>
     </body>
