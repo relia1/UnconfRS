@@ -11,32 +11,24 @@
             font-family: Arial, sans-serif;
         }
 
-        .time-column {
+        .time-column, .room-column {
             min-width: 100px;
-            background-color: #f8f9fa;
             border-right: 1px solid #dee2e6;
-            position: sticky;
-            left: 0;
-            z-index: 10;
+            background-color: #f8f9fa;
         }
 
         .room-column {
             min-width: 200px;
-            border-right: 1px solid #dee2e6;
             position: relative;
         }
 
-        .time-slot,
-        .room-header {
+        .time-slot, .room-header, .room-slot {
             height: 60px;
             padding: 5px;
             border-bottom: 1px solid #dee2e6;
             display: flex;
             justify-content: center;
-        }
-
-        .time-slot {
-            align-items: normal;
+            align-items: center;
         }
 
         .room-header {
@@ -45,7 +37,6 @@
             position: sticky;
             top: 0;
             z-index: 5;
-            align-items: center;
         }
 
         .event-block {
@@ -62,12 +53,55 @@
             justify-content: center;
             cursor: move;
         }
-        </style>
+
+        label {
+            display: none;
+            margin-bottom: 10px;
+        }
+
+        select {
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .schedule-container {
+                flex-direction: row;
+            }
+
+            .time-column {
+                position: sticky;
+                left: 0;
+                z-index: 10;
+            }
+
+            .room-column {
+                display: none;
+                min-width: calc(100% - 100px);  /* Adjust based on time-column width */
+            }
+
+            .room-column.active {
+                display: block;
+            }
+
+            #room-selector {
+                display: inline-block;
+            }
+
+            #room-selector-label {
+                display: inline-block;
+                margin-right: 10px;
+            }
+        }
+    </style>
     </head>
     <body>
         <div id="eventSchedule" style="display: none;">
             <h1>Event Schedule</h1>
-            <button type="button" id="populate-schedule">Populate Schedule</button>
+            <button type="button" id="populate-schedule">Populate Schedule</button><br/>
+            <div>
+                <label for="room-selector" id="room-selector-label">Choose a room</label>
+                <select name="room-selector" id="room-selector"></select>
+            </div>
             <div class="schedule-container">
                 <div class="time-column">
                     <div class="room-header">Time</div>
@@ -80,6 +114,7 @@
             let numOf30MinSegments = 0;
             const scheduleContainer = document.querySelector('.schedule-container');
             const timeColumn = document.querySelector('.time-column');
+            const roomSelector = document.getElementById('room-selector');
 
             const rooms = [
                 {% if let Some(vec_rooms) = rooms %}
@@ -120,7 +155,7 @@
             }
 
             // Create room columns
-            rooms.forEach(room => {
+            rooms.forEach((room, index) => {
                 const roomColumn = document.createElement('div');
                 roomColumn.className = 'room-column';
                 roomColumn.setAttribute('data-room-id', room.id);
@@ -128,6 +163,15 @@
                 roomColumn.addEventListener('dragover', handleDragOver);
                 roomColumn.addEventListener('drop', handleDrop);
                 scheduleContainer.appendChild(roomColumn);
+
+                const option = document.createElement('option');
+                option.value = room.id;
+                option.textContent = room.name;
+                roomSelector.appendChild(option);
+
+                if(index === 0) {
+                    roomColumn.classList.add('active');
+                }
             });
 
             // Add events to room columns
@@ -313,6 +357,17 @@
                     console.error('Error populating schedule:', error);
                     alert('There was an error populating the schedule. Please try again.');
                 }
+            });
+
+            roomSelector.addEventListener('change', (event) => {
+                const selectRoomId = event.target.value;
+                document.querySelectorAll('.room-column').forEach(column => {
+                    if(column.getAttribute('data-room-id') === selectRoomId) {
+                        column.classList.add('active');
+                    } else {
+                        column.classList.remove('active');
+                    }
+                });
             });
 
             </script>
