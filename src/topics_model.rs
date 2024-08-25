@@ -96,6 +96,7 @@ pub struct Topic {
     pub speaker_id: i32,
     pub title: String,
     pub content: String,
+    pub votes: i32,
 }
 
 impl Topic {
@@ -118,6 +119,7 @@ impl Topic {
             speaker_id,
             title,
             content,
+            votes: 0,
         }
     }
 }
@@ -241,11 +243,12 @@ pub async fn get(db_pool: &Pool<Postgres>, index: i32) -> Result<Vec<Topic>, Box
 /// If the topic already exists, returns a `TopicErr` error.
 pub async fn add(db_pool: &Pool<Postgres>, topic: Topic) -> Result<i32, Box<dyn Error>> {
     let row: (i32,) = sqlx::query_as(
-        "INSERT INTO topics (speaker_id, title, content) VALUES ($1, $2, $3) RETURNING id",
+        "INSERT INTO topics (speaker_id, title, content, votes) VALUES ($1, $2, $3, $4) RETURNING id",
         )
         .bind(topic.speaker_id)
         .bind(topic.title)
         .bind(topic.content)
+        .bind(topic.votes)
         .fetch_one(db_pool)
         .await?;
 
@@ -310,4 +313,46 @@ pub async fn update(
     .await?;
 
     Ok(topic_to_update)
+}
+
+/// Adds a vote to a topic
+///
+/// # Parameters
+///
+/// * `index`: The ID of the topic to update.
+pub async fn increment_vote(
+    db_pool: &Pool<Postgres>,
+    index: i32,
+) -> Result<(), Box<dyn Error>> {
+    sqlx::query(
+        "UPDATE topics
+        SET votes = votes + 1
+        WHERE id = $1;",
+    )
+        .bind(index)
+        .fetch_all(db_pool)
+        .await?;
+
+    Ok(())
+}
+
+/// Removes a vote to a topic
+///
+/// # Parameters
+///
+/// * `index`: The ID of the topic to update.
+pub async fn decrement_vote(
+    db_pool: &Pool<Postgres>,
+    index: i32,
+) -> Result<(), Box<dyn Error>> {
+    sqlx::query(
+        "UPDATE topics
+        SET votes = votes - 1
+        WHERE id = $1;",
+    )
+        .bind(index)
+        .fetch_all(db_pool)
+        .await?;
+
+    Ok(())
 }

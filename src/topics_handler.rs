@@ -161,3 +161,47 @@ pub async fn update_topic(
         Err(e) => TopicError::response(StatusCode::BAD_REQUEST, e),
     }
 }
+
+#[utoipa::path(
+    put,
+    path = "/api/v1/topics/{id}/increment",
+    responses(
+        (status = 200, description = "Updated topic", body = ()),
+        (status = 400, description = "Bad request", body = TopicError),
+        (status = 404, description = "Topic not found", body = TopicError),
+        (status = 422, description = "Unprocessable entity", body = TopicError),
+    )
+)]
+#[debug_handler]
+pub async fn add_vote_for_topic(
+    State(db_pool): State<Arc<RwLock<UnconfData>>>,
+    Path(topic_id): Path<i32>,
+) -> Response {
+    let write_lock = db_pool.write().await;
+    match increment_vote(&write_lock.unconf_db, topic_id).await {
+        Ok(_) => StatusCode::OK.into_response(),
+        Err(e) => TopicError::response(StatusCode::BAD_REQUEST, e),
+    }
+}
+
+#[utoipa::path(
+    put,
+    path = "/api/v1/topics/{id}/decrement",
+    responses(
+        (status = 200, description = "Updated topic", body = ()),
+        (status = 400, description = "Bad request", body = TopicError),
+        (status = 404, description = "Topic not found", body = TopicError),
+        (status = 422, description = "Unprocessable entity", body = TopicError),
+    )
+)]
+#[debug_handler]
+pub async fn subtract_vote_for_topic(
+    State(db_pool): State<Arc<RwLock<UnconfData>>>,
+    Path(topic_id): Path<i32>,
+) -> Response {
+    let write_lock = db_pool.write().await;
+    match decrement_vote(&write_lock.unconf_db, topic_id).await {
+        Ok(_) => StatusCode::OK.into_response(),
+        Err(e) => TopicError::response(StatusCode::BAD_REQUEST, e),
+    }
+}

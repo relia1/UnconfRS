@@ -92,6 +92,8 @@ async fn main() {
         .route("/topics/add", post(post_topic))
         .route("/topics/:id", delete(delete_topic))
         .route("/topics/:id", put(update_topic))
+        .route("/topics/:id/increment", put(add_vote_for_topic))
+        .route("/topics/:id/decrement", put(subtract_vote_for_topic))
         .route("/rooms", get(rooms))
         .route("/rooms/add", post(post_rooms))
         .route("/rooms/:id", delete(delete_room))
