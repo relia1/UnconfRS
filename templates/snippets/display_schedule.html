@@ -11,18 +11,26 @@
             font-family: Arial, sans-serif;
         }
 
-        .time-column, .room-column {
+        .row-column, .column {
             min-width: 100px;
             border-right: 1px solid #dee2e6;
             background-color: #f8f9fa;
         }
 
-        .room-column {
+        .column {
             min-width: 200px;
             position: relative;
         }
 
-        .time-slot, .room-header, .room-slot {
+        /*
+.header {
+display: flex;
+background-color: #f0f0f0;
+font-weight: bold;
+}
+*/
+
+        .row-label, .column-header {
             height: 60px;
             padding: 5px;
             border-bottom: 1px solid #dee2e6;
@@ -31,7 +39,7 @@
             align-items: center;
         }
 
-        .room-header {
+        .column-header {
             font-weight: bold;
             background-color: #e9ecef;
             position: sticky;
@@ -45,7 +53,7 @@
             right: 5px;
             background-color: #007bff;
             color: white;
-            padding: 5px;
+            padding: 0px;
             border-radius: 4px;
             overflow: hidden;
             display: flex;
@@ -63,23 +71,46 @@
             display: none;
         }
 
+        #view-selector {
+            display: inline-block;
+        }
+
+        #view-selector-label {
+            display: inline-block;
+        }
+
+        .cell {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            min-width: 100px;
+        }
+        .room-cell, .time-cell {
+            flex: 0 0 100px;
+            font-weight: bold;
+        }
+        .event-cell {
+            background-color: #3498db;
+            color: white;
+        }
+
         @media (max-width: 768px) {
             .schedule-container {
                 flex-direction: row;
             }
 
-            .time-column {
+            .row-column {
                 position: sticky;
                 left: 0;
                 z-index: 10;
             }
 
-            .room-column {
+            .column {
                 display: none;
                 min-width: calc(100% - 100px);  /* Adjust based on time-column width */
             }
 
-            .room-column.active {
+            .column.active {
                 display: block;
             }
 
@@ -91,16 +122,30 @@
                 display: inline-block;
                 margin-right: 10px;
             }
+
+            #time-selector {
+                display: inline-block;
+            }
+
+            #time-selector-label {
+                display: inline-block;
+                margin-right: 10px;
+            }
         }
-    </style>
+        </style>
     </head>
     <body>
         <div id="eventSchedule" style="display: none;">
             <h1>Event Schedule</h1>
             <button type="button" id="populate-schedule">Populate Schedule</button><br/>
-            <div>
-                <label for="room-selector" id="room-selector-label">Choose a room</label>
-                <select name="room-selector" id="room-selector"></select>
+            <div id="controls">
+                <div>
+                    <label for="view-selector" id="view-selector-label">Choose view: </label>
+                    <select name="view-selector" id="view-selector">
+                        <option value="time">Time-based</option>
+                        <option value="room">Room-based</option>
+                    </select>
+                </div>
             </div>
             <div class="schedule-container">
                 <div class="time-column">
@@ -112,9 +157,9 @@
 
             <script>
             let numOf30MinSegments = 0;
+            let numOfRooms = 0;
             const scheduleContainer = document.querySelector('.schedule-container');
-            const timeColumn = document.querySelector('.time-column');
-            const roomSelector = document.getElementById('room-selector');
+            const displayControls = document.getElementById('controls');
 
             const rooms = [
                 {% if let Some(vec_rooms) = rooms %}
@@ -123,6 +168,8 @@
                 {% endfor %}
                     {% endif %}
             ];
+
+            numOfRooms = rooms.length;
 
             const events = [
                 {% if let Some(sched) = schedule %}
@@ -138,52 +185,17 @@
                             speakerId: {{ timeslot.speaker_id.unwrap() }},
                             scheduleId: {{ sched.id.unwrap() }},
                         },
-                        {% endif %}
-                    {% endfor %}
                 {% endif %}
+                    {% endfor %}
+                    {% endif %}
             ];
 
-            // Create time slots
-            for (let hour = 8; hour < 18; hour++) {
-                for (let minute = 0; minute < 60; minute += 30) {
-                    numOf30MinSegments += 1;
-                    const timeSlot = document.createElement('div');
-                    timeSlot.className = 'time-slot';
-                    timeSlot.textContent = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
-                    timeColumn.appendChild(timeSlot);
-                }
-            }
+            let viewSelectorValue = document.getElementById('view-selector').value;
 
-            // Create room columns
-            rooms.forEach((room, index) => {
-                const roomColumn = document.createElement('div');
-                roomColumn.className = 'room-column';
-                roomColumn.setAttribute('data-room-id', room.id);
-                roomColumn.innerHTML = `<div class="room-header">${room.name}</div>`;
-                roomColumn.addEventListener('dragover', handleDragOver);
-                roomColumn.addEventListener('drop', handleDrop);
-                scheduleContainer.appendChild(roomColumn);
-
-                const option = document.createElement('option');
-                option.value = room.id;
-                option.textContent = room.name;
-                roomSelector.appendChild(option);
-
-                if(index === 0) {
-                    roomColumn.classList.add('active');
-                }
-            });
-
-            // Add events to room columns
-            events.forEach(event => {
-                const roomColumn = document.querySelector(`.room-column[data-room-id="${event.roomId}"]`);
-                const eventBlock = createEventBlock(event);
-                roomColumn.appendChild(eventBlock);
-            });
 
             // Takes an event and creates an event div element with the
             // position within the room column applied to it
-            function createEventBlock(event) {
+            function createEventBlock(event, displayType) {
                 const eventBlock = document.createElement('div');
                 eventBlock.className = 'event-block';
                 eventBlock.textContent = event.title;
@@ -197,9 +209,15 @@
                 eventBlock.setAttribute('data-room-id', event.roomId);
                 eventBlock.addEventListener('dragstart', handleDragStart);
 
-                const { top, height } = calculateEventPosition(event.startTime, event.endTime);
-                eventBlock.style.top = top;
-                eventBlock.style.height = height;
+                if(displayType.localeCompare('time') === 0) {
+                    const { top, height } = calculateEventPosition(event.startTime, event.endTime);
+                    eventBlock.style.top = top;
+                    eventBlock.style.height = height;
+                } else {
+                    const { top, height } = calculateRoomBasedEventPosition(event.roomId);
+                    eventBlock.style.top = top;
+                    eventBlock.style.height = height;
+                }
 
                 return eventBlock;
             }
@@ -236,7 +254,6 @@
                 console.log('num 30 min segs ' + `${numOf30MinSegmentsSinceStart}`);
                 console.log('time height multiplier ' + `${timeHeightMultiplier}`);
                 */
-
                 // Using the number of segments into the rooms column and
                 // the multiplier gives us the starting time location of
                 // the event
@@ -245,8 +262,27 @@
                 // we determine how long the event lasts
                 const height = ((duration / 30.0) * timeHeightMultiplier) + '%';
 
+                console.log(`top: ${top} height: ${height}`);
                 return { top, height };
             }
+
+            // Calculate the position within the room column for the event
+            // to be shown at
+            function calculateRoomBasedEventPosition(roomId) {
+                // Multiplier used for determing position and height of event
+                // 1 is added due to the header taking up the first row of the
+                // room column
+                const roomHeightMultiplier = (1 / (numOfRooms + 1)) * 100;
+                // Using the room ID determine the starting location of the event
+                const top = ((roomId) * roomHeightMultiplier) + '%';
+                // Since rooms don't have a length the height multiplier
+                // is the height of the event
+                const height = roomHeightMultiplier + '%';
+
+                console.log(`top: ${top} height: ${height}`);
+                return { top, height };
+            }
+
 
             // Given time in the format of 'hours:minutes' return back
             // time only in minutes
@@ -279,7 +315,7 @@
             function handleDrop(event) {
                 (event.preventDefault());
                 if (draggedEvent) {
-                    const roomColumn = (event.target.closest('.room-column'));
+                    const roomColumn = (event.target.closest('.column'));
                     const rect = roomColumn.getBoundingClientRect();
                     const y = (event.clientY - rect.top);
                     // 10 hours in minutes
@@ -298,10 +334,11 @@
                     const newEndMinutes = newStartMinutes + duration;
                     const newEndTime = minutesToTime(newEndMinutes);
 
+                    const roomId = roomColumn.getAttribute('data-room-id');
                     // Update event block
                     draggedEvent.setAttribute('data-start-time', newStartTime);
                     draggedEvent.setAttribute('data-end-time', newEndTime);
-                    draggedEvent.setAttribute('data-room-id', roomColumn.getAttribute('data-room-id'));
+                    draggedEvent.setAttribute('data-room-id', roomId);
 
                     const { top, height } = calculateEventPosition(newStartTime, newEndTime);
                     draggedEvent.style.top = top;
@@ -312,7 +349,6 @@
                     const topicId = draggedEvent.getAttribute('data-topic-id');
                     const speakerId = draggedEvent.getAttribute('data-speaker-id');
                     const scheduleId = draggedEvent.getAttribute('data-schedule-id');
-                    const roomId = draggedEvent.getAttribute('data-room-id');
                     // Update moved event
                     const timeslot = {
                         id: Number(timeslotId),
@@ -323,6 +359,11 @@
                         room_id: Number(roomId),
                         schedule_id: Number(scheduleId),
                     };
+
+                    let eventIndex = events.findIndex(obj => obj.timeslotId === timeslot.id);
+                    events[eventIndex].startTime = timeslot.start_time;
+                    events[eventIndex].endTime = timeslot.end_time;
+                    events[eventIndex].roomId = timeslot.room_id;
 
                     fetch(`api/v1/timeslots/${timeslot.id}`, {
                         method: 'PUT',
@@ -359,16 +400,188 @@
                 }
             });
 
-            roomSelector.addEventListener('change', (event) => {
-                const selectRoomId = event.target.value;
-                document.querySelectorAll('.room-column').forEach(column => {
-                    if(column.getAttribute('data-room-id') === selectRoomId) {
+
+
+
+            function updateView() {
+                const view = document.getElementById('view-selector').value;
+                const container = document.querySelector('.schedule-container');
+                view === 'time' ? generateTimeBasedView() : generateRoomBasedView();
+            }
+
+            function generateTimeBasedView() {
+                console.log('time based');
+                // Clear out schedule so we can generate the time based view
+                scheduleContainer.innerHTML = ''
+                let timeSelector = document.getElementById('time-selector');
+                if(timeSelector) {
+                    timeSelector.remove();
+                    document.getElementById('time-selector-label').remove();
+                }
+                numOf30MinSegments = 0;
+
+                // Create time slots
+                let rowColumn = document.createElement('div');
+                rowColumn.className = 'row-column';
+                let rowColumnHeader = document.createElement('div');
+                rowColumnHeader.className = 'column-header';
+                rowColumnHeader.innerText = 'Time';
+                rowColumn.appendChild(rowColumnHeader);
+                scheduleContainer.appendChild(rowColumn);
+
+                rowColumn = document.querySelector('.row-column');
+                for (let hour = 8; hour < 18; hour++) {
+                    for (let minute = 0; minute < 60; minute += 30) {
+                        numOf30MinSegments += 1;
+                        const rowLabel = document.createElement('div');
+                        rowLabel.className = 'row-label';
+                        rowLabel.textContent = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+                        rowColumn.appendChild(rowLabel);
+                    }
+                }
+
+                let roomSelectorLabel = document.createElement('label');
+                roomSelectorLabel.setAttribute('for', 'room-selector');
+                roomSelectorLabel.setAttribute('id', 'room-selector-label');
+                roomSelectorLabel.innerText = 'Choose a room: ';
+                let roomSelector = document.createElement('select');
+                roomSelector.setAttribute('name', 'room-selector');
+                roomSelector.setAttribute('id', 'room-selector');
+                displayControls.appendChild(roomSelectorLabel);
+
+                // Create room columns
+                rooms.forEach((room, index) => {
+                    const column = document.createElement('div');
+                    column.className = 'column';
+                    column.setAttribute('data-room-id', room.id);
+                    column.innerHTML = `<div class="column-header">${room.name}</div>`;
+                    column.addEventListener('dragover', handleDragOver);
+                    column.addEventListener('drop', handleDrop);
+                    scheduleContainer.appendChild(column);
+
+                    const option = document.createElement('option');
+                    option.value = room.id;
+                    option.textContent = room.name;
+                    roomSelector.appendChild(option);
+
+                    if(index === 0) {
                         column.classList.add('active');
-                    } else {
-                        column.classList.remove('active');
                     }
                 });
-            });
+                displayControls.appendChild(roomSelector);
+
+                roomSelector.addEventListener('change', (event) => {
+                    const selectRoomId = event.target.value;
+                    document.querySelectorAll('.column').forEach(column => {
+                        if(column.getAttribute('data-room-id') === selectRoomId) {
+                            column.classList.add('active');
+                        } else {
+                            column.classList.remove('active');
+                        }
+                    });
+                });
+
+
+                // Add events to room columns
+                events.forEach(event => {
+                    const column = document.querySelector(`.column[data-room-id="${event.roomId}"]`);
+                    const eventBlock = createEventBlock(event, 'time');
+                    column.appendChild(eventBlock);
+                });
+
+            }
+
+            function generateRoomBasedView() {
+                console.log('room based');
+                // Clear out schedule so we can generate the time based view
+                scheduleContainer.innerHTML = ''
+                let roomSelector = document.getElementById('room-selector');
+                if(roomSelector) {
+                    roomSelector.remove();
+                    document.getElementById('room-selector-label').remove();
+                }
+
+                numOf30MinSegments = 0;
+
+                // Create time slots
+                let rowColumn = document.createElement('div');
+                rowColumn.className = 'row-column';
+                let rowColumnHeader = document.createElement('div');
+                rowColumnHeader.className = 'column-header';
+                rowColumnHeader.innerText = 'Room';
+                rowColumn.appendChild(rowColumnHeader);
+                scheduleContainer.appendChild(rowColumn);
+                rowColumn = document.querySelector('.row-column');
+
+                rooms.forEach((room, index) => {
+                    const rowLabel = document.createElement('div');
+                    rowLabel.className = 'row-label';
+                    rowLabel.textContent = room.name;
+                    rowColumn.appendChild(rowLabel);
+                });
+
+                let timeSelectorLabel = document.createElement('label');
+                timeSelectorLabel.setAttribute('for', 'time-selector');
+                timeSelectorLabel.setAttribute('id', 'time-selector-label');
+                timeSelectorLabel.innerText = 'Choose a starting time: ';
+                let timeSelector = document.createElement('select');
+                timeSelector.setAttribute('name', 'time-selector');
+                timeSelector.setAttribute('id', 'time-selector');
+                displayControls.appendChild(timeSelectorLabel);
+
+
+                for (let hour = 8; hour < 18; hour++) {
+                    numOf30MinSegments += 1;
+                    for (let minute = 0; minute < 60; minute += 30) {
+                        let column = document.createElement('div');
+                        column.className = 'column';
+                        let eventHour = hour < 10 ? `0${hour}` : `${hour}`;
+                        let eventMinute = minute === 0 ? '00' : '30';
+                        column.setAttribute('data-time', `${eventHour}:${eventMinute}`);
+                        column.innerHTML = `<div class="column-header">${eventHour}:${eventMinute}</div>`;
+                        column.addEventListener('dragover', handleDragOver);
+                        column.addEventListener('drop', handleDrop);
+                        scheduleContainer.appendChild(column);
+
+                        let option = document.createElement('option');
+                        option.value = `${eventHour}:${eventMinute}`;
+                        option.textContent = `${eventHour}:${eventMinute}`;
+                        timeSelector.appendChild(option);
+
+                        if(hour === 8 && minute === 0) {
+                            column.classList.add('active');
+                        }
+                    }
+                }
+
+                timeSelector.addEventListener('change', (event) => {
+                    const selectStartTime = event.target.value;
+                    document.querySelectorAll('.column').forEach(column => {
+                        let startTime = event.currentTarget.value;
+                        console.log(`actual start time ${column.getAttribute('data-time')}`);
+                        console.log(`start time ${startTime}`);
+                        if(column.getAttribute('data-time').localeCompare(startTime) === 0) {
+                            column.classList.add('active');
+                        } else {
+                            column.classList.remove('active');
+                        }
+                    });
+                });
+
+                displayControls.appendChild(timeSelector);
+
+                // Add events to room columns
+                events.forEach(event => {
+                    let column = document.querySelector(`.column[data-time="${event.startTime.substring(0, event.startTime.length - 3)}"]`);
+                    const eventBlock = createEventBlock(event, 'room');
+                    column.appendChild(eventBlock);
+                });
+
+            }
+
+            document.getElementById('view-selector').addEventListener('change', updateView);
+            // initial view
+            updateView();
 
             </script>
         </div>
