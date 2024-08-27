@@ -96,6 +96,7 @@ pub struct Topic {
     pub speaker_id: i32,
     pub title: String,
     pub content: String,
+    #[serde(skip_deserializing)]
     pub votes: i32,
 }
 
