@@ -186,7 +186,7 @@ pub async fn schedules_get(
         .fetch_all(db_pool)
         .await?;
 
-        tracing::trace!("timeslots from schedule get: \n{:?}", &timeslots);
+        trace!("timeslots from schedule get: \n{:?}", &timeslots);
         schedule.timeslots = timeslots;
     }
 
@@ -352,17 +352,6 @@ pub async fn schedule_generate(db_pool: &Pool<Postgres>) -> Result<Schedule, Box
 
             let topic = &topics[topic_index];
             let timeslot = &schedule.timeslots[i + (room_index * schedule.num_of_timeslots as usize)];
-        /*}
-    }
-
-    for i in 0..schedule.num_of_timeslots as usize {
-        for (room_index, room) in rooms.iter().enumerate() {
-            if topic_index >= num_of_topics {
-                break;
-            }
-
-            let topic = &topics[topic_index];
-            let timeslot = &schedule.timeslots[i + (room_index * schedule.num_of_timeslots as usize)];*/
 
             let updated_timeslot = TimeSlot::new(
                 timeslot.id,

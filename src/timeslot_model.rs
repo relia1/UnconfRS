@@ -302,7 +302,7 @@ pub async fn timeslot_update(db_pool: &Pool<Postgres>, timeslot_id: i32, timeslo
         WHERE id = $1
         "#,
     )
-        .bind(timeslot.id)
+        .bind(timeslot_id)
         .bind(timeslot.start_time)
         .bind(timeslot.end_time)
         .bind(timeslot.speaker_id)

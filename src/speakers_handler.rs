@@ -55,7 +55,7 @@ pub async fn speakers(
             Json(res).into_response()
         }
         Err(e) => {
-            tracing::trace!("Paginated get error");
+            trace!("Paginated get error");
             SpeakerError::response(
                 StatusCode::NOT_FOUND,
                 Box::new(SpeakerErr::DoesNotExist(e.to_string())),

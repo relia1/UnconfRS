@@ -53,7 +53,7 @@ pub async fn schedules(
             Json(res).into_response()
         }
         Err(e) => {
-            tracing::trace!("Paginated get error");
+            trace!("Paginated get error");
             ScheduleError::response(
                 StatusCode::NOT_FOUND,
                 Box::new(ScheduleErr::DoesNotExist(e.to_string())),

@@ -190,7 +190,7 @@ pub async fn rooms_add(
     Json(rooms_form): Json<CreateRoomsForm>
 ) -> Result<Schedule, Box<dyn Error>> {
     for room in rooms_form.rooms {
-        let room_row: (i32,) = sqlx::query_as(r#"INSERT INTO rooms (name, available_spots, location) VALUES ($1, $2, $3) RETURNING id"#)
+        sqlx::query_as(r#"INSERT INTO rooms (name, available_spots, location) VALUES ($1, $2, $3) RETURNING id"#)
             .bind(room.name)
             .bind(room.available_spots)
             .bind(room.location)

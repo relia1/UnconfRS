@@ -56,11 +56,11 @@ pub async fn topics(
     let read_lock = db_pool.read().await;
     match paginated_get(&read_lock.unconf_db, params.page, params.limit).await {
         Ok(res) => {
-            tracing::trace!("Retrieved {} topics", res.len());
+            trace!("Retrieved {} topics", res.len());
             Json(res).into_response()
         }
         Err(e) => {
-            tracing::trace!("Paginated get error");
+            trace!("Paginated get error");
             TopicError::response(
                 StatusCode::NOT_FOUND,
                 Box::new(TopicErr::DoesNotExist(e.to_string())),
