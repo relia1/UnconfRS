@@ -5,12 +5,17 @@ use askama_axum::IntoResponse;
 use axum::{http::StatusCode, response::Response, Json};
 use chrono::NaiveTime;
 use serde::{ser::SerializeStruct, Deserialize, Serialize, Serializer};
-use sqlx::{Pool, Postgres, FromRow};
+use sqlx::{FromRow, Pool, Postgres};
 use tracing::{debug, trace};
 use utoipa::{openapi::{ObjectBuilder, RefOr, Schema, SchemaType}, ToSchema};
-
-use crate::{room_model::rooms_get, timeslot_model::*, topics_model::get_all_topics, CreateScheduleForm};
-
+use crate::{
+    models::{
+        room_model::rooms_get,
+        timeslot_model::*,
+        topics_model::get_all_topics,
+    },
+    CreateScheduleForm
+};
 
 /// An enumeration of errors that may occur
 #[derive(Debug, thiserror::Error, ToSchema, Serialize)]

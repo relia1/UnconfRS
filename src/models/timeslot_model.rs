@@ -2,11 +2,11 @@ use std::error::Error;
 
 
 use askama_axum::IntoResponse;
-use axum::{http::StatusCode, Json, response::Response};
-use serde::{ser::SerializeStruct, Deserialize, Serialize, Serializer};
-use sqlx::{FromRow, Pool, Postgres, Row};
-use utoipa::{openapi::{ObjectBuilder, RefOr, Schema, SchemaType}, ToSchema};
+use axum::{http::StatusCode, response::Response, Json};
 use chrono::NaiveTime;
+use serde::{ser::SerializeStruct, Deserialize, Serialize, Serializer};
+use sqlx::{FromRow, Pool, Postgres};
+use utoipa::{openapi::{ObjectBuilder, RefOr, Schema, SchemaType}, ToSchema};
 
 /// An enumeration of errors that may occur
 #[derive(Debug, thiserror::Error, ToSchema, Serialize)]

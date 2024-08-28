@@ -1,40 +1,21 @@
+extern crate serde_json;
+extern crate thiserror;
+extern crate tracing;
 mod config;
 mod db_config;
-mod topics_model;
-mod schedule_model;
-mod room_model;
-mod timeslot_model;
-mod speakers_handler;
-mod speakers_model;
-mod topics_handler;
-mod schedule_handler;
-mod timeslot_handler;
-mod room_handler;
+mod models;
+mod controllers;
 mod pagination;
 
 use config::*;
 use pagination::Pagination;
-use room_handler::*;
-use room_model::{rooms_get, Room};
-use schedule_model::{schedules_get, Schedule};
 use serde::Deserialize;
-use speakers_handler::ApiDocSpeaker;
-use timeslot_handler::{update_timeslot, ApiDocTimeslot};
-use timeslot_model::TimeSlot;
-// use timeslot_model::ApiDocTimeslot;
-use topics_handler::*;
-use schedule_handler::*;
-use speakers_handler::*;
-
-use topics_model::{paginated_get, Topic};
 use tower::ServiceBuilder;
 use tower_http::{
     cors::{Any, CorsLayer},
     trace,
 };
 use tracing_subscriber::{fmt, EnvFilter};
-extern crate serde_json;
-extern crate thiserror;
 use axum::{
     debug_handler, extract::{Path, Query, State}, http::StatusCode, response::{Html, IntoResponse, Response}, routing::{delete, get, post, put}, Router
 };
@@ -46,8 +27,16 @@ use utoipa::OpenApi;
 
 use std::net::SocketAddr;
 use std::sync::Arc;
-use tokio::{self, sync::RwLock, fs::read_to_string};
-extern crate tracing;
+use tokio::{self, fs::read_to_string, sync::RwLock};
+use crate::controllers::room_handler::{delete_room, post_rooms, rooms, ApiDocRooms};
+use crate::controllers::schedule_handler::{generate, get_schedule, post_schedule, schedules, update_schedule, ApiDocSchedule};
+use crate::controllers::speakers_handler::{delete_speaker, get_speaker, post_speaker, speakers, update_speaker, ApiDocSpeaker};
+use crate::controllers::timeslot_handler::{update_timeslot, ApiDocTimeslot};
+use crate::controllers::topics_handler::{add_vote_for_topic, delete_topic, get_topic, post_topic, subtract_vote_for_topic, topics, update_topic, ApiDoc};
+use crate::models::room_model::{rooms_get, Room};
+use crate::models::schedule_model::{schedules_get, Schedule};
+use crate::models::timeslot_model::TimeSlot;
+use crate::models::topics_model::{paginated_get, Topic};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use utoipa_rapidoc::RapiDoc;
 use utoipa_redoc::{Redoc, Servable};

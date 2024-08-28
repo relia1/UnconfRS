@@ -1,7 +1,7 @@
 use std::error::Error;
 
 use askama_axum::IntoResponse;
-use axum::{http::StatusCode, Json, response::Response};
+use axum::{http::StatusCode, response::Response, Json};
 use serde::{ser::SerializeStruct, Deserialize, Serialize, Serializer};
 use sqlx::{FromRow, Pool, Postgres, Row};
 use utoipa::{openapi::{ObjectBuilder, RefOr, Schema, SchemaType}, ToSchema};

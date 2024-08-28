@@ -5,11 +5,11 @@ use askama_axum::IntoResponse;
 use axum::{http::StatusCode, response::Response, Json};
 use chrono::NaiveTime;
 use serde::{ser::SerializeStruct, Deserialize, Serialize, Serializer};
-use sqlx::{Pool, Postgres, FromRow};
+use sqlx::{FromRow, Pool, Postgres};
 use utoipa::{openapi::{ObjectBuilder, RefOr, Schema, SchemaType}, ToSchema};
 
-use crate::{schedule_model::Schedule, timeslot_model::*, CreateRoomsForm};
-
+use crate::models::timeslot_model::{timeslot_add, TimeSlot};
+use crate::{models::schedule_model::*, CreateRoomsForm};
 
 /// An enumeration of errors that may occur
 #[derive(Debug, thiserror::Error, ToSchema, Serialize)]
@@ -162,7 +162,7 @@ impl IntoResponse for &Room {
 /// # Returns
 ///
 /// A vector of Room's or None
-pub async fn rooms_get(
+pub(crate) async fn rooms_get(
     db_pool: &Pool<Postgres>,
 ) -> Result<Option<Vec<Room>>, Box<dyn Error>> {
     let rooms = Some(sqlx::query_as::<Postgres, Room>(

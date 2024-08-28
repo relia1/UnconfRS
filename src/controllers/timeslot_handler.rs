@@ -1,18 +1,16 @@
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
+use crate::models::timeslot_model::{timeslot_update, TimeSlot, TimeSlotError};
+use crate::StatusCode;
 use askama_axum::IntoResponse;
+use axum::debug_handler;
+use axum::extract::Path;
 use axum::extract::State;
 use axum::response::Response;
 use axum::Json;
-use axum::debug_handler;
 use tracing::trace;
 use utoipa::OpenApi;
-use axum::extract::Path;
-use crate::timeslot_model::timeslot_update;
-use crate::timeslot_model::TimeSlot;
-use crate::timeslot_model::TimeSlotError;
-use crate::StatusCode;
 
 use crate::UnconfData;
 

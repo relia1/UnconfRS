@@ -1,22 +1,29 @@
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
+use crate::models::schedule_model::{
+    schedule_add,
+    schedule_delete,
+    schedule_generate,
+    schedule_get,
+    schedule_update,
+    schedules_get,
+    Schedule,
+    ScheduleErr,
+    ScheduleError
+};
+use crate::models::timeslot_model::TimeSlot;
+use crate::CreateScheduleForm;
+use crate::StatusCode;
+use crate::UnconfData;
 use askama_axum::IntoResponse;
+use axum::debug_handler;
+use axum::extract::Path;
 use axum::extract::State;
 use axum::response::Response;
 use axum::Json;
-use axum::debug_handler;
 use tracing::trace;
 use utoipa::OpenApi;
-use axum::extract::Path;
-use crate::schedule_model::Schedule;
-use crate::schedule_model::ScheduleError;
-use crate::timeslot_model::TimeSlot;
-use crate::CreateScheduleForm;
-use crate::StatusCode;
-
-use crate::schedule_model::*;
-use crate::UnconfData;
 
 #[derive(OpenApi)]
 #[openapi(

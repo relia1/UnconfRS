@@ -1,19 +1,20 @@
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
+use crate::pagination::Pagination;
+use crate::StatusCode;
 use askama_axum::IntoResponse;
+use axum::debug_handler;
+use axum::extract::Path;
 use axum::extract::Query;
 use axum::extract::State;
 use axum::response::Response;
 use axum::Json;
-use axum::debug_handler;
 use tracing::trace;
 use utoipa::OpenApi;
-use axum::extract::Path;
-use crate::pagination::Pagination;
-use crate::StatusCode;
 
-use crate::{speakers_model::*, UnconfData};
+use crate::models::speakers_model::{speaker_add, speaker_delete, speaker_get, speaker_paginated_get, speaker_update, Speaker, SpeakerErr, SpeakerError};
+use crate::UnconfData;
 
 #[derive(OpenApi)]
 #[openapi(
