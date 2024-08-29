@@ -302,9 +302,13 @@ font-weight: bold;
             let draggedEvent = null;
 
             function handleDragStart(event) {
-                draggedEvent = (event.target);
-                (event.dataTransfer.effectAllowed = "move");
-                (event.dataTransfer.setData("text/plain", null));
+                if(localStorage.getItem('admin') === 'true') {
+                    draggedEvent = (event.target);
+                    event.dataTransfer.effectAllowed = "move";
+                    event.dataTransfer.setData("text/plain", null);
+                } else {
+                    console.log('You do not have permission to move events');
+                }
             }
 
             function handleDragOver(event) {
@@ -373,8 +377,6 @@ font-weight: bold;
                         body: JSON.stringify(timeslot),
                     })
                         .then(response => response.json());
-
-
 
                     draggedEvent = null;
                 }
