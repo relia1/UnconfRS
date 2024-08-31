@@ -156,7 +156,7 @@ font-weight: bold;
             </div>
 
             <script>
-            let numOf30MinSegments = 0;
+            let numOfHalfHourSegments = 0;
             let numOfRooms = 0;
             const scheduleContainer = document.querySelector('.schedule-container');
             const displayControls = document.getElementById('controls');
@@ -164,9 +164,13 @@ font-weight: bold;
             const rooms = [
                 {% if let Some(vec_rooms) = rooms %}
                     {% for room in vec_rooms %}
-                        { id: {{ room.id.unwrap() }}, name: "{{ room.name }}", available_spots: {{ room.available_spots }} },
-                {% endfor %}
-                    {% endif %}
+                        {
+                            id: Number({{ room.id.unwrap() }}),
+                            name: "{{ room.name }}",
+                            available_spots: Number({{ room.available_spots }})
+                        },
+                    {% endfor %}
+                {% endif %}
             ];
 
             numOfRooms = rooms.length;
@@ -176,14 +180,14 @@ font-weight: bold;
                     {% for timeslot in sched.timeslots %}
                         {% if let Some(topic_id) = timeslot.topic_id %}
                         {
-                            roomId: {{ timeslot.room_id.unwrap() }},
+                            roomId: Number({{ timeslot.room_id.unwrap() }}),
                             startTime: "{{ timeslot.start_time }}",
                             endTime: "{{ timeslot.end_time }}",
-                            timeslotId: {{ timeslot.id.unwrap() }},
+                            timeslotId: Number({{ timeslot.id.unwrap() }}),
                             title: "name here {{ timeslot.id.unwrap() }}",
-                            topicId: {{ topic_id }},
-                            speakerId: {{ timeslot.speaker_id.unwrap() }},
-                            scheduleId: {{ sched.id.unwrap() }},
+                            topicId: Number({{ topic_id }}),
+                            speakerId: Number({{ timeslot.speaker_id.unwrap() }}),
+                            scheduleId: Number({{ sched.id.unwrap() }}),
                         },
                 {% endif %}
                     {% endfor %}
@@ -228,7 +232,7 @@ font-weight: bold;
                 // Multiplier used for determing position and height of event
                 // 1 is added due to the header taking up the first row of the
                 // room column
-                const timeHeightMultiplier = (1 / (numOf30MinSegments + 1)) * 100;
+                const timeHeightMultiplier = (1 / (numOfHalfHourSegments + 1)) * 100;
                 const startMinutes = timeToMinutes(startTime);
                 const endMinutes = timeToMinutes(endTime);
                 const duration = endMinutes - startMinutes;
@@ -303,7 +307,7 @@ font-weight: bold;
 
             function handleDragStart(event) {
                 if(localStorage.getItem('admin') === 'true') {
-                    draggedEvent = (event.target);
+                    draggedEvent = event.target;
                     event.dataTransfer.effectAllowed = "move";
                     event.dataTransfer.setData("text/plain", null);
                 } else {
@@ -420,7 +424,7 @@ font-weight: bold;
                     timeSelector.remove();
                     document.getElementById('time-selector-label').remove();
                 }
-                numOf30MinSegments = 0;
+                numOfHalfHourSegments = 0;
 
                 // Create time slots
                 let rowColumn = document.createElement('div');
@@ -434,7 +438,7 @@ font-weight: bold;
                 rowColumn = document.querySelector('.row-column');
                 for (let hour = 8; hour < 18; hour++) {
                     for (let minute = 0; minute < 60; minute += 30) {
-                        numOf30MinSegments += 1;
+                        numOfHalfHourSegments += 1;
                         const rowLabel = document.createElement('div');
                         rowLabel.className = 'row-label';
                         rowLabel.textContent = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
@@ -503,7 +507,7 @@ font-weight: bold;
                     document.getElementById('room-selector-label').remove();
                 }
 
-                numOf30MinSegments = 0;
+                numOfHalfHourSegments = 0;
 
                 // Create time slots
                 let rowColumn = document.createElement('div');
@@ -533,7 +537,7 @@ font-weight: bold;
 
 
                 for (let hour = 8; hour < 18; hour++) {
-                    numOf30MinSegments += 1;
+                    numOfHalfHourSegments += 1;
                     for (let minute = 0; minute < 60; minute += 30) {
                         let column = document.createElement('div');
                         column.className = 'column';
