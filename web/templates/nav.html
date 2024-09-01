@@ -1,5 +1,5 @@
 <head>
-    <link rel="stylesheet" href="../styles/nav.css">
+    <style>{% include "../styles/nav.css" %}</style>
 </head>
 <nav class="navbar">
     <div class="container">
@@ -25,9 +25,9 @@
     </div>
 </nav>
 <script>
-const mobileMenu = document.getElementById('mobile-menu');
-const navLinks = document.querySelector('.nav-links');
-mobileMenu.addEventListener('click', () => {
-    navLinks.classList.toggle('nav-active');
-});
+    const mobileMenu = document.getElementById('mobile-menu');
+    const navLinks = document.querySelector('.nav-links');
+    mobileMenu.addEventListener('click', () => {
+        navLinks.classList.toggle('nav-active');
+    });
 </script>
