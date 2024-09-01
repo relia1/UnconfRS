@@ -9,9 +9,9 @@
     {% include "snippets/rooms_form.html" %}
     {% include "snippets/display_schedule.html" %}
     <script>
-        {% if let Some(_) = rooms %}
+        {% if rooms.is_some() %}
             document.querySelector('.form-container').style.display = 'none';
-            {% if let Some(_) = schedule %}
+            {% if schedule.is_some() %}
                 document.querySelector('#eventSchedule').style.display = 'block';
                 document.querySelector('.schedule-container').style.display = 'flex';
             {% endif %}
