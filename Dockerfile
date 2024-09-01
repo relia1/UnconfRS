@@ -6,14 +6,14 @@ WORKDIR /app
 COPY *.toml /app/
 RUN \
     mkdir /app/src && \
-    mkdir /app/templates && \
+    mkdir /app/web && \
     echo 'fn main() {}' > /app/src/main.rs && \
     cargo build --release && \
     rm -Rvf /repo/src
 
 # Build our actual code
 COPY src /app/src
-COPY templates /app/templates
+COPY web /app/web
 COPY migrations /app/migrations
 RUN \
     touch src/main.rs && \
@@ -35,7 +35,7 @@ USER appuser
 
 # Copy the executable from the "build" stage.
 COPY --from=build /app/target/release/Thesis /bin/
-COPY --from=build /app/templates/ /
+COPY --from=build /app/web/ /
 RUN ls -l
 # COPY --chown=appuser:appuser ./assets ./assets
 #COPY --chown=appuser:appuser migrations/ /migrations/

@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block title %}MVP{% endblock %}
+
+{% block head %}
+{% endblock %}
+
+{% block content %}
+    {% include "snippets/rooms_form.html" %}
+    {% include "snippets/display_schedule.html" %}
+    <script>
+        {% if let Some(_) = rooms %}
+            document.querySelector('.form-container').style.display = 'none';
+            {% if let Some(_) = schedule %}
+                document.querySelector('#eventSchedule').style.display = 'block';
+                document.querySelector('.schedule-container').style.display = 'flex';
+            {% endif %}
+        {% else %}
+            document.querySelector('.form-container').style.display = 'block';
+            document.querySelector('.schedule-container').style.display = 'none';
+        {% endif %}
+    </script>
+{% endblock %}

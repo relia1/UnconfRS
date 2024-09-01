@@ -49,7 +49,7 @@ async fn handler_404() -> Response {
 // handler to load js scripts
 async fn script_handler(path: Path<String>) -> String {
     let path = path.to_string();
-    let formatted_path = format!("scripts/{}", path);
+    let formatted_path = format!("../scripts/{}", path);
     read_to_string(formatted_path).await.unwrap()
 }
 
