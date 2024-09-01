@@ -11,58 +11,59 @@
     <script type="text/javascript" src="https://cdn.datatables.net/rowreorder/1.2.8/js/dataTables.rowReorder.js"></script>
 
     <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        let table;
+        document.addEventListener('DOMContentLoaded', function() {
+            let table;
 
-        $(document).ready(function () {
-            table = $('.topicsTable').DataTable({
-                searching: true,
-                ordering: true,
-                paging: true,
-                responsive: true
+            $(document).ready(function () {
+                table = $('.topicsTable').DataTable({
+                    searching: true,
+                    ordering: true,
+                    paging: true,
+                    responsive: true
+                });
             });
         });
-    });
 
-    async function submitForm(event) {
-        event.preventDefault(); // Prevent the default form submission
+        async function submitForm(event) {
+            /* Prevent the default form submission */
+            event.preventDefault();
 
-        const title = document.getElementById('title').value;
-        const content = document.getElementById('topicContent').value;
-        const name = document.getElementById('name').value;
-        const phone_number = document.getElementById('phone_number').value;
-        const email = document.getElementById('email').value;
-
-        try {
-            const add_speaker = await fetch('/api/v1/speakers/add', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ content, name, email, phone_number })
-            })
-                .then(response => response.json());
-            //.catch(error => console.error('Error:', error));
-            const speaker_id = await JSON.parse(add_speaker).id;
+            const title = document.getElementById('title').value;
+            const content = document.getElementById('topicContent').value;
+            const name = document.getElementById('name').value;
+            const phone_number = document.getElementById('phone_number').value;
+            const email = document.getElementById('email').value;
 
             try {
-                fetch('/api/v1/topics/add', {
+                const add_speaker = await fetch('/api/v1/speakers/add', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ speaker_id, title, content })
-                });
-                //.then(response => response.json())
-                //.then(data => alert('Topic submitted successfully!'));
-                //.catch(error => console.error('Error:', error));
+                    body: JSON.stringify({ content, name, email, phone_number })
+                })
+                    .then(response => response.json());
+                /*.catch(error => console.error('Error:', error));*/
+                const speaker_id = await JSON.parse(add_speaker).id;
+
+                try {
+                    await fetch('/api/v1/topics/add', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ speaker_id, title, content })
+                    })
+                        .then(response => response.json())
+                        .then(() => alert('Topic submitted successfully!'))
+                        .catch(error => console.error('Error:', error));
+                } catch (error) {
+                    console.log('Error submitting topic: ', error);
+                }
             } catch (error) {
-                console.log('Error submitting topic: ', error);
+                console.log('Error adding speaker: ', error);
             }
-        } catch (error) {
-            console.log('Error adding speaker: ', error);
         }
-    }
     </script>
 
     {% endblock %}
