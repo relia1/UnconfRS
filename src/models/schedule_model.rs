@@ -216,9 +216,9 @@ pub async fn schedule_get(db_pool: &Pool<Postgres>, index: i32) -> Result<Schedu
         where ts.schedule_id = $1
         group by ts.id, t.id, s.id, sched.id;"#
     )
-    .bind(index)
-    .fetch_one(db_pool)
-    .await?;
+        .bind(index)
+        .fetch_one(db_pool)
+        .await?;
 
     Ok(schedule_vec)
 }

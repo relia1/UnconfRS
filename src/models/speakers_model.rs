@@ -1,42 +1,9 @@
 use std::error::Error;
-
-
 use askama_axum::IntoResponse;
 use axum::{http::StatusCode, response::Response, Json};
 use serde::{ser::SerializeStruct, Deserialize, Serialize, Serializer};
 use sqlx::{FromRow, Pool, Postgres, Row};
 use utoipa::{openapi::{ObjectBuilder, RefOr, Schema, SchemaType}, ToSchema};
-
-/*
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, FromRow)]
-pub struct Speaker {
-    pub name: String,
-    pub email: String,
-    pub phone_number: String,
-}
-
-impl Speaker {
-    /// Creates a new `Speaker` instance.
-    ///
-    /// # Parameters
-    ///
-    /// * `Name`: The name of the speaker.
-    /// * `Email`: The email of the speaker.
-    /// * `Phone Number`: Phone number of the speaker.
-    ///
-    /// # Returns
-    ///
-    /// A new `Speaker` instance with the provided parameters.
-    pub fn new(name: String, email: String, phone_number: String) -> Self {
-        Self {
-            name,
-            email,
-            phone_number,
-        }
-    }
-}
-*/
-
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, FromRow)]
 pub struct Speaker {
