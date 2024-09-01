@@ -46,11 +46,16 @@ async fn handler_404() -> Response {
     (StatusCode::NOT_FOUND, "404 Not Found").into_response()
 }
 
-// handler to load js scripts
-async fn script_handler(path: Path<String>) -> String {
+// handler to load assets
+async fn asset_handler(path: Path<String>) -> String {
     let path = path.to_string();
-    let formatted_path = format!("../scripts/{}", path);
-    read_to_string(formatted_path).await.unwrap()
+    if path.contains(".js") {
+        let formatted_path = format!("../scripts/{}", path);
+        read_to_string(formatted_path).await.unwrap()
+    } else {
+        let formatted_path = format!("../styles/{}", path);
+        read_to_string(formatted_path).await.unwrap()
+    }
 }
 
 #[tokio::main]
@@ -129,7 +134,8 @@ async fn main() {
         .route("/", get(index_handler))
         .route("/schedules", get(schedule_handler))
         .route("/topics", get(topic_handler))
-        .route("/scripts/:path", get(script_handler))
+        .route("/scripts/:path", get(asset_handler))
+        .route("/styles/:path", get(asset_handler))
         .nest("/api/v1", apis)
         .merge(swagger_ui)
         .merge(redoc_ui)
