@@ -7,6 +7,7 @@ mod models;
 mod controllers;
 mod pagination;
 
+use std::error::Error;
 use config::*;
 use pagination::Pagination;
 use serde::Deserialize;
@@ -27,6 +28,7 @@ use utoipa::OpenApi;
 
 use std::net::SocketAddr;
 use std::sync::Arc;
+use sqlx::{FromRow, Pool, Postgres};
 use tokio::{self, fs::read_to_string, sync::RwLock};
 use crate::controllers::room_handler::{delete_room, post_rooms, rooms, ApiDocRooms};
 use crate::controllers::schedule_handler::{generate, get_schedule, post_schedule, schedules, update_schedule, ApiDocSchedule};
@@ -36,11 +38,12 @@ use crate::controllers::topics_handler::{add_vote_for_topic, delete_topic, get_t
 use crate::models::room_model::{rooms_get, Room};
 use crate::models::schedule_model::{schedules_get, Schedule};
 use crate::models::timeslot_model::TimeSlot;
-use crate::models::topics_model::{paginated_get, Topic};
+use crate::models::topics_model::{get_all_topics, paginated_get, Topic};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use utoipa_rapidoc::RapiDoc;
 use utoipa_redoc::{Redoc, Servable};
 use utoipa_swagger_ui::SwaggerUi;
+use crate::models::speakers_model::Speaker;
 
 async fn handler_404() -> Response {
     (StatusCode::NOT_FOUND, "404 Not Found").into_response()
@@ -240,20 +243,43 @@ async fn schedule_handler(
 #[derive(Template, Debug)]
 #[template(path = "topics.html")]
 struct TopicsTemplate {
-    topics: Vec<Topic>,
+    topics: Vec<TopicAndSpeaker>,
 }
 
+#[derive(Debug, Deserialize, FromRow)]
+pub  struct TopicAndSpeaker {
+    #[sqlx(flatten)]
+    topic: Topic,
+    #[sqlx(flatten)]
+    speaker: Speaker,
+}
+
+pub  async fn combine_topic_and_speaker(
+    db_pool: &Pool<Postgres>
+) -> Result<Vec<TopicAndSpeaker>, Box<dyn Error>> {
+    let topic_with_speaker: Vec<TopicAndSpeaker> = sqlx::query_as::<Postgres, TopicAndSpeaker>(
+        "SELECT t.id, t.speaker_id, t.title, t.content, t.votes, \
+        s.id, s.name, s.email, s.phone_number \
+        FROM topics t \
+        JOIN speakers s ON s.id = t.speaker_id \
+        GROUP BY t.id, s.id",
+    )
+        .fetch_all(db_pool)
+        .await?;
+
+    Ok(topic_with_speaker)
+}
 async fn topic_handler(
     State(db_pool): State<Arc<RwLock<UnconfData>>>,
     Query(params): Query<Pagination>,
 ) -> Response {
     let write_lock = db_pool.write().await;
-    let topics = paginated_get(&write_lock.unconf_db, params.page, params.limit).await;
+    let topic_speakers = combine_topic_and_speaker(&write_lock.unconf_db).await;
 
-    match topics {
-        Ok(topics) => {
-            tracing::debug!("{:?}", topics);
-            let template = TopicsTemplate { topics };
+    match topic_speakers {
+        Ok(topic_speakers) => {
+            tracing::debug!("{:?}", topic_speakers);
+            let template = TopicsTemplate { topics: topic_speakers };
 
             match template.render() {
                 Ok(html) => Html(html).into_response(),

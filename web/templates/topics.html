@@ -84,24 +84,24 @@
                     <tr>
                         <th>Topic ID</th>
                         <th>Title</th>
-                        <th>Speaker ID</th>
+                        <th>Speaker Name</th>
                         <th>Content</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for topic in topics %}
-                        <tr data-topic-id={{ topic.id.unwrap() }}>
+                    {% for topic_and_speaker in topics %}
+                        <tr data-topic-id={{ topic_and_speaker.topic.id.unwrap() }}>
                             <td>
-                                {{ topic.id.unwrap() }}
+                                {{ topic_and_speaker.topic.id.unwrap() }}
                             </td>
                             <td>
-                                {{ topic.title }}
+                                {{ topic_and_speaker.topic.title }}
                             </td>
                             <td>
-                                {{ topic.speaker_id }}
+                                {{ topic_and_speaker.speaker.name }}
                             </td>
                             <td>
-                                {{ topic.content }}
+                                {{ topic_and_speaker.topic.content }}
                             </td>
                         </tr>
                     {% endfor %}
