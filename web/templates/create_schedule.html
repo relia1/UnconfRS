@@ -1,23 +1,20 @@
 {% extends "base.html" %}
 
-{% block title %}MVP{% endblock %}
+{% block title %}Event Schedule{% endblock %}
 
 {% block head %}
+    {% if schedule.is_some() %}
+        <style>{% include "../styles/display_schedule.css" %}</style>
+        <script>{% include "../scripts/display_schedule.js" %}</script>
+    {% else %}
+        <link rel="stylesheet" href="../styles/rooms_form.css">
+    {% endif %}
 {% endblock %}
 
 {% block content %}
-    {% include "snippets/rooms_form.html" %}
-    {% include "snippets/display_schedule.html" %}
-    <script>
-        {% if rooms.is_some() %}
-            document.querySelector('.form-container').style.display = 'none';
-            {% if schedule.is_some() %}
-                document.querySelector('#eventSchedule').style.display = 'block';
-                document.querySelector('.schedule-container').style.display = 'flex';
-            {% endif %}
-        {% else %}
-            document.querySelector('.form-container').style.display = 'block';
-            document.querySelector('.schedule-container').style.display = 'none';
-        {% endif %}
-    </script>
+    {% if schedule.is_some() %}
+        {% include "snippets/display_schedule.html" %}
+    {% else %}
+        {% include "snippets/rooms_form.html" %}
+    {% endif %}
 {% endblock %}
