@@ -3,67 +3,10 @@
     {% block title %}MVP{% endblock %}
 
     {% block head %}
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
-    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.11.3/css/jquery.dataTables.css"/>
-    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/rowreorder/1.2.8/css/rowReorder.dataTables.css"/>
-
-    <script type="text/javascript" src="https://cdn.datatables.net/1.11.3/js/jquery.dataTables.js"></script>
-    <script type="text/javascript" src="https://cdn.datatables.net/rowreorder/1.2.8/js/dataTables.rowReorder.js"></script>
-
+    <link href="https://cdn.datatables.net/v/dt/jq-3.7.0/dt-2.1.5/r-3.0.3/sl-2.0.5/datatables.min.css" rel="stylesheet">
+    <script src="https://cdn.datatables.net/v/dt/jq-3.7.0/dt-2.1.5/r-3.0.3/sl-2.0.5/datatables.min.js"></script>
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            let table;
-
-            $(document).ready(function () {
-                table = $('.topicsTable').DataTable({
-                    searching: true,
-                    ordering: true,
-                    paging: true,
-                    responsive: true
-                });
-            });
-        });
-
-        async function submitForm(event) {
-            /* Prevent the default form submission */
-            event.preventDefault();
-
-            const title = document.getElementById('title').value;
-            const content = document.getElementById('topicContent').value;
-            const name = document.getElementById('name').value;
-            const phone_number = document.getElementById('phone_number').value;
-            const email = document.getElementById('email').value;
-
-            try {
-                const add_speaker = await fetch('/api/v1/speakers/add', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ content, name, email, phone_number })
-                })
-                    .then(response => response.json());
-                /*.catch(error => console.error('Error:', error));*/
-                const speaker_id = await JSON.parse(add_speaker).id;
-
-                try {
-                    await fetch('/api/v1/topics/add', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({ speaker_id, title, content })
-                    })
-                        .then(response => response.json())
-                        .then(() => alert('Topic submitted successfully!'))
-                        .catch(error => console.error('Error:', error));
-                } catch (error) {
-                    console.log('Error submitting topic: ', error);
-                }
-            } catch (error) {
-                console.log('Error adding speaker: ', error);
-            }
-        }
+    {% include "scripts/topics.js" %}
     </script>
 
     {% endblock %}
