@@ -1,0 +1,35 @@
+.form-container {
+    max-width: 400px;
+    margin: 40px auto;
+    padding: 20px;
+    background-color: #f9f9f9;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    display: none;
+}
+.form-page {
+    display: none;
+    padding: 20px;
+}
+.form-page.active {
+    display: block;
+}
+.form-item {
+    margin-bottom: 20px;
+}
+.form-item label {
+    display: block;
+    margin-bottom: 10px;
+}
+.form-item input[type="text"],
+.form-item input[type="number"] {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+}
+.actual-page {
+    display: none;
+}
