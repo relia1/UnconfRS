@@ -1,17 +1,7 @@
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-use crate::models::schedule_model::{
-    schedule_add,
-    schedule_delete,
-    schedule_generate,
-    schedule_get,
-    schedule_update,
-    schedules_get,
-    Schedule,
-    ScheduleErr,
-    ScheduleError
-};
+use crate::models::schedule_model::{schedule_add, schedule_clear, schedule_delete, schedule_generate, schedule_get, schedule_update, schedules_get, Schedule, ScheduleErr, ScheduleError};
 use crate::models::timeslot_model::TimeSlot;
 use crate::CreateScheduleForm;
 use crate::StatusCode;
@@ -22,8 +12,10 @@ use axum::extract::Path;
 use axum::extract::State;
 use axum::response::Response;
 use axum::Json;
+use tokio::io::AsyncWriteExt;
 use tracing::trace;
 use utoipa::OpenApi;
+use crate::controllers::topics_handler::topics;
 
 #[derive(OpenApi)]
 #[openapi(
@@ -179,6 +171,30 @@ pub async fn generate(
 ) -> Response {
     let write_lock = topics.write().await;
     let res = schedule_generate(&write_lock.unconf_db).await;
+    match res {
+        Ok(schedule) => {
+            Json(schedule).into_response()
+            //StatusCode::OK.into_response()
+        },
+        Err(e) => ScheduleError::response(StatusCode::BAD_REQUEST, e),
+    }
+}
+
+#[utoipa::path(
+    post,
+    path = "/api/v1/schedules/clear",
+    responses(
+        (status = 200, description = "Clearing schedule", body = ()),
+        (status = 400, description = "Bad request", body = ScheduleError),
+        (status = 404, description = "Schedule not found", body = ScheduleError),
+        (status = 422, description = "Unprocessable entity", body = ScheduleError),
+    )
+)]
+pub async fn clear(
+    State(db_pool): State<Arc<RwLock<UnconfData>>>,
+) -> Response {
+    let write_lock = db_pool.write().await;
+    let res = schedule_clear(&write_lock.unconf_db).await;
     match res {
         Ok(schedule) => {
             Json(schedule).into_response()

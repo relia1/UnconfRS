@@ -16,6 +16,7 @@ use crate::{
     },
     CreateScheduleForm
 };
+use crate::controllers::topics_handler::topics;
 
 /// An enumeration of errors that may occur
 #[derive(Debug, thiserror::Error, ToSchema, Serialize)]
@@ -417,4 +418,27 @@ pub async fn schedule_generate(db_pool: &Pool<Postgres>) -> Result<Schedule, Box
 
     debug!("Schedule generated successfully: {:?}", schedule);
     Ok(schedule)
+}
+
+pub async fn schedule_clear(db_pool: &Pool<Postgres>) -> Result<(), Box<dyn Error>> {
+    let mut schedule = schedules_get(db_pool).await?.ok_or("No schedule found")?;
+    let schedule_id = schedule.id.ok_or("Schedule ID not found")?;
+
+    sqlx::query(
+        r#"
+        UPDATE time_slots
+        SET
+            speaker_id = NULL,
+            topic_id = NULL
+        WHERE
+            topic_id IS NOT NULL
+            AND speaker_id IS NOT NULL
+            AND schedule_id = $1
+        "#
+    )
+        .bind(schedule_id)
+        .execute(db_pool)
+        .await?;
+
+    Ok(())
 }
