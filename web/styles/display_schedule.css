@@ -2,26 +2,23 @@
     display: flex;
     overflow-x: auto;
     font-family: Arial, sans-serif;
+    width: 100vw;
+}
+
+.row-column {
+    min-width: 50px;
 }
 
 .row-column, .column {
-    min-width: 100px;
     border-right: 1px solid #dee2e6;
     background-color: #f8f9fa;
 }
 
 .column {
-    min-width: 200px;
+    min-width: 100px;
+    width: inherit;
     position: relative;
 }
-
-/*
-.header {
-display: flex;
-background-color: #f0f0f0;
-font-weight: bold;
-}
-*/
 
 .row-label, .column-header {
     height: 60px;
@@ -49,10 +46,13 @@ font-weight: bold;
     padding: 0px;
     border-radius: 4px;
     overflow: hidden;
-    display: flex;
+    display: -webkit-box;
     align-items: center;
     justify-content: center;
     cursor: move;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+    text-align: center;
 }
 
 #eventSchedule {

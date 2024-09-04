@@ -17,24 +17,19 @@ const rooms = [
 ];
 
 numOfRooms = rooms.length;
-
 const events = [
-    {% if let Some(sched) = schedule %}
-        {% for timeslot in sched.timeslots %}
-            {% if let Some(topic_id) = timeslot.topic_id %}
-                {
-                    roomId: Number({{ timeslot.room_id.unwrap() }}),
-                    startTime: "{{ timeslot.start_time }}",
-                    endTime: "{{ timeslot.end_time }}",
-                    timeslotId: Number({{ timeslot.id.unwrap()}}),
-                    title: "name here {{ timeslot.id.unwrap() }}",
-                    topicId: Number({{ topic_id }}),
-                    speakerId: Number({{ timeslot.speaker_id.unwrap() }}),
-                    scheduleId: Number({{ sched.id.unwrap() }})
-                },
-            {% endif %}
-        {% endfor %}
-    {% endif %}
+    {% for topic_event in events %}
+        {
+            roomId: Number({{ topic_event.room_id }}),
+            startTime: "{{ topic_event.start_time }}",
+            endTime: "{{ topic_event.end_time }}",
+            timeslotId: Number({{ topic_event.timeslot_id }}),
+            title: "{{ topic_event.title }}",
+            topicId: Number({{ topic_event.topic_id }}),
+            speakerId: Number({{ topic_event.speaker_id }}),
+            scheduleId: Number({{ topic_event.schedule_id }})
+        },
+    {% endfor %}
 ];
 
 let viewSelectorValue = document.getElementById('view-selector').value;

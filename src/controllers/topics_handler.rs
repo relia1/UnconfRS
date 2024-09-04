@@ -49,19 +49,14 @@ pub struct ApiDoc;
 )]
 pub async fn topics(
     State(db_pool): State<Arc<RwLock<UnconfData>>>,
-    Query(params): Query<Pagination>,
 ) -> Response {
-    //let page = params.page;
-    //let limit = params.limit;
-
     let read_lock = db_pool.read().await;
-    match paginated_get(&read_lock.unconf_db, params.page, params.limit).await {
+    match get_all_topics(&read_lock.unconf_db).await {
         Ok(res) => {
             trace!("Retrieved {} topics", res.len());
             Json(res).into_response()
         }
         Err(e) => {
-            trace!("Paginated get error");
             TopicError::response(
                 StatusCode::NOT_FOUND,
                 Box::new(TopicErr::DoesNotExist(e.to_string())),

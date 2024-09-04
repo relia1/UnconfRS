@@ -185,14 +185,25 @@ async fn index_handler() -> Response {
     IndexTemplate.into_response()
 }
 
+#[derive(Debug)]
+pub  struct Event {
+    pub timeslot_id: i32,
+    pub title: String,
+    pub start_time: String,
+    pub end_time: String,
+    pub room_id: i32,
+    pub topic_id: i32,
+    pub speaker_id: i32,
+    pub schedule_id: i32,
+}
+
+
 #[derive(Template, Debug)]
 #[template(path = "create_schedule.html")]
 struct ScheduleTemplate {
     schedule: Option<Schedule>,
     rooms: Option<Vec<Room>>,
-    /*
-    * We need to have topic and speaker data returned back as well
-    */
+    events: Vec<Event>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -230,9 +241,37 @@ async fn schedule_handler(
             _ => None,
         }
     };
-    tracing::trace!("rooms val {:?}", &rooms);
-    tracing::trace!("schedules {:?}", schedules);
-    let template = ScheduleTemplate { schedule: schedules, rooms };
+    let topics = {
+        let read_lock = db_pool.read().await;
+        match get_all_topics(&read_lock.unconf_db).await {
+            Ok(val) => val,
+            _ => vec![],
+        }
+    };
+
+    let mut events = vec![];
+    for schedule in &schedules {
+        for timeslot in &schedule.timeslots {
+            let event_topic = topics.iter().find(|&topic| topic.id == timeslot.topic_id);
+            if (event_topic.is_none()) {
+                continue;
+            } else {
+                let event = Event {
+                    timeslot_id: timeslot.id.unwrap(),
+                    title: event_topic.unwrap().title.clone(),
+                    start_time: timeslot.start_time.to_string(),
+                    end_time: timeslot.end_time.to_string(),
+                    room_id: timeslot.room_id.unwrap(),
+                    topic_id: timeslot.topic_id.unwrap(),
+                    speaker_id: timeslot.speaker_id.unwrap(),
+                    schedule_id: schedule.id.unwrap().clone(),
+                };
+
+                events.push(event);
+            }
+        }
+    }
+    let template = ScheduleTemplate { schedule: schedules, rooms, events };
     match template.render() {
         Ok(html) => Html(html).into_response(),
         Err(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
