@@ -1,0 +1,143 @@
+<style>
+/* Modal container */
+.form-container {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: #f0f0f0;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 8px 10px rgba(0, 0, 0, 0.2);
+    max-width: 400px;
+    width: 100%;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Form pages */
+.form-page {
+    display: none;
+}
+
+.form-page.active {
+    display: block;
+}
+
+/* Form items */
+.form-item {
+    margin-bottom: 15px;
+}
+
+label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+input[type="number"],
+input[type="text"] {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 16px;
+}
+
+/* Buttons */
+button {
+    background-color: #4CAF50;
+    color: white;
+    padding: 10px 15px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background-color 0.3s;
+}
+
+button:hover {
+    background-color: #45a049;
+}
+
+/* Headings */
+h2 {
+    margin-top: 0;
+    margin-bottom: 20px;
+    color: #333;
+}
+</style>
+<div class="form-container">
+    <div class="form-page active" id="page-1">
+        <h2>Room Form</h2>
+        <div class="form-item">
+            <label for="num-rooms">Number of Rooms:</label>
+            <input type="number" id="num-rooms" name="num-rooms" min="1">
+        </div>
+        <button id="next-btn">Next</button>
+    </div>
+    <div class="form-page" id="page-2">
+        <h2>Room Info</h2>
+        <div id="inputs"></div>
+        <button id="submit-btn">Submit</button>
+    </div>
+</div>
+
+<script>
+    document.getElementById('next-btn').addEventListener('click', (e) => {
+        const numRooms = parseInt(document.getElementById('num-rooms').value);
+        if (numRooms > 0) {
+            const inputs = document.getElementById('inputs');
+            inputs.innerHTML = '';
+            for (let i = 0; i < numRooms; i++) {
+                const nameInput = document.createElement('input');
+                const locInput = document.createElement('input');
+                nameInput.type = 'text';
+                nameInput.placeholder = `Room ${i + 1} Name`;
+                nameInput.className = 'room-name';
+                locInput.type = 'text';
+                locInput.placeholder = `Room ${i + 1} Location`;
+                locInput.className = 'room-location';
+                inputs.appendChild(nameInput);
+                inputs.appendChild(locInput);
+                inputs.appendChild(document.createElement('br'));
+            }
+            document.getElementById('page-1').classList.remove('active');
+            document.getElementById('page-2').classList.add('active');
+        } else {
+            alert('Please enter a valid number of rooms');
+        }
+    });
+
+    document.getElementById('submit-btn').addEventListener('click', async (e) => {
+        const names = Array.from(document.querySelectorAll('.room-name')).map(input => input.value);
+        const locations = Array.from(document.querySelectorAll('.room-location')).map(input => input.value);
+        const rooms = names.map((name, index) => ({ name, location: locations[index], available_spots: 20 }));
+
+        const createRoomsForm = {
+            rooms: rooms
+        };
+
+        try {
+            const response = await fetch('/api/v1/rooms/add', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(createRoomsForm)
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+
+            document.querySelector('.form-container').style.display = 'none';
+            location.reload();
+        } catch (error) {
+            console.error('Error submitting rooms:', error);
+            alert('There was an error submitting the rooms. Please try again.');
+        }
+    });
+</script>

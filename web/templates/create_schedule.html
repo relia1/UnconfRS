@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+
+{% block title %}Event Schedule{% endblock %}
+
+{% block head %}
+    {% if schedule.is_some() %}
+        <style>{% include "../styles/display_schedule.css" %}</style>
+        <script>{% include "../scripts/display_schedule.js" %}</script>
+    {% else %}
+        <link rel="stylesheet" href="../styles/rooms_form.css">
+    {% endif %}
+{% endblock %}
+
+{% block content %}
+    {% if schedule.is_some() %}
+        {% include "snippets/display_schedule.html" %}
+    {% else %}
+        {% include "snippets/rooms_form.html" %}
+    {% endif %}
+{% endblock %}

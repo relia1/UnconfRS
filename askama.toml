@@ -1,0 +1,2 @@
+[general]
+dirs = ["web/", "web/templates/", "web/scripts/", "web/styles/"]

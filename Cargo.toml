@@ -1,0 +1,26 @@
+[package]
+name = "Thesis"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+askama = { version = "0.12.1", features = ["with-axum"] }
+askama_axum = "0.4.0"
+axum = { version = "0.7.5", features = ["macros", "form"] }
+axum-macros = "0.4.1"
+chrono = { version = "0.4.38", features = ["serde"] }
+load_file = "1.0.1"
+serde = {version = "1.0.204", features = ["derive", "serde_derive"] }
+serde_json = "1.0.120"
+serde_with = "3.9.0"
+sqlx = { version = "0.7.4", features = ["runtime-tokio-rustls", "postgres", "macros", "migrate", "time", "json", "chrono"] }
+thiserror = "1.0.61"
+tokio = { version = "1.38.0", features = ["full"] }
+tower = "0.4.13"
+tower-http = { version = "0.5.2", features = ["trace", "full", "cors"] }
+tracing = { version = "0.1.40", features = ["async-await"] }
+tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
+utoipa = { version = "4.2.3", features = ["axum_extras"] }
+utoipa-rapidoc = { version = "4.0.0", features = ["axum"] }
+utoipa-redoc = { version = "4.0.0", features = ["axum"] }
+utoipa-swagger-ui = { version = "7.1.0", features = ["axum"] }

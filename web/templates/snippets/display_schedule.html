@@ -1,0 +1,21 @@
+<div id="eventSchedule">
+    <h1>Event Schedule</h1>
+    <button type="button" id="populate-schedule">Populate Schedule</button><br/>
+    <button type="button" id="clear-schedule">Clear Schedule</button><br/>
+    <div id="controls">
+        <div>
+            <label for="view-selector" id="view-selector-label">Choose view: </label>
+            <select name="view-selector" id="view-selector">
+                <option value="time">Time-based</option>
+                <option value="room">Room-based</option>
+            </select>
+        </div>
+    </div>
+    <div class="schedule-container">
+        <div class="time-column">
+            <div class="room-header">Time</div>
+            <!-- Time slots will be dynamically added here -->
+        </div>
+        <!-- Room columns will be dynamically added here -->
+    </div>
+</div>

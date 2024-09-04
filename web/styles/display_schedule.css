@@ -1,0 +1,133 @@
+.schedule-container {
+    display: flex;
+    overflow-x: auto;
+    font-family: Arial, sans-serif;
+    width: 100vw;
+}
+
+.row-column {
+    min-width: 50px;
+}
+
+.row-column, .column {
+    border-right: 1px solid #dee2e6;
+    background-color: #f8f9fa;
+}
+
+.column {
+    min-width: 100px;
+    width: inherit;
+    position: relative;
+}
+
+.row-label, .column-header {
+    height: 60px;
+    padding: 5px;
+    border-bottom: 1px solid #dee2e6;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.column-header {
+    font-weight: bold;
+    background-color: #e9ecef;
+    position: sticky;
+    top: 0;
+    z-index: 5;
+}
+
+.event-block {
+    position: absolute;
+    left: 5px;
+    right: 5px;
+    background-color: #007bff;
+    color: white;
+    padding: 0px;
+    border-radius: 4px;
+    overflow: hidden;
+    display: -webkit-box;
+    align-items: center;
+    justify-content: center;
+    cursor: move;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+    text-align: center;
+}
+
+#eventSchedule {
+    display: block;
+}
+
+label {
+    display: none;
+    margin-bottom: 10px;
+}
+
+select {
+    display: none;
+}
+
+#view-selector {
+    display: inline-block;
+}
+
+#view-selector-label {
+    display: inline-block;
+}
+
+.cell {
+    flex: 1;
+    padding: 10px;
+    border: 1px solid #ddd;
+    min-width: 100px;
+}
+
+.room-cell, .time-cell {
+    flex: 0 0 100px;
+    font-weight: bold;
+}
+
+.event-cell {
+    background-color: #3498db;
+    color: white;
+}
+
+@media (max-width: 768px) {
+    .schedule-container {
+        flex-direction: row;
+    }
+
+    .row-column {
+        position: sticky;
+        left: 0;
+        z-index: 10;
+    }
+
+    .column {
+        display: none;
+        min-width: calc(100% - 100px); /* Adjust based on time-column width */
+    }
+
+    .column.active {
+        display: block;
+    }
+
+    #room-selector {
+        display: inline-block;
+    }
+
+    #room-selector-label {
+        display: inline-block;
+        margin-right: 10px;
+    }
+
+    #time-selector {
+        display: inline-block;
+    }
+
+    #time-selector-label {
+        display: inline-block;
+        margin-right: 10px;
+    }
+}

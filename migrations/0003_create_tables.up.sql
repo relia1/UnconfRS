@@ -1,0 +1,4 @@
+CREATE TABLE schedules (
+	id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    num_of_timeslots INT NOT NULL
+)
