@@ -104,6 +104,7 @@ async fn main() {
         .route("/schedules/:id", put(update_schedule))
         .route("/schedules/add", post(post_schedule))
         .route("/schedules/generate", post(generate))
+        .route("/schedules/clear", post(clear))
         .route("/timeslots/:id", put(update_timeslot));
 
 
