@@ -255,6 +255,25 @@ document.getElementById('populate-schedule').addEventListener('click', async (e)
     }
 });
 
+document.getElementById('clear-schedule').addEventListener('click', async (e) => {
+    try {
+        const response = await fetch('/api/v1/schedules/clear', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        location.reload();
+    } catch (error) {
+        console.error('Error clearing schedule:', error);
+        alert('There was an error clearing the schedule. Please try again.');
+    }
+});
 
 function updateView() {
     const view = document.getElementById('view-selector').value;
