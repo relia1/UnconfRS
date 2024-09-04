@@ -2,48 +2,60 @@ extern crate serde_json;
 extern crate thiserror;
 extern crate tracing;
 mod config;
+mod controllers;
 mod db_config;
 mod models;
-mod controllers;
 mod pagination;
 
-use std::error::Error;
+use axum::{
+    debug_handler,
+    extract::{Path, Query, State},
+    http::StatusCode,
+    response::{Html, IntoResponse, Response},
+    routing::{delete, get, post, put},
+    Router,
+};
 use config::*;
 use pagination::Pagination;
 use serde::Deserialize;
+use std::error::Error;
 use tower::ServiceBuilder;
 use tower_http::{
     cors::{Any, CorsLayer},
     trace,
 };
 use tracing_subscriber::{fmt, EnvFilter};
-use axum::{
-    debug_handler, extract::{Path, Query, State}, http::StatusCode, response::{Html, IntoResponse, Response}, routing::{delete, get, post, put}, Router
-};
 
 // use askama_axum::Template;
 use askama_axum::Template;
 //use askama::Template;
 use utoipa::OpenApi;
 
-use std::net::SocketAddr;
-use std::sync::Arc;
-use sqlx::{FromRow, Pool, Postgres};
-use tokio::{self, fs::read_to_string, sync::RwLock};
 use crate::controllers::room_handler::{delete_room, post_rooms, rooms, ApiDocRooms};
-use crate::controllers::schedule_handler::{generate, get_schedule, post_schedule, schedules, update_schedule, ApiDocSchedule};
-use crate::controllers::speakers_handler::{delete_speaker, get_speaker, post_speaker, speakers, update_speaker, ApiDocSpeaker};
+use crate::controllers::schedule_handler::{
+    clear, generate, get_schedule, post_schedule, schedules, update_schedule, ApiDocSchedule,
+};
+use crate::controllers::speakers_handler::{
+    delete_speaker, get_speaker, post_speaker, speakers, update_speaker, ApiDocSpeaker,
+};
 use crate::controllers::timeslot_handler::{update_timeslot, ApiDocTimeslot};
-use crate::controllers::topics_handler::{add_vote_for_topic, delete_topic, get_topic, post_topic, subtract_vote_for_topic, topics, update_topic, ApiDoc};
+use crate::controllers::topics_handler::{
+    add_vote_for_topic, delete_topic, get_topic, post_topic, subtract_vote_for_topic, topics,
+    update_topic, ApiDoc,
+};
 use crate::models::room_model::{rooms_get, Room};
 use crate::models::schedule_model::{schedules_get, Schedule};
+use crate::models::speakers_model::Speaker;
 use crate::models::timeslot_model::TimeSlot;
 use crate::models::topics_model::{get_all_topics, paginated_get, Topic};
+use sqlx::{FromRow, Pool, Postgres};
+use std::net::SocketAddr;
+use std::sync::Arc;
+use tokio::{self, fs::read_to_string, sync::RwLock};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use utoipa_rapidoc::RapiDoc;
 use utoipa_redoc::{Redoc, Servable};
 use utoipa_swagger_ui::SwaggerUi;
-use crate::models::speakers_model::Speaker;
 
 async fn handler_404() -> Response {
     (StatusCode::NOT_FOUND, "404 Not Found").into_response()
@@ -107,32 +119,33 @@ async fn main() {
         .route("/schedules/clear", post(clear))
         .route("/timeslots/:id", put(update_timeslot));
 
-
     // handy openai auto generated docs!
     let swagger_ui = SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi());
     let redoc_ui = Redoc::with_url("/redoc", ApiDoc::openapi());
     let rapidoc_ui = RapiDoc::new("/api-docs/openapi.json").path("/rapidoc");
 
-    let rooms_docs = SwaggerUi::new("/swagger-rooms").url("/api-docs/openapi_rooms.json", ApiDocRooms::openapi());
+    let rooms_docs = SwaggerUi::new("/swagger-rooms")
+        .url("/api-docs/openapi_rooms.json", ApiDocRooms::openapi());
     let redoc_rooms = Redoc::with_url("/redoc4", ApiDocRooms::openapi());
     let rapidoc_rooms = RapiDoc::new("/api-docs/openapi_rooms.json").path("/rapidoc_rooms");
 
-
-    let schedule_docs =
-        SwaggerUi::new("/swagger-sched").url("/api-docs/openapi_sched.json", ApiDocSchedule::openapi());
+    let schedule_docs = SwaggerUi::new("/swagger-sched")
+        .url("/api-docs/openapi_sched.json", ApiDocSchedule::openapi());
     let redoc_sched = Redoc::with_url("/redoc2", ApiDocSchedule::openapi());
     let rapidoc_sched = RapiDoc::new("/api-docs/openapi_sched.json").path("/rapidoc_sched");
 
-    let speaker_docs =
-        SwaggerUi::new("/swagger-speaker").url("/api-docs/openapi_speaker.json", ApiDocSpeaker::openapi());
+    let speaker_docs = SwaggerUi::new("/swagger-speaker")
+        .url("/api-docs/openapi_speaker.json", ApiDocSpeaker::openapi());
     let redoc_speaker = Redoc::with_url("/redoc3", ApiDocSpeaker::openapi());
     let rapidoc_speaker = RapiDoc::new("/api-docs/openapi_speaker.json").path("/rapidoc_speaker");
 
-    let timeslots_docs =
-        SwaggerUi::new("/swagger-timeslots").url("/api-docs/openapi_timeslots.json", ApiDocSchedule::openapi());
+    let timeslots_docs = SwaggerUi::new("/swagger-timeslots").url(
+        "/api-docs/openapi_timeslots.json",
+        ApiDocSchedule::openapi(),
+    );
     let redoc_timeslot = Redoc::with_url("/redoc5", ApiDocTimeslot::openapi());
-    let rapidoc_timeslot = RapiDoc::new("/api-docs/openapi_timeslots.json").path("/rapidoc_timeslots");
-
+    let rapidoc_timeslot =
+        RapiDoc::new("/api-docs/openapi_timeslots.json").path("/rapidoc_timeslots");
 
     let app = Router::new()
         .route("/", get(index_handler))
@@ -177,7 +190,6 @@ async fn main() {
     axum::serve(listener, app).await.unwrap();
 }
 
-
 #[derive(Template, Debug)]
 #[template(path = "index.html")]
 struct IndexTemplate;
@@ -187,7 +199,7 @@ async fn index_handler() -> Response {
 }
 
 #[derive(Debug)]
-pub  struct Event {
+pub struct Event {
     pub timeslot_id: i32,
     pub title: String,
     pub start_time: String,
@@ -197,7 +209,6 @@ pub  struct Event {
     pub speaker_id: i32,
     pub schedule_id: i32,
 }
-
 
 #[derive(Template, Debug)]
 #[template(path = "create_schedule.html")]
@@ -227,9 +238,7 @@ struct UpdateSchedule {
 }
 
 #[debug_handler]
-async fn schedule_handler(
-    State(db_pool): State<Arc<RwLock<UnconfData>>>,
-) -> Response {
+async fn schedule_handler(State(db_pool): State<Arc<RwLock<UnconfData>>>) -> Response {
     let schedules = {
         let read_lock = db_pool.read().await;
         schedules_get(&read_lock.unconf_db).await.unwrap()
@@ -272,13 +281,16 @@ async fn schedule_handler(
             }
         }
     }
-    let template = ScheduleTemplate { schedule: schedules, rooms, events };
+    let template = ScheduleTemplate {
+        schedule: schedules,
+        rooms,
+        events,
+    };
     match template.render() {
         Ok(html) => Html(html).into_response(),
         Err(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
     }
 }
-
 
 #[derive(Template, Debug)]
 #[template(path = "topics.html")]
@@ -287,15 +299,15 @@ struct TopicsTemplate {
 }
 
 #[derive(Debug, Deserialize, FromRow)]
-pub  struct TopicAndSpeaker {
+pub struct TopicAndSpeaker {
     #[sqlx(flatten)]
     topic: Topic,
     #[sqlx(flatten)]
     speaker: Speaker,
 }
 
-pub  async fn combine_topic_and_speaker(
-    db_pool: &Pool<Postgres>
+pub async fn combine_topic_and_speaker(
+    db_pool: &Pool<Postgres>,
 ) -> Result<Vec<TopicAndSpeaker>, Box<dyn Error>> {
     let topic_with_speaker: Vec<TopicAndSpeaker> = sqlx::query_as::<Postgres, TopicAndSpeaker>(
         "SELECT t.id, t.speaker_id, t.title, t.content, t.votes, \
@@ -304,8 +316,8 @@ pub  async fn combine_topic_and_speaker(
         JOIN speakers s ON s.id = t.speaker_id \
         GROUP BY t.id, s.id",
     )
-        .fetch_all(db_pool)
-        .await?;
+    .fetch_all(db_pool)
+    .await?;
 
     Ok(topic_with_speaker)
 }
@@ -319,16 +331,18 @@ async fn topic_handler(
     match topic_speakers {
         Ok(topic_speakers) => {
             tracing::debug!("{:?}", topic_speakers);
-            let template = TopicsTemplate { topics: topic_speakers };
+            let template = TopicsTemplate {
+                topics: topic_speakers,
+            };
 
             match template.render() {
                 Ok(html) => Html(html).into_response(),
                 Err(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
             }
-        },
+        }
         Err(e) => {
             tracing::debug!(e);
             Html("<h1>Error fetching topics</h1>".to_string()).into_response()
-        },
+        }
     }
 }

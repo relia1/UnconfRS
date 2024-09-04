@@ -1,8 +1,10 @@
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-use crate::models::topics_model::{add, decrement_vote, delete, get, increment_vote, paginated_get,
-                                  update, Topic, TopicErr, TopicError};
+use crate::models::topics_model::{
+    add, decrement_vote, delete, get, get_all_topics, increment_vote, paginated_get, update, Topic,
+    TopicErr, TopicError,
+};
 use crate::pagination::Pagination;
 use crate::StatusCode;
 use askama_axum::IntoResponse;
@@ -47,21 +49,17 @@ pub struct ApiDoc;
         (status = 404, description = "No topics in that range")
     )
 )]
-pub async fn topics(
-    State(db_pool): State<Arc<RwLock<UnconfData>>>,
-) -> Response {
+pub async fn topics(State(db_pool): State<Arc<RwLock<UnconfData>>>) -> Response {
     let read_lock = db_pool.read().await;
     match get_all_topics(&read_lock.unconf_db).await {
         Ok(res) => {
             trace!("Retrieved {} topics", res.len());
             Json(res).into_response()
         }
-        Err(e) => {
-            TopicError::response(
-                StatusCode::NOT_FOUND,
-                Box::new(TopicErr::DoesNotExist(e.to_string())),
-            )
-        }
+        Err(e) => TopicError::response(
+            StatusCode::NOT_FOUND,
+            Box::new(TopicErr::DoesNotExist(e.to_string())),
+        ),
     }
 }
 
@@ -106,7 +104,7 @@ pub async fn post_topic(
         Ok(id) => {
             trace!("id: {:?}\n", id);
             StatusCode::CREATED.into_response()
-        },
+        }
         Err(e) => TopicError::response(StatusCode::BAD_REQUEST, e),
     }
 }

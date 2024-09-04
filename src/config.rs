@@ -19,6 +19,8 @@ impl UnconfData {
     ///
     /// A new `UnconfData` instance, or an error if the database cannot be initialized
     pub async fn new() -> Result<Self, Box<dyn Error>> {
-        Ok(Self { unconf_db: db_setup().await? })
+        Ok(Self {
+            unconf_db: db_setup().await?,
+        })
     }
 }

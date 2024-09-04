@@ -1,22 +1,20 @@
 use std::error::Error;
 
-
+use crate::controllers::topics_handler::topics;
+use crate::{
+    models::{room_model::rooms_get, timeslot_model::*, topics_model::get_all_topics},
+    CreateScheduleForm,
+};
 use askama_axum::IntoResponse;
 use axum::{http::StatusCode, response::Response, Json};
 use chrono::NaiveTime;
 use serde::{ser::SerializeStruct, Deserialize, Serialize, Serializer};
 use sqlx::{FromRow, Pool, Postgres};
 use tracing::{debug, trace};
-use utoipa::{openapi::{ObjectBuilder, RefOr, Schema, SchemaType}, ToSchema};
-use crate::{
-    models::{
-        room_model::rooms_get,
-        timeslot_model::*,
-        topics_model::get_all_topics,
-    },
-    CreateScheduleForm
+use utoipa::{
+    openapi::{ObjectBuilder, RefOr, Schema, SchemaType},
+    ToSchema,
 };
-use crate::controllers::topics_handler::topics;
 
 /// An enumeration of errors that may occur
 #[derive(Debug, thiserror::Error, ToSchema, Serialize)]
@@ -27,7 +25,6 @@ pub enum ScheduleErr {
     DoesNotExist(String),
     #[error("Invalid query parameter values")]
     InvalidTimeFormat(String),
-
 }
 
 impl From<std::io::Error> for ScheduleErr {
@@ -164,7 +161,6 @@ impl IntoResponse for &Schedule {
     }
 }
 
-
 /// Retrieves a paginated list of schedules from the schedule .
 ///
 /// # Parameters
@@ -172,16 +168,14 @@ impl IntoResponse for &Schedule {
 /// # Returns
 ///
 /// An option of Schedule
-pub async fn schedules_get(
-    db_pool: &Pool<Postgres>,
-) -> Result<Option<Schedule>, Box<dyn Error>> {
+pub async fn schedules_get(db_pool: &Pool<Postgres>) -> Result<Option<Schedule>, Box<dyn Error>> {
     let mut schedules: Vec<Schedule> = sqlx::query_as::<Postgres, Schedule>(
         r#"
         SELECT * FROM schedules
-        ORDER BY id"#
+        ORDER BY id"#,
     )
-        .fetch_all(db_pool)
-        .await?;
+    .fetch_all(db_pool)
+    .await?;
     trace!("schedules get vec: {:?}", &schedules);
 
     for schedule in &mut schedules {
@@ -208,18 +202,21 @@ pub async fn schedules_get(
 /// # Returns
 ///
 /// A reference to the `Schedule` instance with the specified ID, or a `ScheduleErr` error if the schedule does not exist.
-pub async fn schedule_get(db_pool: &Pool<Postgres>, index: i32) -> Result<Schedule, Box<dyn Error>> {
+pub async fn schedule_get(
+    db_pool: &Pool<Postgres>,
+    index: i32,
+) -> Result<Schedule, Box<dyn Error>> {
     let schedule_vec = sqlx::query_as::<Postgres, Schedule>(
         r#"select ts.*, t.*, sched.*, s.* from time_slots ts
         join schedules sched on ts.schedule_id = sched.id
         left join topics t on t.id = ts.topic_id
         left join speakers s on ts.speaker_id = s.id
         where ts.schedule_id = $1
-        group by ts.id, t.id, s.id, sched.id;"#
+        group by ts.id, t.id, s.id, sched.id;"#,
     )
-        .bind(index)
-        .fetch_one(db_pool)
-        .await?;
+    .bind(index)
+    .fetch_one(db_pool)
+    .await?;
 
     Ok(schedule_vec)
 }
@@ -236,20 +233,29 @@ pub async fn schedule_get(db_pool: &Pool<Postgres>, index: i32) -> Result<Schedu
 /// If the schedule already exists, returns a `ScheduleErr` error.
 pub async fn schedule_add(
     db_pool: &Pool<Postgres>,
-    Json(schedule_form): Json<CreateScheduleForm>
+    Json(schedule_form): Json<CreateScheduleForm>,
 ) -> Result<Schedule, Box<dyn Error>> {
-    let schedule_row: (i32,) = sqlx::query_as(r#"INSERT INTO schedules (num_of_timeslots) VALUES ($1) RETURNING id"#)
-        .bind(schedule_form.num_of_timeslots)
-        .fetch_one(db_pool)
-        .await?;
+    let schedule_row: (i32,) =
+        sqlx::query_as(r#"INSERT INTO schedules (num_of_timeslots) VALUES ($1) RETURNING id"#)
+            .bind(schedule_form.num_of_timeslots)
+            .fetch_one(db_pool)
+            .await?;
 
     let schedule_id = schedule_row.0;
     let mut timeslots = vec![];
     for i in 0..(schedule_form.num_of_timeslots as usize) {
-        let start_time = NaiveTime::parse_from_str(&schedule_form.start_time[i], "%H:%M")
-            .map_err(|_| ScheduleErr::InvalidTimeFormat("Invalid time format. Expected format of \"%H:M\"".to_string()))?;
-        let end_time = NaiveTime::parse_from_str(&schedule_form.end_time[i], "%H:%M")
-            .map_err(|_| ScheduleErr::InvalidTimeFormat("Invalid time format. Expected format of \"%H:M\"".to_string()))?;
+        let start_time =
+            NaiveTime::parse_from_str(&schedule_form.start_time[i], "%H:%M").map_err(|_| {
+                ScheduleErr::InvalidTimeFormat(
+                    "Invalid time format. Expected format of \"%H:M\"".to_string(),
+                )
+            })?;
+        let end_time =
+            NaiveTime::parse_from_str(&schedule_form.end_time[i], "%H:%M").map_err(|_| {
+                ScheduleErr::InvalidTimeFormat(
+                    "Invalid time format. Expected format of \"%H:M\"".to_string(),
+                )
+            })?;
 
         let mut timeslot = TimeSlot::new(
             None,
@@ -258,16 +264,18 @@ pub async fn schedule_add(
             None,
             Some(schedule_id),
             None,
-            None
+            None,
         );
         let timeslot_id = timeslot_add(db_pool, timeslot.clone()).await?;
         timeslot.id = Some(timeslot_id);
         timeslots.push(timeslot);
     }
 
-    Ok(
-        Schedule::new(Some(schedule_id), schedule_form.num_of_timeslots, timeslots)
-    )
+    Ok(Schedule::new(
+        Some(schedule_id),
+        schedule_form.num_of_timeslots,
+        timeslots,
+    ))
 }
 
 /// Removes a schedule by its ID.
@@ -294,14 +302,18 @@ pub async fn schedule_delete(db_pool: &Pool<Postgres>, index: i32) -> Result<(),
     Ok(())
 }
 
-pub async fn schedule_update(db_pool: &Pool<Postgres>, index: i32, schedule: Schedule) -> Result<Schedule, Box<dyn Error>> {
+pub async fn schedule_update(
+    db_pool: &Pool<Postgres>,
+    index: i32,
+    schedule: Schedule,
+) -> Result<Schedule, Box<dyn Error>> {
     // Update the schedule
     sqlx::query(
         r#"
         UPDATE schedules
         SET num_of_timeslots = $1
         WHERE id = $2
-        "#
+        "#,
     )
     .bind(schedule.num_of_timeslots)
     .bind(index)
@@ -321,7 +333,7 @@ pub async fn schedule_update(db_pool: &Pool<Postgres>, index: i32, schedule: Sch
                 topic_id = $5,
                 room_id = $6
             WHERE id = $7 AND schedule_id = $8
-            "#
+            "#,
         )
         .bind(timeslot.start_time)
         .bind(timeslot.end_time)
@@ -334,7 +346,6 @@ pub async fn schedule_update(db_pool: &Pool<Postgres>, index: i32, schedule: Sch
         .execute(db_pool)
         .await?;
     }
-
 
     debug!("Schedule updated successfully: {:?}", schedule);
     Ok(schedule)
@@ -357,7 +368,8 @@ pub async fn schedule_generate(db_pool: &Pool<Postgres>) -> Result<Schedule, Box
             }
 
             let topic = &topics[topic_index];
-            let timeslot = &schedule.timeslots[i + (room_index * schedule.num_of_timeslots as usize)];
+            let timeslot =
+                &schedule.timeslots[i + (room_index * schedule.num_of_timeslots as usize)];
 
             let updated_timeslot = TimeSlot::new(
                 timeslot.id,
@@ -380,18 +392,18 @@ pub async fn schedule_generate(db_pool: &Pool<Postgres>) -> Result<Schedule, Box
                     topic_id = $5,
                     room_id = $6
                 WHERE id = $7 AND schedule_id = $8
-                "#
+                "#,
             )
-                .bind(updated_timeslot.start_time)
-                .bind(updated_timeslot.end_time)
-                .bind(updated_timeslot.end_time - updated_timeslot.start_time)
-                .bind(updated_timeslot.speaker_id)
-                .bind(updated_timeslot.topic_id)
-                .bind(updated_timeslot.room_id)
-                .bind(updated_timeslot.id)
-                .bind(schedule_id)
-                .execute(db_pool)
-                .await?;
+            .bind(updated_timeslot.start_time)
+            .bind(updated_timeslot.end_time)
+            .bind(updated_timeslot.end_time - updated_timeslot.start_time)
+            .bind(updated_timeslot.speaker_id)
+            .bind(updated_timeslot.topic_id)
+            .bind(updated_timeslot.room_id)
+            .bind(updated_timeslot.id)
+            .bind(schedule_id)
+            .execute(db_pool)
+            .await?;
 
             timeslots.push(updated_timeslot);
             topic_index += 1;
@@ -409,7 +421,7 @@ pub async fn schedule_generate(db_pool: &Pool<Postgres>) -> Result<Schedule, Box
         UPDATE schedules
         SET num_of_timeslots = $1
         WHERE id = $2
-        "#
+        "#,
     )
     .bind(schedule.num_of_timeslots)
     .bind(schedule_id)
@@ -434,11 +446,11 @@ pub async fn schedule_clear(db_pool: &Pool<Postgres>) -> Result<(), Box<dyn Erro
             topic_id IS NOT NULL
             AND speaker_id IS NOT NULL
             AND schedule_id = $1
-        "#
+        "#,
     )
-        .bind(schedule_id)
-        .execute(db_pool)
-        .await?;
+    .bind(schedule_id)
+    .execute(db_pool)
+    .await?;
 
     Ok(())
 }

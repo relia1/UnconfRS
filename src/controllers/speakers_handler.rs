@@ -13,7 +13,10 @@ use axum::Json;
 use tracing::trace;
 use utoipa::OpenApi;
 
-use crate::models::speakers_model::{speaker_add, speaker_delete, speaker_get, speaker_paginated_get, speaker_update, Speaker, SpeakerErr, SpeakerError};
+use crate::models::speakers_model::{
+    speaker_add, speaker_delete, speaker_get, speaker_paginated_get, speaker_update, Speaker,
+    SpeakerErr, SpeakerError,
+};
 use crate::UnconfData;
 
 #[derive(OpenApi)]
@@ -52,9 +55,7 @@ pub async fn speakers(
 ) -> Response {
     let read_lock = db_pool.read().await;
     match speaker_paginated_get(&read_lock.unconf_db, params.page, params.limit).await {
-        Ok(res) => {
-            Json(res).into_response()
-        }
+        Ok(res) => Json(res).into_response(),
         Err(e) => {
             trace!("Paginated get error");
             SpeakerError::response(
@@ -106,9 +107,9 @@ pub async fn post_speaker(
         Ok(id) => {
             trace!("id: {:?}\n", id);
             //StatusCode::CREATED.into_response()
-            let id_res = Json(format!("{{ \"id\": {} }}", id ));
+            let id_res = Json(format!("{{ \"id\": {} }}", id));
             id_res.into_response()
-        },
+        }
         Err(e) => SpeakerError::response(StatusCode::BAD_REQUEST, e),
     }
 }

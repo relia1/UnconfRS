@@ -1,12 +1,14 @@
 use std::error::Error;
 
-
 use askama_axum::IntoResponse;
 use axum::{http::StatusCode, response::Response, Json};
 use chrono::NaiveTime;
 use serde::{ser::SerializeStruct, Deserialize, Serialize, Serializer};
 use sqlx::{FromRow, Pool, Postgres};
-use utoipa::{openapi::{ObjectBuilder, RefOr, Schema, SchemaType}, ToSchema};
+use utoipa::{
+    openapi::{ObjectBuilder, RefOr, Schema, SchemaType},
+    ToSchema,
+};
 
 use crate::models::timeslot_model::{timeslot_add, TimeSlot};
 use crate::{models::schedule_model::*, CreateRoomsForm};
@@ -120,7 +122,7 @@ pub struct Room {
     pub id: Option<i32>,
     pub available_spots: i32,
     pub name: String,
-    pub location: String
+    pub location: String,
 }
 
 impl Room {
@@ -156,7 +158,6 @@ impl IntoResponse for &Room {
     }
 }
 
-
 /// Retrieves a list of rooms
 ///
 /// # Returns
@@ -165,13 +166,15 @@ impl IntoResponse for &Room {
 pub(crate) async fn rooms_get(
     db_pool: &Pool<Postgres>,
 ) -> Result<Option<Vec<Room>>, Box<dyn Error>> {
-    let rooms = Some(sqlx::query_as::<Postgres, Room>(
-        r#"
+    let rooms = Some(
+        sqlx::query_as::<Postgres, Room>(
+            r#"
         SELECT * FROM rooms
-        ORDER BY id"#
-    )
+        ORDER BY id"#,
+        )
         .fetch_all(db_pool)
-        .await?);
+        .await?,
+    );
 
     Ok(rooms.filter(|res| !res.is_empty()))
 }
@@ -187,7 +190,7 @@ pub(crate) async fn rooms_get(
 /// A `Result` indicating whether the room was added successfully.
 pub async fn rooms_add(
     db_pool: &Pool<Postgres>,
-    Json(rooms_form): Json<CreateRoomsForm>
+    Json(rooms_form): Json<CreateRoomsForm>,
 ) -> Result<Schedule, Box<dyn Error>> {
     for room in rooms_form.rooms {
         sqlx::query_as(r#"INSERT INTO rooms (name, available_spots, location) VALUES ($1, $2, $3) RETURNING id"#)
@@ -198,10 +201,11 @@ pub async fn rooms_add(
             .await?;
     }
 
-    let schedule_row: (i32,) = sqlx::query_as(r#"INSERT INTO schedules (num_of_timeslots) VALUES ($1) RETURNING id"#)
-        .bind(20)
-        .fetch_one(db_pool)
-        .await?;
+    let schedule_row: (i32,) =
+        sqlx::query_as(r#"INSERT INTO schedules (num_of_timeslots) VALUES ($1) RETURNING id"#)
+            .bind(20)
+            .fetch_one(db_pool)
+            .await?;
 
     let schedule_id = schedule_row.0;
     let mut timeslots = vec![];
@@ -213,7 +217,8 @@ pub async fn rooms_add(
             let end_time = NaiveTime::parse_from_str(&format!("{}:{}", i, 30), "%H:%M").unwrap();
 
             let start_time2 = NaiveTime::parse_from_str(&format!("{}:{}", i, 30), "%H:%M").unwrap();
-            let end_time2 = NaiveTime::parse_from_str(&format!("{}:{}", i + 1, 00), "%H:%M").unwrap();
+            let end_time2 =
+                NaiveTime::parse_from_str(&format!("{}:{}", i + 1, 00), "%H:%M").unwrap();
 
             let mut timeslot = TimeSlot::new(
                 None,
@@ -222,7 +227,7 @@ pub async fn rooms_add(
                 None,
                 Some(schedule_id),
                 None,
-                room.id
+                room.id,
             );
 
             let mut timeslot2 = TimeSlot::new(
@@ -232,7 +237,7 @@ pub async fn rooms_add(
                 None,
                 Some(schedule_id),
                 None,
-                room.id
+                room.id,
             );
 
             let timeslot_id = timeslot_add(db_pool, timeslot.clone()).await?;
@@ -241,13 +246,10 @@ pub async fn rooms_add(
             timeslot2.id = Some(timeslot_id2);
             timeslots.push(timeslot);
             timeslots.push(timeslot2);
-
         }
     }
 
-    Ok(
-        Schedule::new(Some(schedule_id), 20, timeslots)
-    )
+    Ok(Schedule::new(Some(schedule_id), 20, timeslots))
 }
 
 /// Removes a room by its ID.

@@ -1,7 +1,11 @@
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-use crate::models::schedule_model::{schedule_add, schedule_clear, schedule_delete, schedule_generate, schedule_get, schedule_update, schedules_get, Schedule, ScheduleErr, ScheduleError};
+use crate::controllers::topics_handler::topics;
+use crate::models::schedule_model::{
+    schedule_add, schedule_clear, schedule_delete, schedule_generate, schedule_get,
+    schedule_update, schedules_get, Schedule, ScheduleErr, ScheduleError,
+};
 use crate::models::timeslot_model::TimeSlot;
 use crate::CreateScheduleForm;
 use crate::StatusCode;
@@ -15,7 +19,6 @@ use axum::Json;
 use tokio::io::AsyncWriteExt;
 use tracing::trace;
 use utoipa::OpenApi;
-use crate::controllers::topics_handler::topics;
 
 #[derive(OpenApi)]
 #[openapi(
@@ -43,14 +46,10 @@ pub struct ApiDocSchedule;
         (status = 200, description = "List schedules", body = Vec<Schedule>),
     )
 )]
-pub async fn schedules(
-    State(db_pool): State<Arc<RwLock<UnconfData>>>,
-) -> Response {
+pub async fn schedules(State(db_pool): State<Arc<RwLock<UnconfData>>>) -> Response {
     let read_lock = db_pool.read().await;
     match schedules_get(&read_lock.unconf_db).await {
-        Ok(res) => {
-            Json(res).into_response()
-        }
+        Ok(res) => Json(res).into_response(),
         Err(e) => {
             trace!("Paginated get error");
             ScheduleError::response(
@@ -94,8 +93,7 @@ pub async fn get_schedule(
 )]
 pub async fn post_schedule(
     State(db_pool): State<Arc<RwLock<UnconfData>>>,
-    Json(schedule_form): Json<CreateScheduleForm>
-    //Json(schedule): Json<Schedule>,
+    Json(schedule_form): Json<CreateScheduleForm>, //Json(schedule): Json<Schedule>,
 ) -> Response {
     tracing::info!("\n\nposting schedule!\n\n");
     let write_lock = db_pool.write().await;
@@ -103,7 +101,7 @@ pub async fn post_schedule(
         Ok(id) => {
             trace!("id: {:?}\n", id);
             StatusCode::CREATED.into_response()
-        },
+        }
         Err(e) => ScheduleError::response(StatusCode::BAD_REQUEST, e),
     }
 }
@@ -166,16 +164,14 @@ pub async fn update_schedule(
         (status = 422, description = "Unprocessable entity", body = ScheduleError),
     )
 )]
-pub async fn generate(
-    State(topics): State<Arc<RwLock<UnconfData>>>,
-) -> Response {
+pub async fn generate(State(topics): State<Arc<RwLock<UnconfData>>>) -> Response {
     let write_lock = topics.write().await;
     let res = schedule_generate(&write_lock.unconf_db).await;
     match res {
         Ok(schedule) => {
             Json(schedule).into_response()
             //StatusCode::OK.into_response()
-        },
+        }
         Err(e) => ScheduleError::response(StatusCode::BAD_REQUEST, e),
     }
 }
@@ -190,16 +186,14 @@ pub async fn generate(
         (status = 422, description = "Unprocessable entity", body = ScheduleError),
     )
 )]
-pub async fn clear(
-    State(db_pool): State<Arc<RwLock<UnconfData>>>,
-) -> Response {
+pub async fn clear(State(db_pool): State<Arc<RwLock<UnconfData>>>) -> Response {
     let write_lock = db_pool.write().await;
     let res = schedule_clear(&write_lock.unconf_db).await;
     match res {
         Ok(schedule) => {
             Json(schedule).into_response()
             //StatusCode::OK.into_response()
-        },
+        }
         Err(e) => ScheduleError::response(StatusCode::BAD_REQUEST, e),
     }
 }

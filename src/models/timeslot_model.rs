@@ -1,12 +1,14 @@
 use std::error::Error;
 
-
 use askama_axum::IntoResponse;
 use axum::{http::StatusCode, response::Response, Json};
 use chrono::NaiveTime;
 use serde::{ser::SerializeStruct, Deserialize, Serialize, Serializer};
 use sqlx::{FromRow, Pool, Postgres};
-use utoipa::{openapi::{ObjectBuilder, RefOr, Schema, SchemaType}, ToSchema};
+use utoipa::{
+    openapi::{ObjectBuilder, RefOr, Schema, SchemaType},
+    ToSchema,
+};
 
 /// An enumeration of errors that may occur
 #[derive(Debug, thiserror::Error, ToSchema, Serialize)]
@@ -135,12 +137,12 @@ impl TimeSlotError {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, FromRow)]
 pub struct TimeSlot {
     pub id: Option<i32>,
-    pub start_time: NaiveTime, // unix timestamp (seconds since epoch)
-    pub end_time: NaiveTime, // unix timestamp (seconds since epoch)
-    pub speaker_id: Option<i32>, // id of the speaker
+    pub start_time: NaiveTime,    // unix timestamp (seconds since epoch)
+    pub end_time: NaiveTime,      // unix timestamp (seconds since epoch)
+    pub speaker_id: Option<i32>,  // id of the speaker
     pub schedule_id: Option<i32>, // id of the schedule
-    pub topic_id: Option<i32>, // id of the topic or none
-    pub room_id: Option<i32> // id of the topic or none
+    pub topic_id: Option<i32>,    // id of the topic or none
+    pub room_id: Option<i32>,     // id of the topic or none
 }
 
 impl TimeSlot {
@@ -151,9 +153,8 @@ impl TimeSlot {
         speaker_id: Option<i32>,
         schedule_id: Option<i32>,
         topic_id: Option<i32>,
-        room_id: Option<i32>
-    )
-    -> Self {
+        room_id: Option<i32>,
+    ) -> Self {
         Self {
             id,
             start_time,
@@ -161,7 +162,7 @@ impl TimeSlot {
             speaker_id,
             schedule_id,
             topic_id,
-            room_id
+            room_id,
         }
     }
 }
@@ -173,20 +174,17 @@ impl TimeSlot {
 /// # Returns
 ///
 /// A vector of TimeSlot's
-pub async fn timeslots_get(
-    db_pool: &Pool<Postgres>,
-) -> Result<Vec<TimeSlot>, Box<dyn Error>> {
+pub async fn timeslots_get(db_pool: &Pool<Postgres>) -> Result<Vec<TimeSlot>, Box<dyn Error>> {
     let timeslots: Vec<TimeSlot> = sqlx::query_as(
         r#"
         SELECT * FROM time_slots
-        ORDER BY id"#
+        ORDER BY id"#,
     )
-        .fetch_all(db_pool)
-        .await?;
+    .fetch_all(db_pool)
+    .await?;
 
     Ok(timeslots)
 }
-
 
 /// Retrieves a list of timeslots.
 ///
@@ -198,20 +196,17 @@ pub async fn timeslots_get(
 ///
 /// A vector of TimeSlot's
 /// If the pagination parameters are invalid, returns a `TimeSlotErr` error.
-pub async fn get_all_timeslots(
-    db_pool: &Pool<Postgres>,
-) -> Result<Vec<TimeSlot>, Box<dyn Error>> {
+pub async fn get_all_timeslots(db_pool: &Pool<Postgres>) -> Result<Vec<TimeSlot>, Box<dyn Error>> {
     let timeslots: Vec<TimeSlot> = sqlx::query_as(
         r#"
         SELECT * FROM time_slots
-        ORDER BY id"#
+        ORDER BY id"#,
     )
-        .fetch_all(db_pool)
-        .await?;
+    .fetch_all(db_pool)
+    .await?;
 
     Ok(timeslots)
 }
-
 
 /// Retrieves a timeslot by its ID.
 ///
@@ -222,7 +217,10 @@ pub async fn get_all_timeslots(
 /// # Returns
 ///
 /// A reference to the `TimeSlot` instance with the specified ID, or a `TimeSlotErr` error if the timeslot does not exist.
-pub async fn timeslot_get(db_pool: &Pool<Postgres>, index: i32) -> Result<Vec<TimeSlot>, Box<dyn Error>> {
+pub async fn timeslot_get(
+    db_pool: &Pool<Postgres>,
+    index: i32,
+) -> Result<Vec<TimeSlot>, Box<dyn Error>> {
     let timeslots: Vec<_> = sqlx::query_as::<Postgres, TimeSlot>(
         "SELECT *
         FROM time_slots
@@ -246,7 +244,10 @@ pub async fn timeslot_get(db_pool: &Pool<Postgres>, index: i32) -> Result<Vec<Ti
 ///
 /// A `Result` indicating whether the timeslot was added successfully.
 /// If the timeslot already exists, returns a `TimeSlotErr` error.
-pub async fn timeslot_add(db_pool: &Pool<Postgres>, timeslot: TimeSlot) -> Result<i32, Box<dyn Error>> {
+pub async fn timeslot_add(
+    db_pool: &Pool<Postgres>,
+    timeslot: TimeSlot,
+) -> Result<i32, Box<dyn Error>> {
     let timeslot_id: (i32,) = sqlx::query_as(r#"INSERT INTO time_slots (start_time, end_time, duration, speaker_id, schedule_id, topic_id, room_id) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id"#)
         .bind(timeslot.start_time)
         .bind(timeslot.end_time)
@@ -295,7 +296,11 @@ pub async fn timeslot_delete(db_pool: &Pool<Postgres>, index: i32) -> Result<(),
 ///
 /// A `Result` indicating whether the timeslot was removed successfully.
 /// If the timeslot does not exist, returns a `TimeSlotErr` error.
-pub async fn timeslot_update(db_pool: &Pool<Postgres>, timeslot_id: i32, timeslot: &TimeSlot) -> Result<(), Box<dyn Error>> {
+pub async fn timeslot_update(
+    db_pool: &Pool<Postgres>,
+    timeslot_id: i32,
+    timeslot: &TimeSlot,
+) -> Result<(), Box<dyn Error>> {
     sqlx::query(
         r#"
         UPDATE time_slots SET start_time = $2, end_time = $3, speaker_id = $4, schedule_id = $5, topic_id = $6, room_id = $7

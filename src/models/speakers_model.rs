@@ -1,9 +1,12 @@
-use std::error::Error;
 use askama_axum::IntoResponse;
 use axum::{http::StatusCode, response::Response, Json};
 use serde::{ser::SerializeStruct, Deserialize, Serialize, Serializer};
 use sqlx::{FromRow, Pool, Postgres, Row};
-use utoipa::{openapi::{ObjectBuilder, RefOr, Schema, SchemaType}, ToSchema};
+use std::error::Error;
+use utoipa::{
+    openapi::{ObjectBuilder, RefOr, Schema, SchemaType},
+    ToSchema,
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, FromRow)]
 pub struct Speaker {
@@ -97,7 +100,6 @@ impl SpeakerError {
     }
 }
 
-
 impl Speaker {
     /// Creates a new `Speaker` instance.
     ///
@@ -132,7 +134,6 @@ impl IntoResponse for &Speaker {
         (StatusCode::OK, Json(&self)).into_response()
     }
 }
-
 
 /// Retrieves a paginated list of speakers from the speaker bank.
 ///
@@ -173,10 +174,10 @@ pub async fn speaker_paginated_get(
         SELECT * FROM speakers
         LIMIT $1 OFFSET $2;"#,
     )
-        .bind(limit)
-        .bind(start_index)
-        .fetch_all(db_pool)
-        .await?;
+    .bind(limit)
+    .bind(start_index)
+    .fetch_all(db_pool)
+    .await?;
 
     Ok(speakers)
 }
@@ -190,14 +191,15 @@ pub async fn speaker_paginated_get(
 /// # Returns
 ///
 /// A reference to the `Speaker` instance with the specified ID, or a `SpeakerErr` error if the speaker does not exist.
-pub async fn speaker_get(db_pool: &Pool<Postgres>, index: i32) -> Result<Vec<Speaker>, Box<dyn Error>> {
+pub async fn speaker_get(
+    db_pool: &Pool<Postgres>,
+    index: i32,
+) -> Result<Vec<Speaker>, Box<dyn Error>> {
     let mut speaker_vec = vec![];
-    let speaker = sqlx::query_as::<Postgres, Speaker>(
-        "SELECT * FROM speakers where id = $1"
-    )
-    .bind(index)
-    .fetch_one(db_pool)
-    .await?;
+    let speaker = sqlx::query_as::<Postgres, Speaker>("SELECT * FROM speakers where id = $1")
+        .bind(index)
+        .fetch_one(db_pool)
+        .await?;
 
     // speaker_vec.push(<Speaker as std::convert::From<PgRow>>::from(speaker));
     speaker_vec.push(speaker);
@@ -214,16 +216,19 @@ pub async fn speaker_get(db_pool: &Pool<Postgres>, index: i32) -> Result<Vec<Spe
 ///
 /// A `Result` indicating whether the speaker was added successfully.
 /// If the speaker already exists, returns a `SpeakerErr` error.
-pub async fn speaker_add(db_pool: &Pool<Postgres>, speaker: Speaker) -> Result<i32, Box<dyn Error>> {
+pub async fn speaker_add(
+    db_pool: &Pool<Postgres>,
+    speaker: Speaker,
+) -> Result<i32, Box<dyn Error>> {
     tracing::debug!("adding speaker");
     let row: (i32,) = sqlx::query_as(
         "INSERT INTO speakers (name, email, phone_number) VALUES ($1, $2, $3) RETURNING id",
-        )
-        .bind(speaker.name)
-        .bind(speaker.email)
-        .bind(speaker.phone_number)
-        .fetch_one(db_pool)
-        .await?;
+    )
+    .bind(speaker.name)
+    .bind(speaker.email)
+    .bind(speaker.phone_number)
+    .fetch_one(db_pool)
+    .await?;
 
     Ok(row.0)
 }

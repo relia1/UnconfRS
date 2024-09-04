@@ -37,20 +37,14 @@ pub struct ApiDocRooms;
         (status = 200, description = "List rooms", body = Vec<Room>),
     )
 )]
-pub async fn rooms(
-    State(db_pool): State<Arc<RwLock<UnconfData>>>,
-) -> Response {
+pub async fn rooms(State(db_pool): State<Arc<RwLock<UnconfData>>>) -> Response {
     let read_lock = db_pool.read().await;
     match rooms_get(&read_lock.unconf_db).await {
-        Ok(res) => {
-            Json(res).into_response()
-        }
-        Err(e) => {
-            RoomError::response(
-                StatusCode::NOT_FOUND,
-                Box::new(RoomErr::DoesNotExist(e.to_string())),
-            )
-        }
+        Ok(res) => Json(res).into_response(),
+        Err(e) => RoomError::response(
+            StatusCode::NOT_FOUND,
+            Box::new(RoomErr::DoesNotExist(e.to_string())),
+        ),
     }
 }
 
@@ -68,7 +62,7 @@ pub async fn rooms(
 )]
 pub async fn post_rooms(
     State(db_pool): State<Arc<RwLock<UnconfData>>>,
-    Json(rooms_form): Json<CreateRoomsForm>
+    Json(rooms_form): Json<CreateRoomsForm>,
 ) -> Response {
     tracing::info!("\n\nposting rooms!\n\n");
     let write_lock = db_pool.write().await;
@@ -76,7 +70,7 @@ pub async fn post_rooms(
         Ok(id) => {
             trace!("id: {:?}\n", id);
             StatusCode::CREATED.into_response()
-        },
+        }
         Err(e) => RoomError::response(StatusCode::BAD_REQUEST, e),
     }
 }

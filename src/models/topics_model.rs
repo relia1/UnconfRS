@@ -4,7 +4,10 @@ use askama_axum::IntoResponse;
 use axum::{http::StatusCode, response::Response, Json};
 use serde::{ser::SerializeStruct, Deserialize, Serialize, Serializer};
 use sqlx::{FromRow, Pool, Postgres, Row};
-use utoipa::{openapi::{ObjectBuilder, RefOr, Schema, SchemaType}, ToSchema};
+use utoipa::{
+    openapi::{ObjectBuilder, RefOr, Schema, SchemaType},
+    ToSchema,
+};
 
 /// An enumeration of errors that may occur
 #[derive(Debug, thiserror::Error, ToSchema, Serialize)]
@@ -137,7 +140,6 @@ impl IntoResponse for &Topic {
     }
 }
 
-
 /// Retrieves a paginated list of topics from the topic bank.
 ///
 /// # Parameters
@@ -177,14 +179,13 @@ pub async fn paginated_get(
         SELECT * FROM topics
         LIMIT $1 OFFSET $2;"#,
     )
-        .bind(limit)
-        .bind(start_index)
-        .fetch_all(db_pool)
-        .await?;
+    .bind(limit)
+    .bind(start_index)
+    .fetch_all(db_pool)
+    .await?;
 
     Ok(topics)
 }
-
 
 /// Retrieves a list of topics from the topic bank.
 ///
@@ -195,19 +196,16 @@ pub async fn paginated_get(
 /// # Returns
 ///
 /// A vector of Topic's
-pub async fn get_all_topics(
-    db_pool: &Pool<Postgres>,
-) -> Result<Vec<Topic>, Box<dyn Error>> {
+pub async fn get_all_topics(db_pool: &Pool<Postgres>) -> Result<Vec<Topic>, Box<dyn Error>> {
     let topics: Vec<Topic> = sqlx::query_as(
         r#"
-        SELECT * FROM topics"#
+        SELECT * FROM topics"#,
     )
-        .fetch_all(db_pool)
-        .await?;
+    .fetch_all(db_pool)
+    .await?;
 
     Ok(topics)
 }
-
 
 /// Retrieves a topic by its ID.
 ///
@@ -220,12 +218,10 @@ pub async fn get_all_topics(
 /// A reference to the `Topic` instance with the specified ID, or a `TopicErr` error if the topic does not exist.
 pub async fn get(db_pool: &Pool<Postgres>, index: i32) -> Result<Vec<Topic>, Box<dyn Error>> {
     let mut topic_vec = vec![];
-    let topic = sqlx::query_as::<Postgres, Topic>(
-        "SELECT * FROM topics where id = $1"
-    )
-    .bind(index)
-    .fetch_one(db_pool)
-    .await?;
+    let topic = sqlx::query_as::<Postgres, Topic>("SELECT * FROM topics where id = $1")
+        .bind(index)
+        .fetch_one(db_pool)
+        .await?;
 
     // topic_vec.push(<Topic as std::convert::From<PgRow>>::from(topic));
     topic_vec.push(topic);
@@ -321,18 +317,15 @@ pub async fn update(
 /// # Parameters
 ///
 /// * `index`: The ID of the topic to update.
-pub async fn increment_vote(
-    db_pool: &Pool<Postgres>,
-    index: i32,
-) -> Result<(), Box<dyn Error>> {
+pub async fn increment_vote(db_pool: &Pool<Postgres>, index: i32) -> Result<(), Box<dyn Error>> {
     sqlx::query(
         "UPDATE topics
         SET votes = votes + 1
         WHERE id = $1;",
     )
-        .bind(index)
-        .fetch_all(db_pool)
-        .await?;
+    .bind(index)
+    .fetch_all(db_pool)
+    .await?;
 
     Ok(())
 }
@@ -342,18 +335,15 @@ pub async fn increment_vote(
 /// # Parameters
 ///
 /// * `index`: The ID of the topic to update.
-pub async fn decrement_vote(
-    db_pool: &Pool<Postgres>,
-    index: i32,
-) -> Result<(), Box<dyn Error>> {
+pub async fn decrement_vote(db_pool: &Pool<Postgres>, index: i32) -> Result<(), Box<dyn Error>> {
     sqlx::query(
         "UPDATE topics
         SET votes = votes - 1
         WHERE id = $1;",
     )
-        .bind(index)
-        .fetch_all(db_pool)
-        .await?;
+    .bind(index)
+    .fetch_all(db_pool)
+    .await?;
 
     Ok(())
 }
