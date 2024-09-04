@@ -1,9 +1,8 @@
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-use crate::controllers::topics_handler::topics;
 use crate::models::schedule_model::{
-    schedule_add, schedule_clear, schedule_delete, schedule_generate, schedule_get,
+    schedule_add, schedule_clear, schedule_generate, schedule_get,
     schedule_update, schedules_get, Schedule, ScheduleErr, ScheduleError,
 };
 use crate::models::timeslot_model::TimeSlot;
@@ -16,7 +15,6 @@ use axum::extract::Path;
 use axum::extract::State;
 use axum::response::Response;
 use axum::Json;
-use tokio::io::AsyncWriteExt;
 use tracing::trace;
 use utoipa::OpenApi;
 
@@ -26,7 +24,6 @@ use utoipa::OpenApi;
         schedules,
         get_schedule,
         post_schedule,
-        delete_schedule,
         update_schedule,
         generate,
     ),
@@ -102,26 +99,6 @@ pub async fn post_schedule(
             trace!("id: {:?}\n", id);
             StatusCode::CREATED.into_response()
         }
-        Err(e) => ScheduleError::response(StatusCode::BAD_REQUEST, e),
-    }
-}
-
-#[utoipa::path(
-    delete,
-    path = "/api/v1/schedules/{id}",
-    responses(
-        (status = 200, description = "Deleted schedule", body = ()),
-        (status = 400, description = "Bad request", body = ScheduleError),
-    )
-)]
-pub async fn delete_schedule(
-    State(db_pool): State<Arc<RwLock<UnconfData>>>,
-    Path(schedule_id): Path<i32>,
-) -> Response {
-    tracing::info!("delete schedule");
-    let write_lock = db_pool.write().await;
-    match schedule_delete(&write_lock.unconf_db, schedule_id).await {
-        Ok(()) => StatusCode::OK.into_response(),
         Err(e) => ScheduleError::response(StatusCode::BAD_REQUEST, e),
     }
 }

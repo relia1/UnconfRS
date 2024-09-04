@@ -1,12 +1,10 @@
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-use crate::pagination::Pagination;
 use crate::StatusCode;
 use askama_axum::IntoResponse;
 use axum::debug_handler;
 use axum::extract::Path;
-use axum::extract::Query;
 use axum::extract::State;
 use axum::response::Response;
 use axum::Json;
@@ -14,7 +12,7 @@ use tracing::trace;
 use utoipa::OpenApi;
 
 use crate::models::speakers_model::{
-    speaker_add, speaker_delete, speaker_get, speaker_paginated_get, speaker_update, Speaker,
+    speaker_add, speaker_delete, speaker_get, speaker_update, speakers_get, Speaker,
     SpeakerErr, SpeakerError,
 };
 use crate::UnconfData;
@@ -51,10 +49,9 @@ pub struct ApiDocSpeaker;
 )]
 pub async fn speakers(
     State(db_pool): State<Arc<RwLock<UnconfData>>>,
-    Query(params): Query<Pagination>,
 ) -> Response {
     let read_lock = db_pool.read().await;
-    match speaker_paginated_get(&read_lock.unconf_db, params.page, params.limit).await {
+    match speakers_get(&read_lock.unconf_db).await {
         Ok(res) => Json(res).into_response(),
         Err(e) => {
             trace!("Paginated get error");

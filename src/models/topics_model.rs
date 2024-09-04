@@ -3,7 +3,7 @@ use std::error::Error;
 use askama_axum::IntoResponse;
 use axum::{http::StatusCode, response::Response, Json};
 use serde::{ser::SerializeStruct, Deserialize, Serialize, Serializer};
-use sqlx::{FromRow, Pool, Postgres, Row};
+use sqlx::{FromRow, Pool, Postgres};
 use utoipa::{
     openapi::{ObjectBuilder, RefOr, Schema, SchemaType},
     ToSchema,
@@ -14,8 +14,6 @@ use utoipa::{
 pub enum TopicErr {
     #[error("Topic {0} doesn't exist")]
     DoesNotExist(String),
-    #[error("Invalid query parameter values")]
-    PaginationInvalid(String),
 }
 
 /// struct that represents a Topic error, but include a `StatusCode`
@@ -138,53 +136,6 @@ impl IntoResponse for &Topic {
         tracing::info!("{:?}", &self);
         (StatusCode::OK, Json(&self)).into_response()
     }
-}
-
-/// Retrieves a paginated list of topics from the topic bank.
-///
-/// # Parameters
-///
-/// * `page`: The page number to retrieve (starts at 1)
-/// * `limit`: The number of topics to retrieve per page.
-///
-/// # Returns
-///
-/// A vector of Topic's
-/// If the pagination parameters are invalid, returns a `TopicErr` error.
-pub async fn paginated_get(
-    db_pool: &Pool<Postgres>,
-    page: i32,
-    limit: i32,
-) -> Result<Vec<Topic>, Box<dyn Error>> {
-    if page < 1 || limit < 1 {
-        return Err(Box::new(TopicErr::PaginationInvalid(
-            "Page and limit must be positive".to_string(),
-        )));
-    }
-
-    let num_topics: i64 = sqlx::query(r#"SELECT COUNT(*) FROM topics;"#)
-        .fetch_one(db_pool)
-        .await?
-        .get(0);
-
-    let start_index = (page - 1) * limit;
-    if start_index as i64 > num_topics {
-        return Err(Box::new(TopicErr::PaginationInvalid(
-            "Invalid query parameter values".to_string(),
-        )));
-    }
-
-    let topics: Vec<Topic> = sqlx::query_as(
-        r#"
-        SELECT * FROM topics
-        LIMIT $1 OFFSET $2;"#,
-    )
-    .bind(limit)
-    .bind(start_index)
-    .fetch_all(db_pool)
-    .await?;
-
-    Ok(topics)
 }
 
 /// Retrieves a list of topics from the topic bank.

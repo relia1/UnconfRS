@@ -1,7 +1,7 @@
 use askama_axum::IntoResponse;
 use axum::{http::StatusCode, response::Response, Json};
 use serde::{ser::SerializeStruct, Deserialize, Serialize, Serializer};
-use sqlx::{FromRow, Pool, Postgres, Row};
+use sqlx::{FromRow, Pool, Postgres};
 use std::error::Error;
 use utoipa::{
     openapi::{ObjectBuilder, RefOr, Schema, SchemaType},
@@ -21,8 +21,6 @@ pub struct Speaker {
 pub enum SpeakerErr {
     #[error("Speaker {0} doesn't exist")]
     DoesNotExist(String),
-    #[error("Invalid query parameter values")]
-    PaginationInvalid(String),
 }
 
 /// struct that represents a Speaker error, but include a `StatusCode`
@@ -146,36 +144,13 @@ impl IntoResponse for &Speaker {
 ///
 /// A vector of Speaker's
 /// If the pagination parameters are invalid, returns a `SpeakerErr` error.
-pub async fn speaker_paginated_get(
+pub async fn speakers_get(
     db_pool: &Pool<Postgres>,
-    page: i32,
-    limit: i32,
 ) -> Result<Vec<Speaker>, Box<dyn Error>> {
-    if page < 1 || limit < 1 {
-        return Err(Box::new(SpeakerErr::PaginationInvalid(
-            "Page and limit must be positive".to_string(),
-        )));
-    }
-
-    let num_speakers: i64 = sqlx::query(r#"SELECT COUNT(*) FROM speakers;"#)
-        .fetch_one(db_pool)
-        .await?
-        .get(0);
-
-    let start_index = (page - 1) * limit;
-    if start_index as i64 > num_speakers {
-        return Err(Box::new(SpeakerErr::PaginationInvalid(
-            "Invalid query parameter values".to_string(),
-        )));
-    }
-
     let speakers: Vec<Speaker> = sqlx::query_as(
         r#"
-        SELECT * FROM speakers
-        LIMIT $1 OFFSET $2;"#,
+        SELECT * FROM speakers;"#,
     )
-    .bind(limit)
-    .bind(start_index)
     .fetch_all(db_pool)
     .await?;
 

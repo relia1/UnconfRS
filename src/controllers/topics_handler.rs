@@ -2,15 +2,13 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 
 use crate::models::topics_model::{
-    add, decrement_vote, delete, get, get_all_topics, increment_vote, paginated_get, update, Topic,
+    add, decrement_vote, delete, get, get_all_topics, increment_vote, update, Topic,
     TopicErr, TopicError,
 };
-use crate::pagination::Pagination;
 use crate::StatusCode;
 use askama_axum::IntoResponse;
 use axum::debug_handler;
 use axum::extract::Path;
-use axum::extract::Query;
 use axum::extract::State;
 use axum::response::Response;
 use axum::Json;

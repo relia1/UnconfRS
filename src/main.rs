@@ -5,18 +5,16 @@ mod config;
 mod controllers;
 mod db_config;
 mod models;
-mod pagination;
 
 use axum::{
     debug_handler,
-    extract::{Path, Query, State},
+    extract::{Path, State},
     http::StatusCode,
     response::{Html, IntoResponse, Response},
     routing::{delete, get, post, put},
     Router,
 };
 use config::*;
-use pagination::Pagination;
 use serde::Deserialize;
 use std::error::Error;
 use tower::ServiceBuilder;
@@ -46,8 +44,7 @@ use crate::controllers::topics_handler::{
 use crate::models::room_model::{rooms_get, Room};
 use crate::models::schedule_model::{schedules_get, Schedule};
 use crate::models::speakers_model::Speaker;
-use crate::models::timeslot_model::TimeSlot;
-use crate::models::topics_model::{get_all_topics, paginated_get, Topic};
+use crate::models::topics_model::{get_all_topics, Topic};
 use sqlx::{FromRow, Pool, Postgres};
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -230,13 +227,6 @@ struct CreateRoomsForm {
     rooms: Vec<Room>,
 }
 
-#[derive(Debug, Deserialize)]
-struct UpdateSchedule {
-    id: i32,
-    num_of_timeslots: i32,
-    timeslots: Vec<TimeSlot>,
-}
-
 #[debug_handler]
 async fn schedule_handler(State(db_pool): State<Arc<RwLock<UnconfData>>>) -> Response {
     let schedules = {
@@ -263,7 +253,7 @@ async fn schedule_handler(State(db_pool): State<Arc<RwLock<UnconfData>>>) -> Res
     for schedule in &schedules {
         for timeslot in &schedule.timeslots {
             let event_topic = topics.iter().find(|&topic| topic.id == timeslot.topic_id);
-            if (event_topic.is_none()) {
+            if event_topic.is_none() {
                 continue;
             } else {
                 let event = Event {
@@ -274,7 +264,7 @@ async fn schedule_handler(State(db_pool): State<Arc<RwLock<UnconfData>>>) -> Res
                     room_id: timeslot.room_id.unwrap(),
                     topic_id: timeslot.topic_id.unwrap(),
                     speaker_id: timeslot.speaker_id.unwrap(),
-                    schedule_id: schedule.id.unwrap().clone(),
+                    schedule_id: schedule.id.unwrap(),
                 };
 
                 events.push(event);
@@ -323,14 +313,12 @@ pub async fn combine_topic_and_speaker(
 }
 async fn topic_handler(
     State(db_pool): State<Arc<RwLock<UnconfData>>>,
-    Query(params): Query<Pagination>,
 ) -> Response {
     let write_lock = db_pool.write().await;
     let topic_speakers = combine_topic_and_speaker(&write_lock.unconf_db).await;
 
     match topic_speakers {
         Ok(topic_speakers) => {
-            tracing::debug!("{:?}", topic_speakers);
             let template = TopicsTemplate {
                 topics: topic_speakers,
             };

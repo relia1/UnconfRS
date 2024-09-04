@@ -1,6 +1,5 @@
 use std::error::Error;
 
-use crate::controllers::topics_handler::topics;
 use crate::{
     models::{room_model::rooms_get, timeslot_model::*, topics_model::get_all_topics},
     CreateScheduleForm,
@@ -278,30 +277,6 @@ pub async fn schedule_add(
     ))
 }
 
-/// Removes a schedule by its ID.
-///
-/// # Parameters
-///
-/// * `index`: The ID of the schedule.
-///
-/// # Returns
-///
-/// A `Result` indicating whether the schedule was removed successfully.
-/// If the schedule does not exist, returns a `ScheduleErr` error.
-pub async fn schedule_delete(db_pool: &Pool<Postgres>, index: i32) -> Result<(), Box<dyn Error>> {
-    sqlx::query(
-        r#"
-        DELETE FROM schedules
-        WHERE id = $1
-        "#,
-    )
-    .bind(index)
-    .execute(db_pool)
-    .await?;
-
-    Ok(())
-}
-
 pub async fn schedule_update(
     db_pool: &Pool<Postgres>,
     index: i32,
@@ -433,7 +408,7 @@ pub async fn schedule_generate(db_pool: &Pool<Postgres>) -> Result<Schedule, Box
 }
 
 pub async fn schedule_clear(db_pool: &Pool<Postgres>) -> Result<(), Box<dyn Error>> {
-    let mut schedule = schedules_get(db_pool).await?.ok_or("No schedule found")?;
+    let schedule = schedules_get(db_pool).await?.ok_or("No schedule found")?;
     let schedule_id = schedule.id.ok_or("Schedule ID not found")?;
 
     sqlx::query(

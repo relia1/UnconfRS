@@ -15,29 +15,7 @@ use utoipa::{
 pub enum TimeSlotErr {
     #[error("TimeSlot io failed: {0}")]
     IoError(String),
-    #[error("Invalid query parameter values")]
-    PaginationInvalid(String),
 }
-
-/*
-#[derive(OpenApi)]
-#[openapi(
-    paths(
-        ,
-        get_topic,
-        post_topic,
-        delete_topic,
-        update_topic,
-    ),
-    components(
-        schemas(Topic, TopicError)
-    ),
-    tags(
-        (name = "Topics Server API", description = "Topics Server API")
-    )
-)]
-pub struct ApiDocTimeslot;
-*/
 
 impl From<std::io::Error> for TimeSlotErr {
     /// Converts a `std::io::Error` into a `TimeSlotErr`.
@@ -167,73 +145,6 @@ impl TimeSlot {
     }
 }
 
-/// Retrieves a list of timeslots.
-///
-/// # Parameters
-///
-/// # Returns
-///
-/// A vector of TimeSlot's
-pub async fn timeslots_get(db_pool: &Pool<Postgres>) -> Result<Vec<TimeSlot>, Box<dyn Error>> {
-    let timeslots: Vec<TimeSlot> = sqlx::query_as(
-        r#"
-        SELECT * FROM time_slots
-        ORDER BY id"#,
-    )
-    .fetch_all(db_pool)
-    .await?;
-
-    Ok(timeslots)
-}
-
-/// Retrieves a list of timeslots.
-///
-/// # Parameters
-///
-/// * `timeslots`: Pooled db connection
-///
-/// # Returns
-///
-/// A vector of TimeSlot's
-/// If the pagination parameters are invalid, returns a `TimeSlotErr` error.
-pub async fn get_all_timeslots(db_pool: &Pool<Postgres>) -> Result<Vec<TimeSlot>, Box<dyn Error>> {
-    let timeslots: Vec<TimeSlot> = sqlx::query_as(
-        r#"
-        SELECT * FROM time_slots
-        ORDER BY id"#,
-    )
-    .fetch_all(db_pool)
-    .await?;
-
-    Ok(timeslots)
-}
-
-/// Retrieves a timeslot by its ID.
-///
-/// # Parameters
-///
-/// * `index`: The ID of the timeslot.
-///
-/// # Returns
-///
-/// A reference to the `TimeSlot` instance with the specified ID, or a `TimeSlotErr` error if the timeslot does not exist.
-pub async fn timeslot_get(
-    db_pool: &Pool<Postgres>,
-    index: i32,
-) -> Result<Vec<TimeSlot>, Box<dyn Error>> {
-    let timeslots: Vec<_> = sqlx::query_as::<Postgres, TimeSlot>(
-        "SELECT *
-        FROM time_slots
-        WHERE id = $1;",
-    )
-    .bind(index)
-    .fetch_all(db_pool)
-    .await?;
-
-    //timeslot_vec.push(<TimeSlot as std::convert::From<PgRow>>::from(timeslot));
-    Ok(timeslots)
-}
-
 /// Adds a new timeslot.
 ///
 /// # Parameters
@@ -262,31 +173,7 @@ pub async fn timeslot_add(
     Ok(timeslot_id.0)
 }
 
-/// Removes a timeslot by its ID.
-///
-/// # Parameters
-///
-/// * `index`: The ID of the timeslot.
-///
-/// # Returns
-///
-/// A `Result` indicating whether the timeslot was removed successfully.
-/// If the timeslot does not exist, returns a `TimeSlotErr` error.
-pub async fn timeslot_delete(db_pool: &Pool<Postgres>, index: i32) -> Result<(), Box<dyn Error>> {
-    sqlx::query(
-        r#"
-        DELETE FROM timeslots
-        WHERE id = $1
-        "#,
-    )
-    .bind(index)
-    .execute(db_pool)
-    .await?;
-
-    Ok(())
-}
-
-/// Removes a timeslot by its ID.
+/// Updates a timeslot by its ID.
 ///
 /// # Parameters
 ///
