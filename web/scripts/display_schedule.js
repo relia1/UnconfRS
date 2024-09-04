@@ -110,11 +110,11 @@ function calculateEventPosition(startTime, endTime) {
     // the multiplier gives us the starting time location of
     // the event
     */
-    const top = (numOf30MinSegmentsSinceStart * timeHeightMultiplier) + '%';
+    const top = (Math.ceil((numOf30MinSegmentsSinceStart * timeHeightMultiplier) * 100) / 100) + '%';
     /* Using the number of segments for the duration of the event
     // we determine how long the event lasts
     */
-    const height = ((duration / 30.0) * timeHeightMultiplier) + '%';
+    const height = (Math.floor(((duration / 30.0) * timeHeightMultiplier) * 10) / 10) + '%';
 
     /* console.log(`top: ${top} height: ${height}`); */
     return {top, height};
