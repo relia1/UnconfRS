@@ -190,7 +190,7 @@ pub async fn get(db_pool: &Pool<Postgres>, index: i32) -> Result<Vec<Topic>, Box
 /// A `Result` indicating whether the topic was added successfully.
 /// If the topic already exists, returns a `TopicErr` error.
 pub async fn add(db_pool: &Pool<Postgres>, topic: Topic) -> Result<i32, Box<dyn Error>> {
-    let row: (i32,) = sqlx::query_as(
+    let (topic_id,) = sqlx::query_as(
         "INSERT INTO topics (speaker_id, title, content, votes) VALUES ($1, $2, $3, $4) RETURNING id",
         )
         .bind(topic.speaker_id)
@@ -200,7 +200,7 @@ pub async fn add(db_pool: &Pool<Postgres>, topic: Topic) -> Result<i32, Box<dyn 
         .fetch_one(db_pool)
         .await?;
 
-    Ok(row.0)
+    Ok(topic_id)
 }
 
 /// Removes a topic by its ID.

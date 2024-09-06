@@ -234,13 +234,12 @@ pub async fn schedule_add(
     db_pool: &Pool<Postgres>,
     Json(schedule_form): Json<CreateScheduleForm>,
 ) -> Result<Schedule, Box<dyn Error>> {
-    let schedule_row: (i32,) =
+    let (schedule_id,) =
         sqlx::query_as(r#"INSERT INTO schedules (num_of_timeslots) VALUES ($1) RETURNING id"#)
             .bind(schedule_form.num_of_timeslots)
             .fetch_one(db_pool)
             .await?;
 
-    let schedule_id = schedule_row.0;
     let mut timeslots = vec![];
     for i in 0..(schedule_form.num_of_timeslots as usize) {
         let start_time =

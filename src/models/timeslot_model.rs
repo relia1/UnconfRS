@@ -159,7 +159,8 @@ pub async fn timeslot_add(
     db_pool: &Pool<Postgres>,
     timeslot: TimeSlot,
 ) -> Result<i32, Box<dyn Error>> {
-    let timeslot_id: (i32,) = sqlx::query_as(r#"INSERT INTO time_slots (start_time, end_time, duration, speaker_id, schedule_id, topic_id, room_id) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id"#)
+    let (timeslot_id,) = sqlx::query_as(r#"INSERT INTO time_slots (start_time, end_time, 
+    duration, speaker_id, schedule_id, topic_id, room_id) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id"#)
         .bind(timeslot.start_time)
         .bind(timeslot.end_time)
         .bind(timeslot.end_time - timeslot.start_time)
@@ -170,7 +171,7 @@ pub async fn timeslot_add(
         .fetch_one(db_pool)
         .await?;
 
-    Ok(timeslot_id.0)
+    Ok(timeslot_id)
 }
 
 /// Updates a timeslot by its ID.

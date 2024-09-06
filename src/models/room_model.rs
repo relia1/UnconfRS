@@ -201,13 +201,12 @@ pub async fn rooms_add(
             .await?;
     }
 
-    let schedule_row: (i32,) =
+    let (schedule_id,) =
         sqlx::query_as(r#"INSERT INTO schedules (num_of_timeslots) VALUES ($1) RETURNING id"#)
             .bind(20)
             .fetch_one(db_pool)
             .await?;
 
-    let schedule_id = schedule_row.0;
     let mut timeslots = vec![];
 
     let rooms = rooms_get(db_pool).await?.unwrap();

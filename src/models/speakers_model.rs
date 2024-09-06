@@ -196,7 +196,7 @@ pub async fn speaker_add(
     speaker: Speaker,
 ) -> Result<i32, Box<dyn Error>> {
     tracing::debug!("adding speaker");
-    let row: (i32,) = sqlx::query_as(
+    let (speaker_id,) = sqlx::query_as(
         "INSERT INTO speakers (name, email, phone_number) VALUES ($1, $2, $3) RETURNING id",
     )
     .bind(speaker.name)
@@ -205,7 +205,7 @@ pub async fn speaker_add(
     .fetch_one(db_pool)
     .await?;
 
-    Ok(row.0)
+    Ok(speaker_id)
 }
 
 /// Removes a speaker by its ID.
