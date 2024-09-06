@@ -1,6 +1,0 @@
-CREATE TABLE speakers (
-	id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    name TEXT NOT NULL,
-    email TEXT NOT NULL,
-    phone_number TEXT NOT NULL
-);
