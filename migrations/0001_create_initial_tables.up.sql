@@ -1,0 +1,37 @@
+CREATE TABLE topics (
+	id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    speaker_id INT NOT NULL,
+	title TEXT NOT NULL,
+	content TEXT NOT NULL,
+    votes INT NOT NULL
+);
+
+CREATE TABLE rooms (
+	id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+	name TEXT NOT NULL,
+	location TEXT NOT NULL,
+    available_spots INT NOT NULL
+);
+
+CREATE TABLE speakers (
+	id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    name TEXT NOT NULL,
+    email TEXT NOT NULL,
+    phone_number TEXT NOT NULL
+);
+
+CREATE TABLE schedules (
+	id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    num_of_timeslots INT NOT NULL
+);
+
+CREATE TABLE time_slots (
+	id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    start_time TIME NOT NULL,
+    end_time TIME NOT NULL,
+    duration INTERVAL NOT NULL,
+    schedule_id INTEGER,
+    speaker_id INTEGER,
+    topic_id INTEGER REFERENCES topics(id),
+    room_id INTEGER REFERENCES rooms(id)
+);
