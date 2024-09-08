@@ -49,6 +49,7 @@ use sqlx::{FromRow, Pool, Postgres};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::{self, fs::read_to_string, sync::RwLock};
+use tower_http::compression::CompressionLayer;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use utoipa_rapidoc::RapiDoc;
 use utoipa_redoc::{Redoc, Servable};
@@ -168,6 +169,7 @@ async fn main() {
         .merge(rapidoc_timeslot)
         .with_state(topics_db)
         .fallback(handler_404)
+        .layer(CompressionLayer::new())
         .layer(
             CorsLayer::new()
                 .allow_origin(Any)
