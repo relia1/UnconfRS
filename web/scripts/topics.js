@@ -115,6 +115,7 @@ async function submitForm(event) {
         } catch (error) {
             console.log('Error submitting topic: ', error);
         }
+        location.reload();
     } catch (error) {
         console.log('Error adding speaker: ', error);
     }
