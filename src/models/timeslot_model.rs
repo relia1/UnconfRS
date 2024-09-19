@@ -1,5 +1,5 @@
 use std::error::Error;
-
+use std::process::id;
 use askama_axum::IntoResponse;
 use axum::{http::StatusCode, response::Response, Json};
 use chrono::NaiveTime;
@@ -188,22 +188,38 @@ pub async fn timeslot_update(
     db_pool: &Pool<Postgres>,
     timeslot_id: i32,
     timeslot: &TimeSlot,
-) -> Result<(), Box<dyn Error>> {
-    sqlx::query(
+) -> Result<i32, Box<dyn Error>> {
+    tracing::trace!("updating timeslot id: {}\nstart time: {}\nend time: {}\nspeaker id: \
+    {}\nschedule id: {}\ntopic id: {}\nroom id: {}",
+                    timeslot_id, timeslot.start_time, timeslot.end_time, timeslot.speaker_id
+        .unwrap(), 
+        timeslot.schedule_id.unwrap(), timeslot.topic_id.unwrap(), timeslot.room_id.unwrap());
+    let (new_timeslot_id,) = sqlx::query_as(
         r#"
-        UPDATE time_slots SET start_time = $2, end_time = $3, speaker_id = $4, schedule_id = $5, topic_id = $6, room_id = $7
-        WHERE id = $1
+        UPDATE time_slots SET start_time = $1, end_time = $2, speaker_id = $3, schedule_id = $4,
+        topic_id = $5, room_id = $6
+        WHERE start_time = $1 AND room_id = $6
+        RETURNING id
         "#,
     )
-        .bind(timeslot_id)
         .bind(timeslot.start_time)
         .bind(timeslot.end_time)
         .bind(timeslot.speaker_id)
         .bind(timeslot.schedule_id)
         .bind(timeslot.topic_id.unwrap())
         .bind(timeslot.room_id)
+        .fetch_one(db_pool)
+        .await?;
+
+    sqlx::query(
+        r#"
+        UPDATE time_slots SET speaker_id = NULL, topic_id = NULL
+        WHERE id = $1
+        "#,
+    )
+        .bind(timeslot_id)
         .execute(db_pool)
         .await?;
 
-    Ok(())
+    Ok(new_timeslot_id)
 }

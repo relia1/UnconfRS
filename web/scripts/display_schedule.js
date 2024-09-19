@@ -221,7 +221,6 @@ document.addEventListener('DOMContentLoaded', function () {
             events[eventIndex].startTime = timeslot.start_time;
             events[eventIndex].endTime = timeslot.end_time;
             events[eventIndex].roomId = timeslot.room_id;
-
             fetch(`api/v1/timeslots/${timeslot.id}`, {
                 method: 'PUT',
                 headers: {
@@ -229,8 +228,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 },
                 body: JSON.stringify(timeslot),
             })
-                .then(response => response.json());
+                .then(response => response.json())
+                .then(data => events[eventIndex].timeslotId = data.id);
 
+            draggedEvent.setAttribute('data-timeslot-id', events[eventIndex].timeslotId);
             draggedEvent = null;
         }
     }
