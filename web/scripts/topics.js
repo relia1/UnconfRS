@@ -70,6 +70,17 @@ document.addEventListener('DOMContentLoaded', function () {
             alert('There was an error deleting the topic. Please try again.');
         }
     });
+
+    document.querySelector('#add-topic').addEventListener('click', async function (data) {
+        document.querySelector('#add-topic').style.display = 'none';
+        document.querySelector('#topicForm').style.display = 'block';
+    });
+
+    document.querySelector('#closeForm').addEventListener('click', async function (data) {
+        document.querySelector('#topicForm').style.display = 'none';
+        document.querySelector('#add-topic').style.display = 'block';
+    });
+
 });
 
 function format(data) {

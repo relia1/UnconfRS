@@ -27,9 +27,12 @@
 
     {% block content %}
     <h1>Submit a Topic</h1>
-    <form id="topicForm" onSubmit="submitForm(event)">
+    <button id="add-topic">Submit a Topic</button>
+
+    <form id="topicForm" onSubmit="submitForm(event)" style="display: none;">
         {% include "snippets/topic_form_fields.html" %}
         <button type="submit">Submit</button>
+        <button id="closeForm" type="button">Close</button>
     </form>
 
 
