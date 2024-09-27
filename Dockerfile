@@ -1,4 +1,4 @@
-ARG APP_NAME=thesis
+ARG APP_NAME=unconfrs
 FROM rust:latest AS build
 WORKDIR /app
 
@@ -34,7 +34,7 @@ RUN adduser \
 USER appuser
 
 # Copy the executable from the "build" stage.
-COPY --from=build /app/target/release/Thesis /bin/
+COPY --from=build /app/target/release/Unconfrs /bin/
 COPY --from=build /app/web/ /
 RUN ls -l
 # COPY --chown=appuser:appuser ./assets ./assets
@@ -43,4 +43,4 @@ RUN ls -l
 EXPOSE 3000
 
 # What the container should run when it is started.
-CMD ["/bin/Thesis"]
+CMD ["/bin/Unconfrs"]
