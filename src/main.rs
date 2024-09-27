@@ -147,7 +147,7 @@ async fn main() {
 
     let app = Router::new()
         .route("/", get(index_handler))
-        .route("/schedules", get(schedule_handler))
+        .route("/unconf_schedule", get(schedule_handler))
         .route("/topics", get(topic_handler))
         .route("/scripts/:path", get(asset_handler))
         .route("/styles/:path", get(asset_handler))
