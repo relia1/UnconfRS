@@ -35,3 +35,9 @@ CREATE TABLE time_slots (
     topic_id INTEGER REFERENCES topics(id),
     room_id INTEGER REFERENCES rooms(id)
 );
+
+CREATE TABLE users (
+    id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    username TEXT UNIQUE NOT NULL,
+    password TEXT NOT NULL
+);
