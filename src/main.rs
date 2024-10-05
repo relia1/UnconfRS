@@ -12,7 +12,12 @@ use axum::{
     http::StatusCode,
     response::{Html, IntoResponse, Response},
     routing::{delete, get, post, put},
+    Json,
     Router,
+    extract::Request,
+    handler::Handler,
+    http::{HeaderMap, HeaderValue},
+    middleware::{from_fn_with_state, Next}
 };
 use config::*;
 use serde::Deserialize;
@@ -94,6 +99,7 @@ async fn main() {
 
     // routes with their handlers
     let apis = Router::new()
+        .route("/admin_login", post(admin_login))
         .route("/topics", get(topics))
         .route("/topics/:id", get(get_topic))
         .route("/topics/add", post(post_topic))
@@ -113,9 +119,15 @@ async fn main() {
         .route("/schedules/:id", get(get_schedule))
         .route("/schedules/:id", put(update_schedule))
         .route("/schedules/add", post(post_schedule))
-        .route("/schedules/generate", post(generate))
-        .route("/schedules/clear", post(clear))
-        .route("/timeslots/:id", put(update_timeslot));
+        .route("/schedules/generate", post(generate.layer(from_fn_with_state(app_state.clone(),
+                                                                  auth_middleware
+        ))))
+        .route("/schedules/clear", post(clear.layer(from_fn_with_state(app_state.clone(),
+                                                                  auth_middleware
+        ))))
+        .route("/timeslots/:id", put(update_timeslot.layer(from_fn_with_state(app_state.clone(),
+                                                                  auth_middleware
+        ))));
 
     // handy openai auto generated docs!
     let swagger_ui = SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi());
@@ -148,6 +160,7 @@ async fn main() {
     let app = Router::new()
         .route("/", get(index_handler))
         .route("/unconf_schedule", get(schedule_handler))
+        .route("/admin", get(admin_handler))
         .route("/topics", get(topic_handler))
         .route("/scripts/:path", get(asset_handler))
         .route("/styles/:path", get(asset_handler))
@@ -335,4 +348,93 @@ async fn topic_handler(
             Html("<h1>Error fetching topics</h1>".to_string()).into_response()
         }
     }
+}
+
+#[derive(Template, Debug)]
+#[template(path = "admin_login.html")]
+struct AdminTemplate{}
+
+#[derive(Debug, Deserialize)]
+struct AdminLoginForm {
+    username: String,
+    password: String,
+}
+
+async fn admin_handler() -> Response {
+    let template = AdminTemplate{};
+    match template.render() { 
+        Ok(html) => Html(html).into_response(),
+        Err(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+    }
+}
+
+
+#[derive(Debug, Deserialize, FromRow)]
+struct User {
+    username: String,
+    password: String,
+}
+
+async fn admin_login(
+    State(app_state): State<Arc<RwLock<AppState>>>,
+    Json(admin_form): Json<AdminLoginForm>,
+) -> impl IntoResponse {
+    let app_state_lock = app_state.read().await;
+    let jwt_token = app_state_lock.jwt_secret.read().await.clone();
+    let db_pool = &app_state_lock.unconf_data.read().await.unconf_db;
+    let db_user: Result<User, _>  = sqlx::query_as("SELECT * FROM users WHERE username = $1;")
+        .bind(&admin_form.username)
+        .fetch_one(db_pool)
+        .await;
+
+    match bcrypt::verify(&admin_form.password, &db_user.unwrap().password) {
+        Ok(true) => {
+            let mut headers = HeaderMap::new();
+            headers.insert(
+                axum::http::header::SET_COOKIE,
+                HeaderValue::from_str(&format!(
+                    "token={}; HttpOnly; Secure; SameSite=Strict; Path=/",
+                    jwt_token
+                )).unwrap()
+            );
+            (
+                StatusCode::OK,
+                headers,
+                "Authorized"
+            )
+        },
+        _ => {
+            (StatusCode::UNAUTHORIZED, HeaderMap::new(), "Unauthorized")
+        }
+    }
+}
+
+async fn auth_middleware(
+    State(app_state): State<Arc<RwLock<AppState>>>,
+    req: Request,
+    next: Next,
+) -> Result<Response, Response> {
+    let app_state_lock = app_state.read().await;
+    let jwt_secret = app_state_lock.jwt_secret.read().await.clone();
+    let headers = req.headers();
+    match extract_cookie(headers, "token") {
+        Some(token) if token == jwt_secret => Ok(next.run(req).await),
+        _ => Err((StatusCode::UNAUTHORIZED, "Unauthorized").into_response())
+    }
+}
+
+fn extract_cookie(headers: &HeaderMap, key: &str) -> Option<String> {
+    headers.get("cookie")
+        .and_then(|cookie_header| cookie_header.to_str().ok())
+        .and_then(|cookie_str| {
+            cookie_str.split(';')
+                .find_map(|cookie| {
+                    let (cookie_key, cookie_value) = cookie.trim().split_once('=')?;
+                    if cookie_key.trim() == key {
+                        Some(cookie_value.trim().to_string())
+                    } else {
+                        None
+                    }
+                })
+        })
 }
