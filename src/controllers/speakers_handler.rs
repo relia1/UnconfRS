@@ -10,12 +10,11 @@ use axum::response::Response;
 use axum::Json;
 use tracing::trace;
 use utoipa::OpenApi;
-
+use crate::config::AppState;
 use crate::models::speakers_model::{
     speaker_add, speaker_delete, speaker_get, speaker_update, speakers_get, Speaker,
     SpeakerErr, SpeakerError,
 };
-use crate::UnconfData;
 
 #[derive(OpenApi)]
 #[openapi(
@@ -48,10 +47,11 @@ pub struct ApiDocSpeaker;
     )
 )]
 pub async fn speakers(
-    State(db_pool): State<Arc<RwLock<UnconfData>>>,
+    State(app_state): State<Arc<RwLock<AppState>>>,
 ) -> Response {
-    let read_lock = db_pool.read().await;
-    match speakers_get(&read_lock.unconf_db).await {
+    let app_state_lock = app_state.read().await;
+    let read_lock = &app_state_lock.unconf_data.read().await.unconf_db;
+    match speakers_get(read_lock).await {
         Ok(res) => Json(res).into_response(),
         Err(e) => {
             trace!("Paginated get error");
@@ -72,11 +72,12 @@ pub async fn speakers(
     )
 )]
 pub async fn get_speaker(
-    State(db_pool): State<Arc<RwLock<UnconfData>>>,
+    State(app_state): State<Arc<RwLock<AppState>>>,
     Path(speaker_id): Path<i32>,
 ) -> Response {
-    let read_lock = db_pool.read().await;
-    match speaker_get(&read_lock.unconf_db, speaker_id).await {
+    let app_state_lock = app_state.read().await;
+    let read_lock = &app_state_lock.unconf_data.read().await.unconf_db;
+    match speaker_get(read_lock, speaker_id).await {
         Ok(speaker) => Json(speaker).into_response(),
         Err(e) => SpeakerError::response(StatusCode::NOT_FOUND, e),
     }
@@ -95,12 +96,13 @@ pub async fn get_speaker(
     )
 )]
 pub async fn post_speaker(
-    State(db_pool): State<Arc<RwLock<UnconfData>>>,
+    State(app_state): State<Arc<RwLock<AppState>>>,
     Json(speaker): Json<Speaker>,
 ) -> Response {
     tracing::info!("post speaker!");
-    let write_lock = db_pool.write().await;
-    match speaker_add(&write_lock.unconf_db, speaker).await {
+    let app_state_lock = app_state.read().await;
+    let write_lock = &app_state_lock.unconf_data.read().await.unconf_db;
+    match speaker_add(write_lock, speaker).await {
         Ok(id) => {
             trace!("id: {:?}\n", id);
             //StatusCode::CREATED.into_response()
@@ -120,12 +122,13 @@ pub async fn post_speaker(
     )
 )]
 pub async fn delete_speaker(
-    State(db_pool): State<Arc<RwLock<UnconfData>>>,
+    State(app_state): State<Arc<RwLock<AppState>>>,
     Path(speaker_id): Path<i32>,
 ) -> Response {
     tracing::info!("delete speaker");
-    let write_lock = db_pool.write().await;
-    match speaker_delete(&write_lock.unconf_db, speaker_id).await {
+    let app_state_lock = app_state.read().await;
+    let write_lock = &app_state_lock.unconf_data.read().await.unconf_db;
+    match speaker_delete(write_lock, speaker_id).await {
         Ok(()) => StatusCode::OK.into_response(),
         Err(e) => SpeakerError::response(StatusCode::BAD_REQUEST, e),
     }
@@ -147,12 +150,13 @@ pub async fn delete_speaker(
 )]
 #[debug_handler]
 pub async fn update_speaker(
-    State(db_pool): State<Arc<RwLock<UnconfData>>>,
+    State(app_state): State<Arc<RwLock<AppState>>>,
     Path(speaker_id): Path<i32>,
     Json(speaker): Json<Speaker>,
 ) -> Response {
-    let write_lock = db_pool.write().await;
-    match speaker_update(&write_lock.unconf_db, speaker_id, speaker).await {
+    let app_state_lock = app_state.read().await;
+    let write_lock = &app_state_lock.unconf_data.read().await.unconf_db;
+    match speaker_update(write_lock, speaker_id, speaker).await {
         Ok(_) => StatusCode::OK.into_response(),
         Err(e) => SpeakerError::response(StatusCode::BAD_REQUEST, e),
     }

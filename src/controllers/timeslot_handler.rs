@@ -11,8 +11,7 @@ use axum::response::Response;
 use axum::Json;
 use tracing::trace;
 use utoipa::OpenApi;
-
-use crate::UnconfData;
+use crate::config::AppState;
 
 #[derive(OpenApi)]
 #[openapi(
@@ -44,13 +43,14 @@ pub struct ApiDocTimeslot;
 )]
 #[debug_handler]
 pub async fn update_timeslot(
-    State(db_pool): State<Arc<RwLock<UnconfData>>>,
+    State(app_state): State<Arc<RwLock<AppState>>>,
     Path(timeslot_id): Path<i32>,
     Json(timeslot): Json<TimeSlot>,
 ) -> Response {
     trace!("timeslot id: {:?}", &timeslot.id);
-    let write_lock = db_pool.write().await;
-    match timeslot_update(&write_lock.unconf_db, timeslot_id, &timeslot).await {
+    let app_state_lock = app_state.read().await;
+    let write_lock = &app_state_lock.unconf_data.read().await.unconf_db;
+    match timeslot_update(write_lock, timeslot_id, &timeslot).await {
         Ok(timeslot) => Json(timeslot).into_response(),
         Err(e) => TimeSlotError::response(StatusCode::BAD_REQUEST, e),
     }

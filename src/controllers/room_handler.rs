@@ -11,8 +11,7 @@ use axum::response::Response;
 use axum::Json;
 use tracing::trace;
 use utoipa::OpenApi;
-
-use crate::UnconfData;
+use crate::config::AppState;
 
 #[derive(OpenApi)]
 #[openapi(
@@ -37,9 +36,10 @@ pub struct ApiDocRooms;
         (status = 200, description = "List rooms", body = Vec<Room>),
     )
 )]
-pub async fn rooms(State(db_pool): State<Arc<RwLock<UnconfData>>>) -> Response {
-    let read_lock = db_pool.read().await;
-    match rooms_get(&read_lock.unconf_db).await {
+pub async fn rooms(State(app_state): State<Arc<RwLock<AppState>>>) -> Response {
+    let app_state_lock = app_state.read().await;
+    let read_lock = &app_state_lock.unconf_data.read().await.unconf_db;
+    match rooms_get(read_lock).await {
         Ok(res) => Json(res).into_response(),
         Err(e) => RoomError::response(
             StatusCode::NOT_FOUND,
@@ -61,12 +61,13 @@ pub async fn rooms(State(db_pool): State<Arc<RwLock<UnconfData>>>) -> Response {
     )
 )]
 pub async fn post_rooms(
-    State(db_pool): State<Arc<RwLock<UnconfData>>>,
+    State(app_state): State<Arc<RwLock<AppState>>>,
     Json(rooms_form): Json<CreateRoomsForm>,
 ) -> Response {
     tracing::info!("\n\nposting rooms!\n\n");
-    let write_lock = db_pool.write().await;
-    match rooms_add(&write_lock.unconf_db, Json(rooms_form)).await {
+    let app_state_lock = app_state.read().await;
+    let write_lock = &app_state_lock.unconf_data.read().await.unconf_db;
+    match rooms_add(write_lock, Json(rooms_form)).await {
         Ok(id) => {
             trace!("id: {:?}\n", id);
             StatusCode::CREATED.into_response()
@@ -84,12 +85,13 @@ pub async fn post_rooms(
     )
 )]
 pub async fn delete_room(
-    State(db_pool): State<Arc<RwLock<UnconfData>>>,
+    State(app_state): State<Arc<RwLock<AppState>>>,
     Path(room_id): Path<i32>,
 ) -> Response {
     tracing::info!("delete room");
-    let write_lock = db_pool.write().await;
-    match room_delete(&write_lock.unconf_db, room_id).await {
+    let app_state_lock = app_state.read().await;
+    let write_lock = &app_state_lock.unconf_data.read().await.unconf_db;
+    match room_delete(write_lock, room_id).await {
         Ok(()) => StatusCode::OK.into_response(),
         Err(e) => RoomError::response(StatusCode::BAD_REQUEST, e),
     }

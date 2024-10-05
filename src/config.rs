@@ -1,7 +1,23 @@
 use crate::db_config::*;
 use sqlx::{Pool, Postgres};
 use std::error::Error;
+use std::sync::Arc;
+use tokio::sync::{RwLock};
 
+pub  struct AppState {
+    pub unconf_data: Arc<RwLock<UnconfData>>,
+    pub jwt_secret: Arc<RwLock<String>>,
+}
+
+impl AppState {
+    pub  async fn new() -> Result<Self, Box<dyn Error>> {
+        Ok(Self {
+            unconf_data: Arc::new(RwLock::new(UnconfData::new().await?)),
+            jwt_secret: Arc::new(RwLock::new(std::env::var("JWT_SECRET").expect("JWT_SECRET must be set\nAdd \
+            JWT_SECRET to the compose.yaml file"))),
+        })
+    }
+}
 /// A question bank that stores and manages questions and their answers
 #[derive(Debug)]
 pub struct UnconfData {

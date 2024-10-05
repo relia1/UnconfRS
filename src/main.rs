@@ -94,8 +94,8 @@ async fn main() {
         .make_span_with(trace::DefaultMakeSpan::new())
         .on_response(trace::DefaultOnResponse::new());
 
-    // Connect to database
-    let topics_db = Arc::new(RwLock::new(UnconfData::new().await.unwrap()));
+    // Connect to database and setup app state
+    let app_state = Arc::new(RwLock::new(AppState::new().await.unwrap()));
 
     // routes with their handlers
     let apis = Router::new()
@@ -180,7 +180,7 @@ async fn main() {
         .merge(timeslots_docs)
         .merge(redoc_timeslot)
         .merge(rapidoc_timeslot)
-        .with_state(topics_db)
+        .with_state(app_state)
         .fallback(handler_404)
         .layer(CompressionLayer::new())
         .layer(
@@ -243,14 +243,14 @@ struct CreateRoomsForm {
 }
 
 #[debug_handler]
-async fn schedule_handler(State(db_pool): State<Arc<RwLock<UnconfData>>>) -> Response {
+async fn schedule_handler(State(app_state): State<Arc<RwLock<AppState>>>) -> Response {
+    let app_state_lock = app_state.read().await;
+    let read_lock = &app_state_lock.unconf_data.read().await.unconf_db;
     let schedules = {
-        let read_lock = db_pool.read().await;
-        schedules_get(&read_lock.unconf_db).await.unwrap()
+        schedules_get(read_lock).await.unwrap()
     };
     let rooms = {
-        let read_lock = db_pool.read().await;
-        match rooms_get(&read_lock.unconf_db).await {
+        match rooms_get(read_lock).await {
             Ok(None) => None,
             Ok(val) => val,
             _ => None,
@@ -327,10 +327,11 @@ pub async fn combine_topic_and_speaker(
     Ok(topic_with_speaker)
 }
 async fn topic_handler(
-    State(db_pool): State<Arc<RwLock<UnconfData>>>,
+    State(app_state): State<Arc<RwLock<AppState>>>,
 ) -> Response {
-    let write_lock = db_pool.write().await;
-    let topic_speakers = combine_topic_and_speaker(&write_lock.unconf_db).await;
+    let app_state_lock = app_state.read().await;
+    let write_lock = &app_state_lock.unconf_data.read().await.unconf_db;
+    let topic_speakers = combine_topic_and_speaker(write_lock).await;
 
     match topic_speakers {
         Ok(topic_speakers) => {

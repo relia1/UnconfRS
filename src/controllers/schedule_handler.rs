@@ -8,7 +8,6 @@ use crate::models::schedule_model::{
 use crate::models::timeslot_model::TimeSlot;
 use crate::CreateScheduleForm;
 use crate::StatusCode;
-use crate::UnconfData;
 use askama_axum::IntoResponse;
 use axum::debug_handler;
 use axum::extract::Path;
@@ -17,6 +16,8 @@ use axum::response::Response;
 use axum::Json;
 use tracing::trace;
 use utoipa::OpenApi;
+use crate::config::AppState;
+use crate::controllers::topics_handler::topics;
 
 #[derive(OpenApi)]
 #[openapi(
@@ -43,9 +44,10 @@ pub struct ApiDocSchedule;
         (status = 200, description = "List schedules", body = Vec<Schedule>),
     )
 )]
-pub async fn schedules(State(db_pool): State<Arc<RwLock<UnconfData>>>) -> Response {
-    let read_lock = db_pool.read().await;
-    match schedules_get(&read_lock.unconf_db).await {
+pub async fn schedules(State(app_state): State<Arc<RwLock<AppState>>>) -> Response {
+    let app_state_lock = app_state.read().await;
+    let read_lock = &app_state_lock.unconf_data.read().await.unconf_db;
+    match schedules_get(read_lock).await {
         Ok(res) => Json(res).into_response(),
         Err(e) => {
             trace!("Paginated get error");
@@ -66,11 +68,12 @@ pub async fn schedules(State(db_pool): State<Arc<RwLock<UnconfData>>>) -> Respon
     )
 )]
 pub async fn get_schedule(
-    State(db_pool): State<Arc<RwLock<UnconfData>>>,
+    State(app_state): State<Arc<RwLock<AppState>>>,
     Path(schedule_id): Path<i32>,
 ) -> Response {
-    let read_lock = db_pool.read().await;
-    match schedule_get(&read_lock.unconf_db, schedule_id).await {
+    let app_state_lock = app_state.read().await;
+    let read_lock = &app_state_lock.unconf_data.read().await.unconf_db;
+    match schedule_get(read_lock, schedule_id).await {
         Ok(schedule) => Json(schedule).into_response(),
         Err(e) => ScheduleError::response(StatusCode::NOT_FOUND, e),
     }
@@ -89,12 +92,13 @@ pub async fn get_schedule(
     )
 )]
 pub async fn post_schedule(
-    State(db_pool): State<Arc<RwLock<UnconfData>>>,
+    State(app_state): State<Arc<RwLock<AppState>>>,
     Json(schedule_form): Json<CreateScheduleForm>, //Json(schedule): Json<Schedule>,
 ) -> Response {
     tracing::info!("\n\nposting schedule!\n\n");
-    let write_lock = db_pool.write().await;
-    match schedule_add(&write_lock.unconf_db, Json(schedule_form)).await {
+    let app_state_lock = app_state.read().await;
+    let read_lock = &app_state_lock.unconf_data.read().await.unconf_db;
+    match schedule_add(read_lock, Json(schedule_form)).await {
         Ok(id) => {
             trace!("id: {:?}\n", id);
             StatusCode::CREATED.into_response()
@@ -119,13 +123,14 @@ pub async fn post_schedule(
 )]
 #[debug_handler]
 pub async fn update_schedule(
-    State(db_pool): State<Arc<RwLock<UnconfData>>>,
+    State(app_state): State<Arc<RwLock<AppState>>>,
     Path(schedule_id): Path<i32>,
     Json(schedule): Json<Schedule>,
 ) -> Response {
     trace!("schedule id: {:?}", &schedule.id);
-    let write_lock = db_pool.write().await;
-    match schedule_update(&write_lock.unconf_db, schedule_id, schedule).await {
+    let app_state_lock = app_state.read().await;
+    let read_lock = &app_state_lock.unconf_data.read().await.unconf_db;
+    match schedule_update(read_lock, schedule_id, schedule).await {
         Ok(schedule) => Json(schedule).into_response(),
         Err(e) => ScheduleError::response(StatusCode::BAD_REQUEST, e),
     }
@@ -141,9 +146,10 @@ pub async fn update_schedule(
         (status = 422, description = "Unprocessable entity", body = ScheduleError),
     )
 )]
-pub async fn generate(State(topics): State<Arc<RwLock<UnconfData>>>) -> Response {
-    let write_lock = topics.write().await;
-    let res = schedule_generate(&write_lock.unconf_db).await;
+pub async fn generate(State(app_state): State<Arc<RwLock<AppState>>>,) -> Response {
+    let app_state_lock = app_state.read().await;
+    let read_lock = &app_state_lock.unconf_data.read().await.unconf_db;
+    let res = schedule_generate(read_lock).await;
     match res {
         Ok(schedule) => {
             Json(schedule).into_response()
@@ -163,9 +169,10 @@ pub async fn generate(State(topics): State<Arc<RwLock<UnconfData>>>) -> Response
         (status = 422, description = "Unprocessable entity", body = ScheduleError),
     )
 )]
-pub async fn clear(State(db_pool): State<Arc<RwLock<UnconfData>>>) -> Response {
-    let write_lock = db_pool.write().await;
-    let res = schedule_clear(&write_lock.unconf_db).await;
+pub async fn clear(State(app_state): State<Arc<RwLock<AppState>>>,) -> Response {
+    let app_state_lock = app_state.read().await;
+    let read_lock = &app_state_lock.unconf_data.read().await.unconf_db;
+    let res = schedule_clear(read_lock).await;
     match res {
         Ok(schedule) => {
             Json(schedule).into_response()
