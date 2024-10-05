@@ -11,11 +11,15 @@ pub  struct AppState {
 
 impl AppState {
     pub  async fn new() -> Result<Self, Box<dyn Error>> {
-        Ok(Self {
-            unconf_data: Arc::new(RwLock::new(UnconfData::new().await?)),
-            jwt_secret: Arc::new(RwLock::new(std::env::var("JWT_SECRET").expect("JWT_SECRET must be set\nAdd \
-            JWT_SECRET to the compose.yaml file"))),
-        })
+        let jwt_env = std::env::var("JWT_SECRET");
+        if jwt_env.as_ref().is_ok_and(|token| !token.is_empty()) {
+            Ok(Self {
+                unconf_data: Arc::new(RwLock::new(UnconfData::new().await?)),
+                jwt_secret: Arc::new(RwLock::new(jwt_env.unwrap())),
+            })
+        } else {
+            Err("JWT_SECRET not set. Set the JWT_SECRET field in the compose.yaml".into())
+        }
     }
 }
 /// A question bank that stores and manages questions and their answers

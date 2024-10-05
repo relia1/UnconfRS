@@ -21,6 +21,7 @@ services:
       - PG_USER=postgres
       - PG_PASSWORDFILE=/run/secrets/db-password
       - RUST_LOG=info
+      - JWT_SECRET=
     secrets:
       - db-password
     depends_on:
