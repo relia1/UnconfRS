@@ -221,15 +221,30 @@ document.addEventListener('DOMContentLoaded', function () {
             events[eventIndex].startTime = timeslot.start_time;
             events[eventIndex].endTime = timeslot.end_time;
             events[eventIndex].roomId = timeslot.room_id;
-            fetch(`api/v1/timeslots/${timeslot.id}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(timeslot),
-            })
-                .then(response => response.json())
-                .then(data => events[eventIndex].timeslotId = data.id);
+            try {
+                const response = fetch(`api/v1/timeslots/${timeslot.id}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(timeslot),
+                })
+                    .then(response => response.json())
+                    .then(data => events[eventIndex].timeslotId = data.id);
+
+                if (response.status === 401) {
+                    alert('You do not have permission to move events');
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                if (!response.ok) {
+                    alert('There was an error populating the schedule. Please try again.');
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+            } catch (error) {
+                console.error('Error updating the schedule:', error);
+                alert('There was an error updating the schedule.');
+            }
 
             draggedEvent.setAttribute('data-timeslot-id', events[eventIndex].timeslotId);
             draggedEvent = null;
