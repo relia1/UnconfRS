@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Login{% endblock %}
+
+{% block content %}
+    <form id="adminLogin">
+        <div class="form-field">
+            <label for="username">Username</label>
+            <input type="text" id="username" name="username" required>
+        </div>
+        <div class="form-field">
+            <label for="password">Password</label>
+            <textarea id="password" name="password" required></textarea>
+        </div>
+        <button type="submit">Submit</button>
+    </form>
+<script>
+    document.getElementById('adminLogin').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const username = document.getElementById('username').value;
+        const password = document.getElementById('password').value;
+        fetch('/api/v1/admin_login', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ username, password })
+        })
+        .then(response => response)
+        .then(data => {
+            if (data.ok) {
+                alert('Login successful');
+            } else {
+                alert('Invalid username or password');
+            }
+        });
+    });
+</script>
+{% endblock %}
