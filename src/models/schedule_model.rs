@@ -175,7 +175,6 @@ pub async fn schedules_get(db_pool: &Pool<Postgres>) -> Result<Option<Schedule>,
     )
     .fetch_all(db_pool)
     .await?;
-    trace!("schedules get vec: {:?}", &schedules);
 
     for schedule in &mut schedules {
         let timeslots = sqlx::query_as::<Postgres, TimeSlot>(
@@ -185,7 +184,6 @@ pub async fn schedules_get(db_pool: &Pool<Postgres>) -> Result<Option<Schedule>,
         .fetch_all(db_pool)
         .await?;
 
-        trace!("timeslots from schedule get: \n{:?}", &timeslots);
         schedule.timeslots = timeslots;
     }
 

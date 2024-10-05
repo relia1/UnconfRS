@@ -17,7 +17,6 @@ use axum::Json;
 use tracing::trace;
 use utoipa::OpenApi;
 use crate::config::AppState;
-use crate::controllers::topics_handler::topics;
 
 #[derive(OpenApi)]
 #[openapi(

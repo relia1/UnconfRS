@@ -29,9 +29,7 @@ use tower_http::{
 };
 use tracing_subscriber::{fmt, EnvFilter};
 
-// use askama_axum::Template;
 use askama_axum::Template;
-//use askama::Template;
 use utoipa::OpenApi;
 
 use crate::controllers::room_handler::{delete_room, post_rooms, rooms, ApiDocRooms};
@@ -88,8 +86,8 @@ async fn main() {
         .with(filter_layer)
         .with(fmt_layer)
         .init();
+    
     // https://carlosmv.hashnode.dev/adding-logging-and-tracing-to-an-axum-app-rust
-
     let trace_layer = trace::TraceLayer::new_for_http()
         .make_span_with(trace::DefaultMakeSpan::new())
         .on_response(trace::DefaultOnResponse::new());
@@ -257,11 +255,7 @@ async fn schedule_handler(State(app_state): State<Arc<RwLock<AppState>>>) -> Res
         }
     };
     let topics = {
-        let read_lock = db_pool.read().await;
-        match get_all_topics(&read_lock.unconf_db).await {
-            Ok(val) => val,
-            _ => vec![],
-        }
+        get_all_topics(read_lock).await.unwrap_or_default()
     };
 
     let mut events = vec![];
@@ -326,6 +320,7 @@ pub async fn combine_topic_and_speaker(
 
     Ok(topic_with_speaker)
 }
+
 async fn topic_handler(
     State(app_state): State<Arc<RwLock<AppState>>>,
 ) -> Response {
