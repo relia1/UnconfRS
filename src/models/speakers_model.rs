@@ -171,7 +171,8 @@ pub async fn speaker_get(
     index: i32,
 ) -> Result<Vec<Speaker>, Box<dyn Error>> {
     let mut speaker_vec = vec![];
-    let speaker = sqlx::query_as::<Postgres, Speaker>("SELECT * FROM speakers where id = $1")
+    let speaker = sqlx::query_as::<Postgres, Speaker>("SELECT id as speaker_id, name, email, \
+    phone_number FROM speakers where id = $1")
         .bind(index)
         .fetch_one(db_pool)
         .await?;
@@ -252,6 +253,7 @@ pub async fn speaker_update(
     let phone_number = speaker.phone_number;
 
     let mut speaker_to_update = speaker_get(db_pool, index).await?;
+    tracing::debug!("speaker to update: {:?}", &speaker_to_update);
     speaker_to_update[0].name.clone_from(&name);
     speaker_to_update[0].email.clone_from(&email);
     speaker_to_update[0].phone_number.clone_from(&phone_number);
@@ -259,7 +261,7 @@ pub async fn speaker_update(
     sqlx::query_as::<Postgres, Speaker>(
         "UPDATE speakers
         SET name = $1, email = $2, phone_number = $3
-        WHERE id = $3;",
+        WHERE id = $4;",
     )
     .bind(name)
     .bind(email)
@@ -267,6 +269,8 @@ pub async fn speaker_update(
     .bind(index)
     .fetch_all(db_pool)
     .await?;
+    
+    tracing::trace!("speaker updated: {:?}", &speaker_to_update);
 
     Ok(speaker_to_update)
 }
