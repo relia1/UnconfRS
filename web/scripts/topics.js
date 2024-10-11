@@ -10,7 +10,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 defaultContent: '',
                 orderable: false
             },
-            {data: 'topic_id'},
+            {data: 'topic_id', visible: false},
             {data: 'title'},
             {data: 'name'},
             {data: 'email'},
@@ -50,7 +50,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
     table.on('click', '.del-btn', async function(e) {
         if(confirm('Are you sure you want to delete this topic?')) {
-            var data = table.row($(this).closest('tr')).data();
+            let row = table.row($(this).closest('tr'));
+            let data = row.data();
             console.log("Deleting topic with id: " + data.topic_id);
             try {
                 const response = await fetch(`/api/v1/topics/${data.topic_id}`, {
@@ -67,7 +68,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 /* Topic was deleted successfully from the database so now also remove
                  it from the table */
-                table.row('.selected').remove().draw(false);
+                row.remove().draw(false);
             } catch (error) {
                 console.error('Error deleting topic:', error);
                 if(error.message.match(/foreign key constraint/)) {
