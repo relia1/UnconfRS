@@ -1,7 +1,33 @@
+<style>
+    .popup {
+        display: none;
+        position: fixed;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        background-color: #f9f9f9;
+        padding: 20px;
+        border: 1px solid #ccc;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        z-index: 1000;
+    }
+
+    .overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0,0,0,0.5);
+        z-index: 999;
+    }
+</style>
 <div id="eventSchedule">
     <h1>Event Schedule</h1>
     <button type="button" id="populate-schedule">Populate Schedule</button><br/>
     <button type="button" id="clear-schedule">Remove Topic Associations</button><br/>
+    <button type="button" id="add-room">Add Room</button><br/>
     <div id="controls">
         <div>
             <label for="view-selector" id="view-selector-label">Choose view: </label>
@@ -17,5 +43,22 @@
             <!-- Time slots will be dynamically added here -->
         </div>
         <!-- Room columns will be dynamically added here -->
+    </div>
+</div>
+<div id="overlay" class="overlay"></div>
+    <div id="popup" class="popup">
+        <h2>Topic</h2>
+        <form id="topicForm">
+            <div class="form-field">
+                <label for="room-name">Room Name:</label>
+                <input type="text" id="room-name" name="room-name" required>
+            </div>
+            <div class="form-field">
+                <label for="room-location">Room Location:</label>
+                <textarea id="room-location" name="room-location" required></textarea>
+            </div>
+            <button type="submit" id="submit-btn">Save</button>
+            <button type="button" id="cancelButton">Cancel</button>
+        </form>
     </div>
 </div>
