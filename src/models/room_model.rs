@@ -264,6 +264,16 @@ pub async fn rooms_add(
 pub async fn room_delete(db_pool: &Pool<Postgres>, index: i32) -> Result<(), Box<dyn Error>> {
     sqlx::query(
         r#"
+        DELETE FROM time_slots
+        WHERE room_id = $1
+        "#,
+    )
+    .bind(index)
+    .execute(db_pool)
+    .await?;
+    
+    sqlx::query(
+        r#"
         DELETE FROM rooms
         WHERE id = $1
         "#,
