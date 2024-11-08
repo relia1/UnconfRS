@@ -240,7 +240,15 @@ function closePopup() {
     const popup = document.getElementById('popup');
     const overlay = document.getElementById('overlay');
     popup.style.display = 'none';
+    overlay.style.display = 'none';function closePopup() {
+    const popup = document.getElementById('popup');
+    const overlay = document.getElementById('overlay');
+    popup.style.display = 'none';
     overlay.style.display = 'none';
+
+    document.querySelector('#cancelButton').removeEventListener('click', closePopup);
+    document.querySelector('#overlay').removeEventListener('click', closePopup);
+}
 
     document.querySelector('#cancelButton').removeEventListener('click', closePopup);
     document.querySelector('#overlay').removeEventListener('click', closePopup);

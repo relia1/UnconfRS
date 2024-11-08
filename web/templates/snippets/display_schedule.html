@@ -22,6 +22,43 @@
         background-color: rgba(0,0,0,0.5);
         z-index: 999;
     }
+
+    label.addRoom {
+        display: block;
+    }
+
+    .delete-room-btn {
+        background: none;
+        border: none;
+        color: #ff4444;
+        font-size: 18px;
+        font-weight: bold;
+        cursor: pointer;
+        padding: 0 5px;
+        margin-left: 8px;
+        opacity: 0.7;
+        display: none;  /* Hidden by default */
+    }
+
+    .delete-room-btn:hover {
+        opacity: 1;
+    }
+
+    /* Show delete button when user is admin */
+    .admin .delete-room-btn {
+        display: inline-block;
+        position: absolute;
+        right: 5px;
+        top: 50%;
+        transform: translateY(-50%)
+    }
+
+    .column-header, .row-label {
+        position: relative;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
 </style>
 <div id="eventSchedule">
     <h1>Event Schedule</h1>
@@ -47,15 +84,15 @@
 </div>
 <div id="overlay" class="overlay"></div>
     <div id="popup" class="popup">
-        <h2>Topic</h2>
-        <form id="topicForm">
+        <h2>Add a Room</h2>
+        <form id="addRoomForm">
             <div class="form-field">
-                <label for="room-name">Room Name:</label>
+                <label class="addRoom" for="room-name">Room Name:</label>
                 <input type="text" id="room-name" name="room-name" required>
             </div>
             <div class="form-field">
-                <label for="room-location">Room Location:</label>
-                <textarea id="room-location" name="room-location" required></textarea>
+                <label class="addRoom" for="room-location">Room Location:</label>
+                <input type="text" id="room-location" name="room-location" required>
             </div>
             <button type="submit" id="submit-btn">Save</button>
             <button type="button" id="cancelButton">Cancel</button>

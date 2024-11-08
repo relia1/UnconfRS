@@ -1,4 +1,8 @@
 document.addEventListener('DOMContentLoaded', function () {
+    if (localStorage.getItem('admin') === 'true') {
+        document.body.classList.add('admin');
+    }
+
     let numOfHalfHourSegments = 0;
     let numOfRooms = 0;
     const scheduleContainer = document.querySelector('.schedule-container');
@@ -300,6 +304,54 @@ document.addEventListener('DOMContentLoaded', function () {
         document.querySelector('#overlay').addEventListener('click', closePopup);
     });
 
+    async function removeRoom(roomId) {
+        try {
+            const response = await fetch(`/api/v1/rooms/${roomId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+            });
+
+            if (response.status === 401) {
+                alert('You do not have permission to delete rooms');
+                return;
+            }
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            // Remove the room from the rooms array
+            const roomIndex = rooms.findIndex(room => room.id === Number(roomId));
+            if (roomIndex !== -1) {
+                rooms.splice(roomIndex, 1);
+            }
+
+            numOfRooms = rooms.length;
+
+            // Reload page
+            location.reload();
+
+        } catch (error) {
+            console.error('Error deleting room:', error);
+            alert('There was an error deleting the room. Please try again.');
+        }
+    }
+
+    document.addEventListener('click', async function(e) {
+        if (e.target && e.target.classList.contains('delete-room-btn')) {
+            if (localStorage.getItem('admin') === 'true') {
+                if (confirm('Are you sure you want to delete this room?')) {
+                    const roomId = e.target.getAttribute('data-room-id');
+                    await removeRoom(roomId)
+                }
+            } else {
+                alert('You do not have permission to delete rooms');
+            }
+        }
+    });
+
     document.getElementById('submit-btn').addEventListener('click', async (e) => {
         e.preventDefault();
         const createRoomsForm = {
@@ -394,7 +446,11 @@ document.addEventListener('DOMContentLoaded', function () {
             const column = document.createElement('div');
             column.className = 'column';
             column.setAttribute('data-room-id', room.id);
-            column.innerHTML = `<div class="column-header">${room.name}</div>`;
+            column.innerHTML = `
+                <div class="column-header">
+                    ${room.name}
+                    <button class="delete-room-btn" data-room-id="${room.id}">x</button>
+                </div>`;
             column.addEventListener('dragover', handleDragOver);
             column.addEventListener('drop', handleDrop);
             scheduleContainer.appendChild(column);
@@ -456,7 +512,10 @@ document.addEventListener('DOMContentLoaded', function () {
         rooms.forEach((room, index) => {
             const rowLabel = document.createElement('div');
             rowLabel.className = 'row-label';
-            rowLabel.textContent = room.name;
+            rowLabel.innerHtml = `
+                ${room.name}
+                <button class="delete-room-btn" data-room-id="${room.id}">x</button>
+            `;
             rowColumn.appendChild(rowLabel);
         });
 
