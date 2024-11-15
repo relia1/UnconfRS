@@ -1,143 +1,497 @@
-<style>
-/* Modal container */
-.form-container {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background-color: #f0f0f0;
-    padding: 20px;
-    border-radius: 8px;
-    box-shadow: 0 8px 10px rgba(0, 0, 0, 0.2);
-    max-width: 400px;
-    width: 100%;
-    max-height: 90vh;
-    display: flex;
-    flex-direction: column;
-}
+<head>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * {
+        box-sizing: border-box;
+        }
 
-/* Form pages */
-.form-page {
-    display: none;
-}
+        .app-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 2vw;
+            margin: 0 auto;
+            width: 90vw;
+            max-width: 75vw;
+        }
 
-.form-page.active {
-    display: block;
-}
+        .header {
+            background: #e2e8f0;
+            padding: 3vw;
+            border-radius: 1.5vw;
+            box-shadow: 0 0.1vw 0.4vw rgba(0, 0, 0, 0.05);
+            margin-bottom: 1vw;
+            width: 100%;
+        }
 
-/* Form items */
-.form-item {
-    margin-bottom: 15px;
-}
+        h2 {
+            color: #2c3e50;
+            margin-bottom: 2vw;
+            font-weight: 600;
+            text-align: center;
+            font-size: 2.5vw;
+        }
 
-label {
-    display: block;
-    margin-bottom: 5px;
-    font-weight: bold;
-}
+        h3 {
+            color: #34495e;
+            margin-top: 1vw;
+            margin-bottom: 1.5vw;
+            font-weight: 500;
+            font-size: 2vw;
+        }
 
-input[type="number"],
-input[type="text"] {
-    width: 100%;
-    padding: 8px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    font-size: 16px;
-}
+        input[type="time"],
+        input[type="text"] {
+            padding: 0.75vw 1vw;
+            border: 0.1vw solid #e2e8f0;
+            border-radius: 0.75vw;
+            font-size: 1.2vw;
+            width: auto;
+            min-width: 12vw;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
 
-/* Buttons */
-button {
-    background-color: #4CAF50;
-    color: white;
-    padding: 10px 15px;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 16px;
-    transition: background-color 0.3s;
-}
+        input[type="number"] {
+            padding: 0.75vw 1vw;
+            border: 0.1vw solid #e2e8f0;
+            border-radius: 0.75vw;
+            font-size: 1.2vw;
+            width: auto;
+            max-width: 5vw;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
 
-button:hover {
-    background-color: #45a049;
-}
+        input:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 0 0.2vw rgba(52, 152, 219, 0.1);
+        }
 
-/* Headings */
-h2 {
-    margin-top: 0;
-    margin-bottom: 20px;
-    color: #333;
-}
-</style>
-<div class="form-container">
-    <div class="form-page active" id="page-1">
-        <h2>Room Form</h2>
-        <div class="form-item">
-            <label for="num-rooms">Number of Rooms:</label>
-            <input type="number" id="num-rooms" name="num-rooms" min="1">
+        button {
+            background-color: #4299e1;
+            color: white;
+            border: none;
+            padding: 0.75vw 1.5vw;
+            border-radius: 0.75vw;
+            cursor: pointer;
+            font-size: 1.2vw;
+            font-weight: 500;
+            transition: background-color 0.2s;
+            white-space: nowrap;
+        }
+
+        button:hover {
+            background-color: #3182ce;
+        }
+
+        #rooms-container {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 2vw;
+        }
+
+        .room-container {
+            background: #e2e8f0;
+            padding: 0 2vw;
+            border-radius: 1.5vw;
+            box-shadow: 0 0.1vw 0.4vw rgba(0, 0, 0, 0.05);
+            width: 100%;
+        }
+
+        .room-settings {
+            background-color: #f8fafc;
+            margin-bottom: 1vw;
+            padding: 1.5vw;
+            border-radius: 1vw;
+            border: 0.1vw solid #e2e8f0;
+        }
+
+        .time-slot {
+            background-color: white;
+            margin: 1vw 0;
+            padding: 1.2vw;
+            border-radius: 1vw;
+            border: 0.1vw solid #e2e8f0;
+        }
+
+        .time-slot label {
+            display: inline-block;
+            font-weight: 500;
+            color: #2c3e50;
+            font-size: 1.2vw;
+            white-space: nowrap;
+        }
+
+        .remove-btn {
+            margin-left: auto;
+        }
+
+        .add-slot-btn {
+           margin-bottom: 2vw;
+        }
+
+        .remove-btn:hover {
+            background-color: #c0392b;
+        }
+
+        .blocked {
+            background-color: #fff5f5;
+            border-color: #fed7d7;
+        }
+
+       .form-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1vw;
+            margin-bottom: 1vw;
+        }
+
+        .time-inputs, .block-inputs {
+            display: flex;
+            align-items: center;
+            gap: 1vw;
+            flex-wrap: wrap;
+        }
+
+        .time-inputs {
+            flex: 0 1 auto;
+        }
+
+        .block-inputs {
+            flex: 1 1 auto;
+        }
+
+        .remove-btn {
+            flex: 0 0 auto;
+            margin-left: auto;
+        }}
+
+        .checkbox-group {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5vw;
+            padding: 0.5vw 1vw;
+            border-radius: 0.5vw;
+            background-color: #f8fafc;
+            white-space: nowrap;
+        }
+
+        label {
+            font-size: 1.2vw;
+            color: #4a5568;
+            white-space: nowrap;
+        }
+
+        #createRoomsBtn {
+            font-size: 1.4vw;
+            padding: 0.75vw 1.5vw;
+        }
+
+        .fas {
+            margin-right: 0.5vw;
+        }
+
+        #submit-container {
+            width: 100%;
+            text-align: center;
+            margin-top: 2vw;
+        }
+
+        #submit-btn {
+            background-color: #48bb78;
+            font-size: 1.4vw;
+            padding: 1vw 2vw;
+        }
+
+        #submit-btn:hover {
+            background-color: #38a169;
+        }
+
+        .error-message {
+            color: #e53e3e;
+            margin-top: 1vw;
+            text-align: center;
+            font-size: 1.2vw;
+        }
+
+        @media screen and (max-width: 768px) {
+            .app-container {
+                max-width: 95vw;
+            }
+
+            input[type="number"],
+            input[type="time"],
+            input[type="text"] {
+                min-width: 30vw;
+            }
+
+            h2 {
+                font-size: 4vw;
+            }
+
+            h3, button, input, label {
+                font-size: 2.5vw;
+            }
+
+            .form-group {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+        .form-group > div {
+        flex-basis: calc(100% - 70px);
+    }
+        }
+    </style>
+</head>
+<div class="app-container">
+    <div id="initial-form" class="header">
+        <h2>Configure Rooms</h2>
+        <div class="form-group">
+            <label for="roomCount">Number of Rooms:</label>
+            <input type="number" id="roomCount" min="1" value="1">
+            <button id="createRoomsBtn">
+                <i class="fas fa-plus"></i> Create Rooms
+            </button>
         </div>
-        <button id="next-btn">Next</button>
     </div>
-    <div class="form-page" id="page-2">
-        <h2>Room Info</h2>
-        <div id="inputs"></div>
-        <button id="submit-btn">Submit</button>
+
+    <div id="rooms-container"></div>
+    <div id="submit-container">
+        <button id="submit-btn">
+            <i class="fas fa-save"></i> Save Rooms
+        </button>
     </div>
 </div>
 
 <script>
-    document.getElementById('next-btn').addEventListener('click', (e) => {
-        const numRooms = parseInt(document.getElementById('num-rooms').value);
-        if (numRooms > 0) {
-            const inputs = document.getElementById('inputs');
-            inputs.innerHTML = '';
-            for (let i = 0; i < numRooms; i++) {
-                const nameInput = document.createElement('input');
-                const locInput = document.createElement('input');
-                nameInput.type = 'text';
-                nameInput.placeholder = `Room ${i + 1} Name`;
-                nameInput.className = 'room-name';
-                locInput.type = 'text';
-                locInput.placeholder = `Room ${i + 1} Location`;
-                locInput.className = 'room-location';
-                inputs.appendChild(nameInput);
-                inputs.appendChild(locInput);
-                inputs.appendChild(document.createElement('br'));
+    document.addEventListener('DOMContentLoaded', () => {
+        document.getElementById('createRoomsBtn').addEventListener('click', createRooms);
+        document.getElementById('rooms-container').addEventListener('click', (e) => {
+            const target = e.target;
+
+            // Handle add time slot button
+            if (target.closest('button') && !target.closest('button').classList.contains('remove-btn')) {
+                const roomContainer = target.closest('.room-container');
+                const roomIndex = Array.from(document.getElementsByClassName('room-container'))
+                    .indexOf(roomContainer);
+                addTimeSlot(roomIndex);
             }
-            document.getElementById('page-1').classList.remove('active');
-            document.getElementById('page-2').classList.add('active');
-        } else {
-            alert('Please enter a valid number of rooms');
-        }
+
+            // Handle remove button
+            if (target.closest('.remove-btn')) {
+                removeTimeSlot(target.closest('.remove-btn'));
+            }
+        });
+
+        document.getElementById('rooms-container').addEventListener('change', (e) => {
+            const target = e.target;
+            const timeSlot = target.closest('.time-slot');
+
+            if (!timeSlot) return;
+
+            // Handle blocked checkbox
+            if (target.type === 'checkbox') {
+                const slotId = target.id.replace('blocked-', '');
+                toggleBlocked(slotId);
+            }
+        });
     });
 
-    document.getElementById('submit-btn').addEventListener('click', async (e) => {
-        const names = Array.from(document.querySelectorAll('.room-name')).map(input => input.value);
-        const locations = Array.from(document.querySelectorAll('.room-location')).map(input => input.value);
-        const rooms = names.map((name, index) => ({ name, location: locations[index], available_spots: 20 }));
+    function createRooms() {
+        const roomCount = parseInt(document.getElementById('roomCount').value);
+        const container = document.getElementById('rooms-container');
+        container.innerHTML = '';
 
-        const createRoomsForm = {
+        for (let i = 0; i < roomCount; i++) {
+            const roomDiv = document.createElement('div');
+            roomDiv.className = 'room-container';
+            roomDiv.innerHTML = `
+                <h3>Room ${i + 1}</h3>
+        <div class="room-settings">
+            <div class="room-info">
+                <div class="room-info-item">
+                    <label>Room Name:</label>
+                    <input type="text" id="room-name-${i}" placeholder="Enter room name">
+                </div>
+                <div class="room-info-item">
+                    <label>Location:</label>
+                    <input type="text" id="room-location-${i}" placeholder="Enter room location">
+                </div>
+                <div class="room-info-item">
+                    <label>Default Duration (minutes):</label>
+                    <input type="number" id="default-duration-${i}" min="1" value="60">
+                </div>
+            </div>
+        </div>
+        <button class="add-slot-btn">
+            <i class="fas fa-plus"></i> Add Time Slot
+        </button>
+        <div id="room-${i}-slots"></div>
+            `;
+            container.appendChild(roomDiv);
+        }
+    }
+
+    function calculateNextStartTime(roomIndex) {
+        const slotsContainer = document.getElementById(`room-${roomIndex}-slots`);
+        const slots = slotsContainer.getElementsByClassName('time-slot');
+
+        if (slots.length === 0) return '';
+
+        const lastSlot = slots[slots.length - 1];
+        const lastStartTime = lastSlot.querySelector('input[type="time"]').value;
+        const lastDuration = parseInt(lastSlot.querySelector('input[type="number"]').value);
+
+        if (!lastStartTime) return '';
+
+        const [hours, minutes] = lastStartTime.split(':').map(num => parseInt(num));
+        const totalMinutes = hours * 60 + minutes + lastDuration;
+        const nextHours = Math.floor(totalMinutes / 60) % 24;
+        const nextMinutes = totalMinutes % 60;
+
+        return `${String(nextHours).padStart(2, '0')}:${String(nextMinutes).padStart(2, '0')}`;
+    }
+
+    function addTimeSlot(roomIndex) {
+        const slotsContainer = document.getElementById(`room-${roomIndex}-slots`);
+        const slotDiv = document.createElement('div');
+        slotDiv.className = 'time-slot';
+
+        slotId = '';
+        if(slotsContainer.childElementCount === 0) {
+            slotId = 0;
+        } else {
+            slotId = slotsContainer.lastElementChild.id.split('-')[3] + 1;
+        }
+
+        const nextStartTime = calculateNextStartTime(roomIndex);
+        const defaultDuration = document.getElementById(`default-duration-${roomIndex}`).value;
+
+        slotDiv.innerHTML = `
+            <div class="form-group">
+                <div class="time-inputs">
+                    <label>Start Time:</label>
+                    <input type="time" id="start-${slotId}" value="${nextStartTime}">
+                    <label>Duration:</label>
+                    <input type="number" id="duration-${slotId}" min="1" value="${defaultDuration}">
+                </div>
+                <div class="block-inputs">
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="blocked-${slotId}">
+                        <label for="blocked-${slotId}">Blocked</label>
+                    </div>
+                    <label>Reason:</label>
+                    <input type="text" id="reason-${slotId}" placeholder="e.g., Lunch Break">
+                </div>
+                <button class="remove-btn">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+            `;
+        slotsContainer.appendChild(slotDiv);
+    }
+
+    function toggleBlocked(slotId) {
+        const slotElement = document.getElementById(`start-${slotId}`).closest('.time-slot');
+        slotElement.classList.toggle('blocked');
+    }
+
+    function removeTimeSlot(button) {
+        const slotElement = button.closest('.time-slot');
+        const roomContainer = slotElement.closest('.room-container');
+        const roomIndex = Array.from(document.getElementsByClassName('room-container')).indexOf(roomContainer);
+
+        slotElement.remove();
+
+        const slotsContainer = document.getElementById(`room-${roomIndex}-slots`);
+        const slots = Array.from(slotsContainer.getElementsByClassName('time-slot'));
+    }
+
+    document.getElementById('submit-btn').addEventListener('click', async () => {
+        const roomContainers = document.getElementsByClassName('room-container');
+        const rooms = Array.from(roomContainers).map((container, index) => {
+            const slots = Array.from(container.getElementsByClassName('time-slot')).map(slot => {
+                const timeInputArr = slot.querySelector('input[type="time"]').id.split('-');
+                const slotId = timeInputArr.slice(1, timeInputArr.length).join('-');
+                return {
+                    start_time: document.getElementById(`start-${slotId}`).value,
+                    duration: parseInt(document.getElementById(`duration-${slotId}`).value),
+                    is_blocked: document.getElementById(`blocked-${slotId}`).checked,
+                    block_reason: document.getElementById(`reason-${slotId}`).value,
+                };
+            });
+
+            return {
+                name: document.getElementById(`room-name-${index}`).value,
+                location: document.getElementById(`room-location-${index}`).value,
+                default_duration: parseInt(document.getElementById(`default-duration-${index}`).value),
+                time_slots: slots,
+                available_spots: slots.length - 1
+            };
+        });
+
+        const scheduleData = {
             rooms: rooms
         };
 
         try {
+            const emptyFields = findEmptyPaths(rooms);
+            if (emptyFields.length > 0) {
+                throw new Error(`Please fill out the following fields: ${emptyFields.join(', ')}`);
+            }
             const response = await fetch('/api/v1/rooms/add', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify(createRoomsForm)
+                body: JSON.stringify(scheduleData)
             });
 
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
 
-
-            document.querySelector('.form-container').style.display = 'none';
+            // Show success message and reload
+            alert('Rooms saved successfully!');
             location.reload();
+
         } catch (error) {
             console.error('Error submitting rooms:', error);
-            alert('There was an error submitting the rooms. Please try again.');
+
+            // Create error message element
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error-message';
+            errorDiv.textContent = 'There was an error saving the rooms. Please try again.';
+
+            // Remove any existing error message
+            const existingError = document.querySelector('.error-message');
+            if (existingError) {
+                existingError.remove();
+            }
+
+            // Add new error message
+            document.getElementById('submit-container').appendChild(errorDiv);
         }
     });
+
+    function findEmptyPaths(obj, path = []) {
+        const emptyPaths = [];
+
+        Object.entries(obj).forEach(([key, value]) => {
+            if(key === 'blocked' || key === 'block_reason') {
+                return;
+            }
+            const currentPath = [...path, key];
+
+            if (typeof value === 'object' && value !== null) {
+              emptyPaths.push(...findEmptyPaths(value, currentPath));
+            } else if (value === "" || value === null || value === undefined) {
+              emptyPaths.push(currentPath.join('.'));
+            }
+        });
+
+        return emptyPaths;
+    }
 </script>
