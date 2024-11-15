@@ -11,14 +11,18 @@ pub  struct AppState {
 
 impl AppState {
     pub  async fn new() -> Result<Self, Box<dyn Error>> {
-        let jwt_env = std::env::var("JWT_SECRET");
-        if jwt_env.as_ref().is_ok_and(|token| !token.is_empty()) {
+        let get_secret = || -> Result<String, Box<dyn Error>> {
+            let secret_file = std::env::var("JWT_SECRETFILE")?;
+            let secret = std::fs::read_to_string(secret_file)?;
+            Ok(secret)
+        };
+        if let Ok(jwt_secret) = get_secret() {
             Ok(Self {
                 unconf_data: Arc::new(RwLock::new(UnconfData::new().await?)),
-                jwt_secret: Arc::new(RwLock::new(jwt_env.unwrap())),
+                jwt_secret: Arc::new(RwLock::new(jwt_secret)),
             })
         } else {
-            Err("JWT_SECRET not set. Set the JWT_SECRET field in the compose.yaml".into())
+            Err("JWT_SECRET not set up properly. See the README".into())
         }
     }
 }
