@@ -3,7 +3,7 @@
 {% block title %}Event Schedule{% endblock %}
 
 {% block head %}
-    {% if schedule.is_some() %}
+    {% if schedule.is_some() && rooms.is_some() %}
         <style>{% include "../styles/display_schedule.css" %}</style>
         <script>{% include "../scripts/display_schedule.js" %}</script>
     {% else %}
@@ -12,7 +12,7 @@
 {% endblock %}
 
 {% block content %}
-    {% if schedule.is_some() %}
+    {% if schedule.is_some() && rooms.is_some() %}
         {% include "snippets/display_schedule.html" %}
     {% else %}
         {% include "snippets/rooms_form.html" %}
