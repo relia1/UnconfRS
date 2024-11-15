@@ -198,7 +198,7 @@ pub async fn rooms_add(
             .bind(room.available_spots)
             .bind(room.location)
             .fetch_one(db_pool)
-            .await?;
+            .await?
     }
 
     let (schedule_id,) =
