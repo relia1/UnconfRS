@@ -259,7 +259,11 @@ async fn schedule_handler(State(app_state): State<Arc<RwLock<AppState>>>) -> Res
     };
 
     let mut events = vec![];
+    let mut temp_counter = 0;
     for schedule in &schedules {
+        if temp_counter != 0 {
+            break
+        }
         for timeslot in &schedule.timeslots {
             let event_topic = topics.iter().find(|&topic| topic.id == timeslot.topic_id);
             if event_topic.is_none() {
@@ -279,6 +283,7 @@ async fn schedule_handler(State(app_state): State<Arc<RwLock<AppState>>>) -> Res
                 events.push(event);
             }
         }
+        temp_counter += 1;
     }
     let template = ScheduleTemplate {
         schedule: schedules,
