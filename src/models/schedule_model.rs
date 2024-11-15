@@ -9,7 +9,7 @@ use axum::{http::StatusCode, response::Response, Json};
 use chrono::NaiveTime;
 use serde::{ser::SerializeStruct, Deserialize, Serialize, Serializer};
 use sqlx::{FromRow, Pool, Postgres};
-use tracing::{debug, trace};
+use tracing::debug;
 use utoipa::{
     openapi::{ObjectBuilder, RefOr, Schema, SchemaType},
     ToSchema,
