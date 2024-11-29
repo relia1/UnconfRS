@@ -1,8 +1,6 @@
 use std::error::Error;
-
 use askama_axum::IntoResponse;
 use axum::{http::StatusCode, response::Response, Json};
-use chrono::NaiveTime;
 use serde::{ser::SerializeStruct, Deserialize, Serialize, Serializer};
 use sqlx::{FromRow, Pool, Postgres};
 use utoipa::{
@@ -11,8 +9,10 @@ use utoipa::{
 };
 
 use crate::models::timeslot_model::{timeslot_add, TimeSlot};
-use crate::{models::schedule_model::*, CreateRoomsForm};
+use crate::{models::schedule_model::*, CreateRoomsForm, RoomAndTimeslots};
 
+
+type BoxedError = Box<dyn Error + Send + Sync>;
 /// An enumeration of errors that may occur
 #[derive(Debug, thiserror::Error, ToSchema, Serialize)]
 pub enum RoomErr {
@@ -107,7 +107,7 @@ impl RoomError {
     /// # Returns
     ///
     /// `Response` instance with the status code and JSON body containing the error.
-    pub fn response(status: StatusCode, error: Box<dyn Error>) -> Response {
+    pub fn response(status: StatusCode, error: BoxedError) -> Response {
         let error = RoomError {
             status,
             error: error.to_string(),
@@ -165,7 +165,7 @@ impl IntoResponse for &Room {
 /// A vector of Room's or None
 pub(crate) async fn rooms_get(
     db_pool: &Pool<Postgres>,
-) -> Result<Option<Vec<Room>>, Box<dyn Error>> {
+) -> Result<Option<Vec<Room>>, BoxedError> {
     let rooms = Some(
         sqlx::query_as::<Postgres, Room>(
             r#"
@@ -190,65 +190,69 @@ pub(crate) async fn rooms_get(
 /// A `Result` indicating whether the room was added successfully.
 pub async fn rooms_add(
     db_pool: &Pool<Postgres>,
-    Json(rooms_form): Json<CreateRoomsForm>,
-) -> Result<Schedule, Box<dyn Error>> {
-    for room in rooms_form.rooms {
-        sqlx::query_as(r#"INSERT INTO rooms (name, available_spots, location) VALUES ($1, $2, $3) RETURNING id"#)
-            .bind(room.name)
+    rooms_form: CreateRoomsForm,
+) -> Result<Schedule, BoxedError> {
+    let mut number_of_timeslots: i32 = 0;
+    let mut schedule_timeslots: Vec<TimeSlot> = Vec::new();
+    for RoomAndTimeslots { room, timeslots } in &rooms_form.rooms {
+        number_of_timeslots += timeslots.len() as i32;        
+        let returned_room = sqlx::query_as::<Postgres, Room>(r#"INSERT INTO rooms (name, 
+        available_spots, 
+        location) 
+        VALUES 
+        ($1, $2, $3) RETURNING id, available_spots, name, location"#)
+            .bind(room.name.clone())
             .bind(room.available_spots)
-            .bind(room.location)
-            .fetch_one(db_pool)
-            .await?
-    }
-
-    let (schedule_id,) =
-        sqlx::query_as(r#"INSERT INTO schedules (num_of_timeslots) VALUES ($1) RETURNING id"#)
-            .bind(20)
+            .bind(room.location.clone())
             .fetch_one(db_pool)
             .await?;
-
-    let mut timeslots = vec![];
-
-    let rooms = rooms_get(db_pool).await?.unwrap();
-    for room in rooms {
-        for i in 8..18 {
-            let start_time = NaiveTime::parse_from_str(&format!("{}:{}", i, 0), "%H:%M").unwrap();
-            let end_time = NaiveTime::parse_from_str(&format!("{}:{}", i, 30), "%H:%M").unwrap();
-
-            let start_time2 = NaiveTime::parse_from_str(&format!("{}:{}", i, 30), "%H:%M").unwrap();
-            let end_time2 =
-                NaiveTime::parse_from_str(&format!("{}:{}", i + 1, 00), "%H:%M").unwrap();
-
-            let mut timeslot = TimeSlot::new(
+        
+        for timeslot in timeslots {
+            let timeslot = TimeSlot::new(
                 None,
-                start_time,
-                end_time,
+                timeslot.start_time,
+                timeslot.end_time,
                 None,
-                Some(schedule_id),
+                Some(1),
                 None,
-                room.id,
+                returned_room.id,
             );
-
-            let mut timeslot2 = TimeSlot::new(
-                None,
-                start_time2,
-                end_time2,
-                None,
-                Some(schedule_id),
-                None,
-                room.id,
-            );
-
-            let timeslot_id = timeslot_add(db_pool, timeslot.clone()).await?;
-            let timeslot_id2 = timeslot_add(db_pool, timeslot2.clone()).await?;
-            timeslot.id = Some(timeslot_id);
-            timeslot2.id = Some(timeslot_id2);
-            timeslots.push(timeslot);
-            timeslots.push(timeslot2);
+            schedule_timeslots.push(timeslot.clone());
+            timeslot_add(db_pool, timeslot).await.map_err(|e| Box::new(RoomErr::IoError(e.to_string())) as BoxedError)?;
         }
     }
-
-    Ok(Schedule::new(Some(schedule_id), 20, timeslots))
+    
+    let new_schedule: Option<Schedule> = match schedules_get(db_pool).await.map_err(|e| Box::new
+        (RoomErr::IoError(e.to_string())) as BoxedError)? {
+        Some(schedule) => {
+            Some(
+                sqlx::query_as(r#"UPDATE schedules SET num_of_timeslots = $1 WHERE id = $2 returning id,
+                 num_of_timeslots"#)
+                    .bind(number_of_timeslots + schedule.num_of_timeslots)
+                    .bind(schedule.id)
+                    .fetch_one(db_pool)
+                    .await?
+            )
+        }
+        None => {
+            Some(
+                sqlx::query_as(r#"INSERT INTO schedules (num_of_timeslots) 
+                VALUES ($1) RETURNING
+                 id, num_of_timeslots"#)
+                    .bind(number_of_timeslots)
+                    .fetch_one(db_pool)
+                    .await?
+            )
+        }
+    };
+    
+    match new_schedule {
+        Some(new_schedule) => {
+            Ok(Schedule::new(new_schedule.id, number_of_timeslots, schedule_timeslots))
+        }
+        None => Err(Box::new(RoomErr::IoError("Failed to create/fetch schedule".to_string())),
+        )
+    }
 }
 
 /// Removes a room by its ID.
@@ -261,7 +265,7 @@ pub async fn rooms_add(
 ///
 /// A `Result` indicating whether the room was removed successfully.
 /// If the room does not exist, returns a `RoomErr` error.
-pub async fn room_delete(db_pool: &Pool<Postgres>, index: i32) -> Result<(), Box<dyn Error>> {
+pub async fn room_delete(db_pool: &Pool<Postgres>, index: i32) -> Result<(), BoxedError> {
     sqlx::query(
         r#"
         DELETE FROM time_slots
