@@ -9,6 +9,7 @@ use askama_axum::IntoResponse;
 use axum::extract::State;
 use axum::response::Response;
 use axum::Json;
+use axum_macros::debug_handler;
 use tracing::trace;
 use utoipa::OpenApi;
 use crate::config::AppState;
@@ -48,6 +49,7 @@ pub async fn rooms(State(app_state): State<Arc<RwLock<AppState>>>) -> Response {
     }
 }
 
+#[debug_handler]
 #[utoipa::path(
     post,
     path = "/api/v1/rooms/add",
@@ -63,14 +65,13 @@ pub async fn rooms(State(app_state): State<Arc<RwLock<AppState>>>) -> Response {
 pub async fn post_rooms(
     State(app_state): State<Arc<RwLock<AppState>>>,
     Json(rooms_form): Json<CreateRoomsForm>,
-) -> Response {
-    tracing::info!("\n\nposting rooms!\n\n");
+) -> impl IntoResponse {
     let app_state_lock = app_state.read().await;
     let write_lock = &app_state_lock.unconf_data.read().await.unconf_db;
-    match rooms_add(write_lock, Json(rooms_form)).await {
-        Ok(id) => {
-            trace!("id: {:?}\n", id);
-            StatusCode::CREATED.into_response()
+    match rooms_add(write_lock, rooms_form).await {
+        Ok(schedule) => {
+            trace!("Schedule created: {:?}", schedule);
+            (StatusCode::CREATED, Json(schedule)).into_response()
         }
         Err(e) => RoomError::response(StatusCode::BAD_REQUEST, e),
     }

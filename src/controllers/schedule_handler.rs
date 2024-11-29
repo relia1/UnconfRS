@@ -154,7 +154,7 @@ pub async fn generate(State(app_state): State<Arc<RwLock<AppState>>>,) -> Respon
             Json(schedule).into_response()
             //StatusCode::OK.into_response()
         }
-        Err(e) => ScheduleError::response(StatusCode::BAD_REQUEST, e),
+        Err(e) => ScheduleError::response(StatusCode::BAD_REQUEST, Box::new(e)),
     }
 }
 

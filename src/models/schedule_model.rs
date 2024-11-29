@@ -323,12 +323,17 @@ pub async fn schedule_update(
     Ok(schedule)
 }
 
-pub async fn schedule_generate(db_pool: &Pool<Postgres>) -> Result<Schedule, Box<dyn Error>> {
-    let topics = get_all_topics(db_pool).await?;
-    let rooms = rooms_get(db_pool).await?.ok_or("No rooms found")?;
+pub async fn schedule_generate(db_pool: &Pool<Postgres>) -> Result<Schedule, ScheduleErr> {
+    let topics = get_all_topics(db_pool).await
+        .map_err(|e| ScheduleErr::IoError(e.to_string()))?;
+    let rooms = rooms_get(db_pool).await
+        .map_err(|e| ScheduleErr::IoError(e.to_string()))?
+        .ok_or_else(|| ScheduleErr::DoesNotExist("No rooms found".to_string()))?;
     let num_of_topics = topics.len();
-    let mut schedule = schedules_get(db_pool).await?.ok_or("No schedule found")?;
-    let schedule_id = schedule.id.ok_or("Schedule ID not found")?;
+    let mut schedule = schedules_get(db_pool).await
+        .map_err(|e| ScheduleErr::IoError(e.to_string()))?
+        .ok_or_else(|| ScheduleErr::DoesNotExist("No schedule found".to_string()))?;
+    let schedule_id = schedule.id.ok_or_else(|| ScheduleErr::DoesNotExist("Schedule ID not found".to_string()))?;
 
     let mut timeslots = Vec::new();
     let mut topic_index = 0;
@@ -375,7 +380,8 @@ pub async fn schedule_generate(db_pool: &Pool<Postgres>) -> Result<Schedule, Box
             .bind(updated_timeslot.id)
             .bind(schedule_id)
             .execute(db_pool)
-            .await?;
+            .await
+            .map_err(|e| ScheduleErr::IoError(e.to_string()))?;
 
             timeslots.push(updated_timeslot);
             topic_index += 1;
@@ -398,7 +404,8 @@ pub async fn schedule_generate(db_pool: &Pool<Postgres>) -> Result<Schedule, Box
     .bind(schedule.num_of_timeslots)
     .bind(schedule_id)
     .execute(db_pool)
-    .await?;
+    .await
+    .map_err(|e| ScheduleErr::IoError(e.to_string()))?;
 
     debug!("Schedule generated successfully: {:?}", schedule);
     Ok(schedule)
