@@ -173,7 +173,7 @@ document.addEventListener('DOMContentLoaded', function () {
         (event.dataTransfer.dropEffect = "move");
     }
 
-    function handleDrop(event) {
+    async function handleDrop(event) {
         (event.preventDefault());
         if (draggedEvent) {
             const roomColumn = (event.target.closest('.column'));
@@ -226,15 +226,13 @@ document.addEventListener('DOMContentLoaded', function () {
             events[eventIndex].endTime = timeslot.end_time;
             events[eventIndex].roomId = timeslot.room_id;
             try {
-                const response = fetch(`api/v1/timeslots/${timeslot.id}`, {
+                const response = await fetch(`api/v1/timeslots/${timeslot.id}`, {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify(timeslot),
-                })
-                    .then(response => response.json())
-                    .then(data => events[eventIndex].timeslotId = data.id);
+                });
 
                 if (response.status === 401) {
                     alert('You do not have permission to move events');
