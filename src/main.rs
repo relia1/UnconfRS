@@ -57,6 +57,7 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use utoipa_rapidoc::RapiDoc;
 use utoipa_redoc::{Redoc, Servable};
 use utoipa_swagger_ui::SwaggerUi;
+use crate::models::timeslot_model::TimeSlot;
 
 async fn handler_404() -> Response {
     (StatusCode::NOT_FOUND, "404 Not Found").into_response()
@@ -236,8 +237,14 @@ struct CreateScheduleForm {
 }
 
 #[derive(Debug, Deserialize)]
+struct RoomAndTimeslots {
+    room: Room,
+    timeslots: Vec<TimeSlot>,
+}
+
+#[derive(Debug, Deserialize)]
 struct CreateRoomsForm {
-    rooms: Vec<Room>,
+    rooms: Vec<RoomAndTimeslots>,
 }
 
 #[debug_handler]
