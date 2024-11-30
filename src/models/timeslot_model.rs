@@ -288,17 +288,17 @@ pub async fn update_timeslots_in_db(
                 speaker_id = $4, topic_id = $5, room_id = $6
             WHERE id = $7 AND schedule_id = $8"#,
         )
-        .bind(slot.start_time)
-        .bind(slot.end_time)
-        .bind(slot.end_time - slot.start_time)
-        .bind(slot.speaker_id)
-        .bind(slot.topic_id)
-        .bind(slot.room_id)
-        .bind(slot.id)
-        .bind(schedule_id)
-        .execute(db_pool)
-        .await
-        .map_err(|e| ScheduleErr::IoError(e.to_string()))?;
+            .bind(slot.start_time)
+            .bind(slot.end_time)
+            .bind(slot.end_time - slot.start_time)
+            .bind(slot.speaker_id)
+            .bind(slot.topic_id)
+            .bind(slot.room_id)
+            .bind(slot.id)
+            .bind(schedule_id)
+            .execute(db_pool)
+            .await
+            .map_err(|e| ScheduleErr::IoError(e.to_string()))?;
     }
     Ok(())
 }

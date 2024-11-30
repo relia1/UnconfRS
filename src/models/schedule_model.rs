@@ -328,21 +328,21 @@ pub async fn schedule_generate(db_pool: &Pool<Postgres>) -> Result<Schedule, Sch
     let rooms = rooms_get(db_pool).await
         .map_err(|e| ScheduleErr::IoError(e.to_string()))?
         .ok_or_else(|| ScheduleErr::DoesNotExist("No rooms found".to_string()))?;
-    
+
     let mut schedule = schedules_get(db_pool).await
         .map_err(|e| ScheduleErr::IoError(e.to_string()))?
         .ok_or_else(|| ScheduleErr::DoesNotExist("No schedule found".to_string()))?;
     let schedule_id = schedule.id.ok_or_else(|| ScheduleErr::DoesNotExist("Schedule ID not found".to_string()))?;
-    
+
     let existing_timeslots = timeslot_get(db_pool)
         .await
         .map_err(|e| ScheduleErr::IoError(e.to_string()))?;
-    
+
     let updated_timeslots = assign_topics_to_timeslots(&topics, &rooms, &existing_timeslots, schedule_id).await?;
-    
+
     update_timeslots_in_db(db_pool, &updated_timeslots, schedule_id).await?;
     update_schedule_count(db_pool, schedule.num_of_timeslots, schedule_id).await?;
-    
+
     schedule.timeslots = updated_timeslots;
     Ok(schedule)
 }
