@@ -8,6 +8,9 @@ use utoipa::{
     openapi::{ObjectBuilder, RefOr, Schema, SchemaType},
     ToSchema,
 };
+use crate::models::room_model::Room;
+use crate::models::schedule_model::ScheduleErr;
+use crate::models::topics_model::Topic;
 
 /// An enumeration of errors that may occur
 #[derive(Debug, thiserror::Error, ToSchema, Serialize)]
@@ -144,6 +147,56 @@ impl TimeSlot {
     }
 }
 
+pub async fn timeslot_get(db_pool: &Pool<Postgres>) -> Result<Vec<TimeSlot>, Box<dyn Error>> {
+    let timeslots = sqlx::query_as("SELECT * FROM time_slots")
+        .fetch_all(db_pool)
+        .await?;
+
+    Ok(timeslots)
+}
+
+pub async fn assign_topics_to_timeslots(
+    topics: &[Topic],
+    rooms: &[Room],
+    existing_timeslots: &[TimeSlot],
+    schedule_id: i32,
+) -> Result<Vec<TimeSlot>, ScheduleErr> {
+    let mut result = Vec::new();
+    let mut topic_index = 0;
+
+    for room in rooms {
+        let room_timeslots: Vec<_> = existing_timeslots.iter()
+            .filter(|slot| slot.room_id == room.id)
+            .collect();
+
+        for slot in room_timeslots {
+            if topic_index >= topics.len() {
+                break;
+            }
+
+            let topic = &topics[topic_index];
+            let updated_slot = TimeSlot::new(
+                slot.id,
+                slot.start_time,
+                slot.end_time,
+                Some(topic.speaker_id),
+                Some(schedule_id),
+                topic.id,
+                room.id,
+            );
+
+            result.push(updated_slot);
+            topic_index += 1;
+        }
+        
+        if topic_index >= topics.len() {
+            break;
+        }
+    }
+
+    Ok(result)
+}
+
 /// Adds a new timeslot.
 ///
 /// # Parameters
@@ -221,4 +274,31 @@ pub async fn timeslot_update(
         .await?;
 
     Ok(new_timeslot_id)
+}
+
+pub async fn update_timeslots_in_db(
+    db_pool: &Pool<Postgres>, 
+    timeslots: &[TimeSlot], 
+    schedule_id: i32
+) -> Result<(), ScheduleErr> {
+    for slot in timeslots {
+        sqlx::query(
+            r#"UPDATE time_slots
+            SET start_time = $1, end_time = $2, duration = $3, 
+                speaker_id = $4, topic_id = $5, room_id = $6
+            WHERE id = $7 AND schedule_id = $8"#,
+        )
+        .bind(slot.start_time)
+        .bind(slot.end_time)
+        .bind(slot.end_time - slot.start_time)
+        .bind(slot.speaker_id)
+        .bind(slot.topic_id)
+        .bind(slot.room_id)
+        .bind(slot.id)
+        .bind(schedule_id)
+        .execute(db_pool)
+        .await
+        .map_err(|e| ScheduleErr::IoError(e.to_string()))?;
+    }
+    Ok(())
 }

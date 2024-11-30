@@ -1,7 +1,6 @@
 use std::error::Error;
-
 use crate::{
-    models::{room_model::rooms_get, timeslot_model::*, topics_model::get_all_topics},
+    models::{room_model::rooms_get, timeslot_model::*, topics_model::*},
     CreateScheduleForm,
 };
 use askama_axum::IntoResponse;
@@ -329,86 +328,38 @@ pub async fn schedule_generate(db_pool: &Pool<Postgres>) -> Result<Schedule, Sch
     let rooms = rooms_get(db_pool).await
         .map_err(|e| ScheduleErr::IoError(e.to_string()))?
         .ok_or_else(|| ScheduleErr::DoesNotExist("No rooms found".to_string()))?;
-    let num_of_topics = topics.len();
+    
     let mut schedule = schedules_get(db_pool).await
         .map_err(|e| ScheduleErr::IoError(e.to_string()))?
         .ok_or_else(|| ScheduleErr::DoesNotExist("No schedule found".to_string()))?;
     let schedule_id = schedule.id.ok_or_else(|| ScheduleErr::DoesNotExist("Schedule ID not found".to_string()))?;
-
-    let mut timeslots = Vec::new();
-    let mut topic_index = 0;
-
-    for (room_index, room) in rooms.iter().enumerate() {
-        for i in 0..schedule.num_of_timeslots as usize {
-            if topic_index >= num_of_topics {
-                break;
-            }
-
-            let topic = &topics[topic_index];
-            let timeslot =
-                &schedule.timeslots[i + (room_index * schedule.num_of_timeslots as usize)];
-
-            let updated_timeslot = TimeSlot::new(
-                timeslot.id,
-                timeslot.start_time,
-                timeslot.end_time,
-                Some(topic.speaker_id),
-                Some(schedule_id),
-                topic.id,
-                room.id,
-            );
-
-            sqlx::query(
-                r#"
-                UPDATE time_slots
-                SET
-                    start_time = $1,
-                    end_time = $2,
-                    duration = $3,
-                    speaker_id = $4,
-                    topic_id = $5,
-                    room_id = $6
-                WHERE id = $7 AND schedule_id = $8
-                "#,
-            )
-            .bind(updated_timeslot.start_time)
-            .bind(updated_timeslot.end_time)
-            .bind(updated_timeslot.end_time - updated_timeslot.start_time)
-            .bind(updated_timeslot.speaker_id)
-            .bind(updated_timeslot.topic_id)
-            .bind(updated_timeslot.room_id)
-            .bind(updated_timeslot.id)
-            .bind(schedule_id)
-            .execute(db_pool)
-            .await
-            .map_err(|e| ScheduleErr::IoError(e.to_string()))?;
-
-            timeslots.push(updated_timeslot);
-            topic_index += 1;
-        }
-        if topic_index >= num_of_topics {
-            break;
-        }
-    }
-
-    schedule.timeslots = timeslots;
-
-    // Update the schedule
-    sqlx::query(
-        r#"
-        UPDATE schedules
-        SET num_of_timeslots = $1
-        WHERE id = $2
-        "#,
-    )
-    .bind(schedule.num_of_timeslots)
-    .bind(schedule_id)
-    .execute(db_pool)
-    .await
-    .map_err(|e| ScheduleErr::IoError(e.to_string()))?;
-
-    debug!("Schedule generated successfully: {:?}", schedule);
+    
+    let existing_timeslots = timeslot_get(db_pool)
+        .await
+        .map_err(|e| ScheduleErr::IoError(e.to_string()))?;
+    
+    let updated_timeslots = assign_topics_to_timeslots(&topics, &rooms, &existing_timeslots, schedule_id).await?;
+    
+    update_timeslots_in_db(db_pool, &updated_timeslots, schedule_id).await?;
+    update_schedule_count(db_pool, schedule.num_of_timeslots, schedule_id).await?;
+    
+    schedule.timeslots = updated_timeslots;
     Ok(schedule)
+}
+
+
+async fn update_schedule_count(
+    db_pool: &Pool<Postgres>,
+    num_of_timeslots: i32,
+    schedule_id: i32,
+) -> Result<(), ScheduleErr> {
+    sqlx::query("UPDATE schedules SET num_of_timeslots = $1 WHERE id = $2")
+        .bind(num_of_timeslots)
+        .bind(schedule_id)
+        .execute(db_pool)
+        .await
+        .map_err(|e| ScheduleErr::IoError(e.to_string()))?;
+    Ok(())
 }
 
 pub async fn schedule_clear(db_pool: &Pool<Postgres>) -> Result<(), Box<dyn Error>> {
