@@ -239,18 +239,16 @@ pub async fn schedule_add(
 
     let mut timeslots = vec![];
     for i in 0..(schedule_form.num_of_timeslots as usize) {
-        let start_time =
-            NaiveTime::parse_from_str(&schedule_form.start_time[i], "%H:%M").map_err(|_| {
+        let parse_time_from_string = |time| {
+            NaiveTime::parse_from_str(time, "%H:%M").map_err(|error| {
                 ScheduleErr::InvalidTimeFormat(
-                    "Invalid time format. Expected format of \"%H:M\"".to_string(),
+                    error.to_string(),
                 )
-            })?;
-        let end_time =
-            NaiveTime::parse_from_str(&schedule_form.end_time[i], "%H:%M").map_err(|_| {
-                ScheduleErr::InvalidTimeFormat(
-                    "Invalid time format. Expected format of \"%H:M\"".to_string(),
-                )
-            })?;
+            })
+        };
+        
+        let start_time = parse_time_from_string(&schedule_form.start_time[i])?;
+        let end_time = parse_time_from_string(&schedule_form.end_time[i])?;
 
         let mut timeslot = TimeSlot::new(
             None,
