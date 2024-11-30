@@ -16,13 +16,16 @@ impl AppState {
             let secret = std::fs::read_to_string(secret_file)?.trim().to_owned();
             Ok(secret)
         };
-        if let Ok(jwt_secret) = get_secret() {
-            Ok(Self {
-                unconf_data: Arc::new(RwLock::new(UnconfData::new().await?)),
-                jwt_secret: Arc::new(RwLock::new(jwt_secret)),
-            })
-        } else {
-            Err("JWT_SECRET not set up properly. See the README".into())
+        match get_secret() {
+            Ok(jwt_secret) => {
+                Ok(Self {
+                    unconf_data: Arc::new(RwLock::new(UnconfData::new().await?)),
+                    jwt_secret: Arc::new(RwLock::new(jwt_secret)),
+                })
+            }
+            Err(e) => {
+                Err(format!("JWT_SECRET not set up properly. See the README\n({})", e).into())
+            }
         }
     }
 }
