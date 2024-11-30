@@ -197,7 +197,7 @@ async fn main() {
     // start up webserver on localhost:3000
     let ip = SocketAddr::new([0, 0, 0, 0].into(), 3000);
     let listener = tokio::net::TcpListener::bind(ip).await.unwrap();
-    tracing::debug!("serving {}", listener.local_addr().unwrap());
+    tracing::info!("serving {}", listener.local_addr().unwrap());
     axum::serve(listener, app).await.unwrap();
 }
 
