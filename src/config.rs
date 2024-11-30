@@ -13,7 +13,7 @@ impl AppState {
     pub  async fn new() -> Result<Self, Box<dyn Error>> {
         let get_secret = || -> Result<String, Box<dyn Error>> {
             let secret_file = std::env::var("JWT_SECRETFILE")?;
-            let secret = std::fs::read_to_string(secret_file)?;
+            let secret = std::fs::read_to_string(secret_file)?.trim().to_owned();
             Ok(secret)
         };
         if let Ok(jwt_secret) = get_secret() {

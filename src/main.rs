@@ -357,12 +357,6 @@ async fn topic_handler(
 #[template(path = "admin_login.html")]
 struct AdminTemplate{}
 
-#[derive(Debug, Deserialize)]
-struct AdminLoginForm {
-    username: String,
-    password: String,
-}
-
 async fn admin_handler() -> Response {
     let template = AdminTemplate{};
     match template.render() { 
@@ -374,13 +368,13 @@ async fn admin_handler() -> Response {
 
 #[derive(Debug, Deserialize, FromRow)]
 struct User {
-    _username: String,
+    username: String,
     password: String,
 }
 
 async fn admin_login(
     State(app_state): State<Arc<RwLock<AppState>>>,
-    Json(admin_form): Json<AdminLoginForm>,
+    Json(admin_form): Json<User>,
 ) -> impl IntoResponse {
     let app_state_lock = app_state.read().await;
     let jwt_token = app_state_lock.jwt_secret.read().await.clone();
