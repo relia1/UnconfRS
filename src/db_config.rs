@@ -2,20 +2,29 @@ use sqlx::{postgres::PgPoolOptions, Pool, Postgres};
 use std::error::Error;
 use tracing::trace;
 
+/// Sets up the database connection pool
+/// 
+/// This function reads the environment variables for the database connection and sets up the
+/// connection pool, then runs any migrations that are needed.
+/// 
+/// # Returns
+/// `Ok(Pool<Postgres>)` if the connection is successful, or an error if not.
+/// 
+/// # Errors
+/// This function will return an error if:
+/// - The environment variables are not set
+/// - The password file cannot be read
+/// - The connection to the database cannot be established
+/// - The migrations cannot be run
 pub async fn db_setup() -> Result<Pool<Postgres>, Box<dyn Error>> {
     use std::env::var;
     use std::fs;
 
     let pg_user = var("PG_USER")?;
-    println!("user");
-    tracing::info!("pg user");
     let password_file = var("PG_PASSWORDFILE")?;
-    tracing::info!("pw file");
     let password = fs::read_to_string(password_file)?;
     let pg_host = var("PG_HOST")?;
-    tracing::info!("pg host");
     let pg_dbname = var("PG_DBNAME")?;
-    tracing::info!("pg dbname");
 
     let connection = db_connect(&pg_user, &password, &pg_host, &pg_dbname).await?;
     tracing::info!("Connected to: {:?}", connection);
@@ -25,6 +34,21 @@ pub async fn db_setup() -> Result<Pool<Postgres>, Box<dyn Error>> {
     Ok(connection)
 }
 
+/// Connects to the database
+/// 
+/// This function connects to the database using the provided configuration.
+/// 
+/// # Parameters
+/// - `pg_user`: The username for the database
+/// - `password`: The password for the database
+/// - `pg_host`: The hostname for the database
+/// - `pg_dbname`: The name of the database
+/// 
+/// # Returns
+/// `Ok(Pool<Postgres>)` if the connection is successful, or an error if not.
+/// 
+/// # Errors
+/// This function will return an error if the connection to the database cannot be established.
 async fn db_connect(
     pg_user: &str,
     password: &str,

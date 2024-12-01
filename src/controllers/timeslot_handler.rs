@@ -10,22 +10,7 @@ use axum::extract::State;
 use axum::response::Response;
 use axum::Json;
 use tracing::trace;
-use utoipa::OpenApi;
 use crate::config::AppState;
-
-#[derive(OpenApi)]
-#[openapi(
-    paths(
-        update_timeslot,
-    ),
-    components(
-        schemas(TimeSlot, TimeSlotError)
-    ),
-    tags(
-        (name = "Schedules Server API", description = "Schedules Server API")
-    )
-)]
-pub struct ApiDocTimeslot;
 
 #[utoipa::path(
     put,
@@ -42,12 +27,30 @@ pub struct ApiDocTimeslot;
     )
 )]
 #[debug_handler]
+/// Updates a timeslot
+/// 
+/// This function is a handler for the route `PUT /api/v1/timeslot/{id}`. It updates a timeslot in
+/// the database.
+/// 
+/// # Parameters
+/// - `app_state` - Thread-safe shared state wrapped in an Arc and RwLock
+/// - `timeslot_id` - The id of the timeslot to update
+/// - `timeslot` - The timeslot value to use for the update
+/// 
+/// # Returns
+/// `Response` with a status code of 200 OK and an empty body if the timeslot was updated or an
+/// error response if the timeslot could not be updated.
+/// 
+/// # Errors
+/// This function returns a 400 error if:
+/// - The timeslot could not be updated
+/// - The timeslot does not exist
+/// - The timeslot is invalid
 pub async fn update_timeslot(
     State(app_state): State<Arc<RwLock<AppState>>>,
     Path(timeslot_id): Path<i32>,
     Json(timeslot): Json<TimeSlot>,
 ) -> Response {
-    trace!("timeslot id: {:?}", &timeslot.id);
     let app_state_lock = app_state.read().await;
     let write_lock = &app_state_lock.unconf_data.read().await.unconf_db;
     match timeslot_update(write_lock, timeslot_id, &timeslot).await {

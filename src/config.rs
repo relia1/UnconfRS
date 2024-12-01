@@ -4,12 +4,32 @@ use std::error::Error;
 use std::sync::Arc;
 use tokio::sync::{RwLock};
 
+/// The application state
+/// 
+/// This struct holds the application state and JWT secret both wrapped in an Arc and RwLock
+/// 
+/// # Fields
+/// - `unconf_data`: Thread-safe storage for the application data
+/// - `jwt_secret`: Thread-safe storage for the JWT secret
 pub  struct AppState {
     pub unconf_data: Arc<RwLock<UnconfData>>,
     pub jwt_secret: Arc<RwLock<String>>,
 }
 
 impl AppState {
+    /// Creates a new `AppState` instance.
+    /// 
+    /// # Environment Variables
+    /// - `JWT_SECRETFILE`: The path to the file that contains the JWT secret
+    /// 
+    /// # Returns
+    /// `Ok(AppState)` if the JWT secret is set up properly, or an error if not.
+    /// 
+    /// # Errors
+    /// This function will return an error if:
+    /// - `JWT_SECRETFILE` is not set
+    /// - The file specified by `JWT_SECRETFILE` does not exist
+    /// - UnconfData cannot be initialized
     pub  async fn new() -> Result<Self, Box<dyn Error>> {
         let get_secret = || -> Result<String, Box<dyn Error>> {
             let secret_file = std::env::var("JWT_SECRETFILE")?;
@@ -29,7 +49,11 @@ impl AppState {
         }
     }
 }
-/// A question bank that stores and manages questions and their answers
+
+/// The struct holds the database connection pool
+/// 
+/// # Fields
+/// - `unconf_db`: The database connection pool
 #[derive(Debug)]
 pub struct UnconfData {
     pub unconf_db: Pool<Postgres>,
@@ -38,13 +62,13 @@ pub struct UnconfData {
 impl UnconfData {
     /// Creates a new `UnconfData` instance.
     ///
-    /// # Parameters
-    ///
-    /// * `db_path`: The path to the file that will store the questions.
+    /// This function initializes the database connection pool using the `db_setup` function.
     ///
     /// # Returns
-    ///
-    /// A new `UnconfData` instance, or an error if the database cannot be initialized
+    /// `Ok(UnconfData)` if the database connection pool is set up properly, or an error if not.
+    /// 
+    /// # Errors
+    /// This function will return an error if the database connection pool cannot be initialized.
     pub async fn new() -> Result<Self, Box<dyn Error>> {
         Ok(Self {
             unconf_db: db_setup().await?,
