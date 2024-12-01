@@ -53,15 +53,14 @@ pub async fn admin_login(
         .fetch_one(db_pool)
         .await;
 
-    let db_user;
-    match db_user_result {
+    let db_user = match db_user_result {
         Err(_) => {
             return (StatusCode::UNAUTHORIZED, HeaderMap::new(), "Unauthorized");
         },
         Ok(user) => {
-            db_user = user;
+            user
         }
-    }
+    };
 
     match bcrypt::verify(&admin_form.password, &db_user.password) {
         Ok(true) => {

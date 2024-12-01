@@ -9,7 +9,6 @@ use axum::extract::Path;
 use axum::extract::State;
 use axum::response::Response;
 use axum::Json;
-use tracing::trace;
 use crate::config::AppState;
 
 #[utoipa::path(
