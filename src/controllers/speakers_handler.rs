@@ -14,7 +14,7 @@ use crate::models::speakers_model::{
     speaker_add, speaker_delete, speaker_get, speaker_update, speakers_get, Speaker,
     SpeakerErr, SpeakerError,
 };
-
+use crate::types::ApiStatusCode;
 
 #[utoipa::path(
     get,
@@ -28,6 +28,7 @@ use crate::models::speakers_model::{
         (status = 404, description = "No speakers in that range")
     )
 )]
+#[debug_handler]
 /// Retrieves a list of speakers
 /// 
 /// This function is a handler for the route `GET /api/v1/speakers`. It retrieves a list of speakers
@@ -53,7 +54,7 @@ pub async fn speakers(
         Err(e) => {
             trace!("Paginated get error");
             SpeakerError::response(
-                StatusCode::NOT_FOUND,
+                ApiStatusCode::from(StatusCode::NOT_FOUND),
                 Box::new(SpeakerErr::DoesNotExist(e.to_string())),
             )
         }
@@ -68,6 +69,7 @@ pub async fn speakers(
         (status = 404, description = "No speaker with this id", body = SpeakerError),
     )
 )]
+#[debug_handler]
 /// Retrieves a speaker by id
 /// 
 /// This function is a handler for the route `GET /api/v1/speakers/{id}`. It retrieves a speaker
@@ -92,7 +94,7 @@ pub async fn get_speaker(
     let read_lock = &app_state_lock.unconf_data.read().await.unconf_db;
     match speaker_get(read_lock, speaker_id).await {
         Ok(speaker) => Json(speaker).into_response(),
-        Err(e) => SpeakerError::response(StatusCode::NOT_FOUND, e),
+        Err(e) => SpeakerError::response(ApiStatusCode::from(StatusCode::NOT_FOUND), e),
     }
 }
 
@@ -108,6 +110,7 @@ pub async fn get_speaker(
         (status = 400, description = "Bad request", body = SpeakerError)
     )
 )]
+#[debug_handler]
 /// Adds a new speaker.
 /// 
 /// This function is a handler for the route `POST /api/v1/speakers/add`. It adds a new speaker to
@@ -134,7 +137,7 @@ pub async fn post_speaker(
             let id_res = Json(format!("{{ \"id\": {} }}", id));
             id_res.into_response()
         }
-        Err(e) => SpeakerError::response(StatusCode::BAD_REQUEST, e),
+        Err(e) => SpeakerError::response(ApiStatusCode::from(StatusCode::BAD_REQUEST), e),
     }
 }
 
@@ -146,6 +149,7 @@ pub async fn post_speaker(
         (status = 400, description = "Bad request", body = SpeakerError),
     )
 )]
+#[debug_handler]
 /// Deletes a speaker
 /// 
 /// This function is a handler for the route `DELETE /api/v1/speakers/{id}`. It deletes a speaker
@@ -170,7 +174,7 @@ pub async fn delete_speaker(
     let write_lock = &app_state_lock.unconf_data.read().await.unconf_db;
     match speaker_delete(write_lock, speaker_id).await {
         Ok(()) => StatusCode::OK.into_response(),
-        Err(e) => SpeakerError::response(StatusCode::BAD_REQUEST, e),
+        Err(e) => SpeakerError::response(ApiStatusCode::from(StatusCode::BAD_REQUEST), e),
     }
 }
 
@@ -215,6 +219,6 @@ pub async fn update_speaker(
     let write_lock = &app_state_lock.unconf_data.read().await.unconf_db;
     match speaker_update(write_lock, speaker_id, speaker).await {
         Ok(_) => StatusCode::OK.into_response(),
-        Err(e) => SpeakerError::response(StatusCode::BAD_REQUEST, e),
+        Err(e) => SpeakerError::response(ApiStatusCode::from(StatusCode::BAD_REQUEST), e),
     }
 }

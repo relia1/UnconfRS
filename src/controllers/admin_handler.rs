@@ -2,11 +2,13 @@ use askama::Template;
 use askama_axum::{IntoResponse, Response};
 use axum::http::StatusCode;
 use axum::response::Html;
+use axum_macros::debug_handler;
 
 #[derive(Template, Debug)]
 #[template(path = "admin_login.html")]
 struct AdminTemplate;
 
+#[debug_handler]
 /// Admin handler
 /// 
 /// This function renders the admin page.

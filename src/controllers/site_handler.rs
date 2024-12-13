@@ -15,6 +15,7 @@ use crate::models::schedule_model::{schedules_get, Schedule};
 use crate::models::speakers_model::Speaker;
 use crate::models::topics_model::{get_all_topics, Topic};
 
+#[debug_handler]
 /// Fall back handler
 /// 
 /// This function is a handler for requests that do not match any other route.
@@ -32,6 +33,7 @@ pub async fn handler_404() -> Response {
 /// Index template
 struct IndexTemplate;
 
+#[debug_handler]
 /// Index handler
 /// 
 /// This function renders the index page.
@@ -224,6 +226,7 @@ pub async fn combine_topic_and_speaker(
     Ok(topic_with_speaker)
 }
 
+#[debug_handler]
 /// Topic handler
 /// 
 /// This function renders the topics page.

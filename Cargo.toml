@@ -6,22 +6,21 @@ edition = "2021"
 [dependencies]
 askama = { version = "0.12.1", features = ["with-axum"] }
 askama_axum = "0.4.0"
-axum = { version = "0.7.7", features = ["macros", "form"] }
+axum = { version = "0.7.9", features = ["macros", "form"] }
 axum-macros = "0.4.2"
-bcrypt = "0.15.1"
+bcrypt = "0.16.0"
 chrono = { version = "0.4.38", features = ["serde"] }
-load_file = "1.0.1"
-serde = {version = "1.0.210", features = ["derive", "serde_derive"] }
-serde_json = "1.0.128"
-serde_with = "3.10.0"
+serde = {version = "1.0.215", features = ["derive", "serde_derive"] }
+serde_json = "1.0.133"
+serde_with = "3.11.0"
 sqlx = { version = "0.8.2", features = ["runtime-tokio-rustls", "postgres", "macros", "migrate", "time", "json", "chrono"] }
-thiserror = "1.0.64"
-tokio = { version = "1.40.0", features = ["full"] }
-tower = "0.5.1"
-tower-http = { version = "0.6.1", features = ["trace", "full", "cors"] }
-tracing = { version = "0.1.40", features = ["async-await"] }
-tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
-utoipa = { version = "4.2.3", features = ["axum_extras"] }
-utoipa-rapidoc = { version = "4.0.0", features = ["axum"] }
-utoipa-redoc = { version = "4.0.0", features = ["axum"] }
-utoipa-swagger-ui = { version = "7.1.0", features = ["axum"] }
+thiserror = "2.0.4"
+tokio = { version = "1.42.0", features = ["full"] }
+tower = "0.5.2"
+tower-http = { version = "0.6.2", features = ["trace", "full", "cors"] }
+tracing = { version = "0.1.41", features = ["async-await"] }
+tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
+utoipa = { version = "5.2.0", features = ["axum_extras", "chrono"] }
+utoipa-rapidoc = { version = "5.0.0", features = ["axum"] }
+utoipa-redoc = { version = "5.0.0", features = ["axum"] }
+utoipa-swagger-ui = { version = "8.0.3", features = ["axum"] }

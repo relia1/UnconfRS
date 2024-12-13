@@ -1,16 +1,14 @@
 use std::error::Error;
 use askama_axum::IntoResponse;
-use axum::{http::StatusCode, response::Response, Json};
+use axum::{response::Response, Json};
 use chrono::NaiveTime;
 use serde::{ser::SerializeStruct, Deserialize, Serialize, Serializer};
 use sqlx::{FromRow, Pool, Postgres};
-use utoipa::{
-    openapi::{ObjectBuilder, RefOr, Schema, SchemaType},
-    ToSchema,
-};
+use utoipa::ToSchema;
 use crate::models::room_model::Room;
 use crate::models::schedule_model::ScheduleErr;
 use crate::models::topics_model::Topic;
+use crate::types::ApiStatusCode;
 
 /// An enumeration of possible errors that can occur when working with timeslots.
 /// 
@@ -43,9 +41,9 @@ impl From<std::io::Error> for TimeSlotErr {
 /// # Fields
 /// - `status` - The HTTP status code associated with the error
 /// - `error` - A string describing the specific error that occurred
-#[derive(Debug)]
+#[derive(Debug, ToSchema)]
 pub struct TimeSlotError {
-    pub status: StatusCode,
+    pub status: ApiStatusCode,
     pub error: String,
 }
 
@@ -53,29 +51,6 @@ pub struct TimeSlotError {
 /// 
 /// This implementation provides a JSON schema for the `TimeSlotError` struct. The schema defines 
 /// two properties: `status` and `error`.
-impl<'s> ToSchema<'s> for TimeSlotError {
-    /// Returns a JSON schema for `TimeSlotError`
-    ///
-    /// The schema defines two properties:
-    /// - `status`: A string representing the HTTP status code associated with the error.
-    /// - `error`: A string describing the specific error that occurred.
-    fn schema() -> (&'s str, RefOr<Schema>) {
-        let sch = ObjectBuilder::new()
-            .property(
-                "status",
-                ObjectBuilder::new().schema_type(SchemaType::String),
-            )
-            .property(
-                "error",
-                ObjectBuilder::new().schema_type(SchemaType::String),
-            )
-            .example(Some(serde_json::json!({
-                "status":"404","error":"no timeslot"
-            })))
-            .into();
-        ("TimeSlotError", sch)
-    }
-}
 
 /// Implements the `Serialize` trait for `TimeSlotError`
 /// 
@@ -111,7 +86,7 @@ impl TimeSlotError {
     /// 
     /// # Returns
     /// A `Response` instance with the HTTP status code and the serialized `TimeSlotErr`.
-    pub fn response(status: StatusCode, error: Box<dyn Error>) -> Response {
+    pub fn response(status: ApiStatusCode, error: Box<dyn Error>) -> Response {
         let error = TimeSlotError {
             status,
             error: error.to_string(),

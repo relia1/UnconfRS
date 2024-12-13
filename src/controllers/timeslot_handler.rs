@@ -2,11 +2,12 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 
 use crate::models::timeslot_model::{timeslot_update, TimeSlot, TimeSlotError};
-use crate::StatusCode;
+use crate::types::ApiStatusCode;
 use askama_axum::IntoResponse;
 use axum::debug_handler;
 use axum::extract::Path;
 use axum::extract::State;
+use axum::http::StatusCode;
 use axum::response::Response;
 use axum::Json;
 use crate::config::AppState;
@@ -54,6 +55,6 @@ pub async fn update_timeslot(
     let write_lock = &app_state_lock.unconf_data.read().await.unconf_db;
     match timeslot_update(write_lock, timeslot_id, &timeslot).await {
         Ok(timeslot) => Json(timeslot).into_response(),
-        Err(e) => TimeSlotError::response(StatusCode::BAD_REQUEST, e),
+        Err(e) => TimeSlotError::response(ApiStatusCode::from(StatusCode::BAD_REQUEST), e)
     }
 }

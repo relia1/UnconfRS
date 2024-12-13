@@ -1,11 +1,11 @@
+use crate::types::ApiStatusCode;
 use std::error::Error;
-
 use askama_axum::IntoResponse;
-use axum::{http::StatusCode, response::Response, Json};
+use axum::{response::Response, Json};
+use axum::http::StatusCode;
 use serde::{ser::SerializeStruct, Deserialize, Serialize, Serializer};
 use sqlx::{FromRow, Pool, Postgres};
 use utoipa::{
-    openapi::{ObjectBuilder, RefOr, Schema, SchemaType},
     ToSchema,
 };
 
@@ -24,9 +24,9 @@ pub enum TopicErr {
 /// # Fields
 /// - `status` - The HTTP status code associated with the error
 /// - `error` - A string describing the specific error that occurred
-#[derive(Debug)]
+#[derive(Debug, ToSchema)]
 pub struct TopicError {
-    pub status: StatusCode,
+    pub status: ApiStatusCode,
     pub error: String,
 }
 
@@ -34,29 +34,6 @@ pub struct TopicError {
 /// for the error type
 /// 
 /// The schema defines two properties: `status` and `error`.
-impl<'s> ToSchema<'s> for TopicError {
-    /// Returns a JSON schema for `TopicError`
-    ///
-    /// The schema defines two properties:
-    /// - `status`: A string representing the HTTP status code associated with the error.
-    /// - `error`: A string describing the specific error that occurred.
-    fn schema() -> (&'s str, RefOr<Schema>) {
-        let sch = ObjectBuilder::new()
-            .property(
-                "status",
-                ObjectBuilder::new().schema_type(SchemaType::String),
-            )
-            .property(
-                "error",
-                ObjectBuilder::new().schema_type(SchemaType::String),
-            )
-            .example(Some(serde_json::json!({
-                "status":"404","error":"no topic"
-            })))
-            .into();
-        ("TopicError", sch)
-    }
-}
 
 /// Implements the `Serialize` trait for `TopicError`
 /// 
@@ -89,7 +66,7 @@ impl TopicError {
     ///
     /// # Returns
     /// `Response` instance with the status code and JSON body containing the error.
-    pub fn response(status: StatusCode, error: Box<dyn Error>) -> Response {
+    pub fn response(status: ApiStatusCode, error: Box<dyn Error>) -> Response {
         let error = TopicError {
             status,
             error: error.to_string(),

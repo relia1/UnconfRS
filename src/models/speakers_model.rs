@@ -4,9 +4,9 @@ use serde::{ser::SerializeStruct, Deserialize, Serialize, Serializer};
 use sqlx::{FromRow, Pool, Postgres};
 use std::error::Error;
 use utoipa::{
-    openapi::{ObjectBuilder, RefOr, Schema, SchemaType},
     ToSchema,
 };
+use crate::types::ApiStatusCode;
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, FromRow)]
 /// A struct representing a speaker
@@ -44,9 +44,9 @@ pub enum SpeakerErr {
 /// # Fields
 /// - `status` - The HTTP status code associated with the error
 /// - `error` - A string describing the specific error that occurred
-#[derive(Debug)]
+#[derive(Debug, ToSchema)]
 pub struct SpeakerError {
-    pub status: StatusCode,
+    pub status: ApiStatusCode,
     pub error: String,
 }
 
@@ -54,29 +54,6 @@ pub struct SpeakerError {
 /// 
 /// This implementation provides a JSON schema for the `SpeakerError` struct. The schema defines two
 /// properties: `status` and `error`.
-impl<'s> ToSchema<'s> for SpeakerError {
-    /// Returns a JSON schema for `SpeakerError`
-    ///
-    /// The schema defines two properties:
-    /// - `status`: A string representing the HTTP status code associated with the error.
-    /// - `error`: A string describing the specific error that occurred.
-    fn schema() -> (&'s str, RefOr<Schema>) {
-        let sch = ObjectBuilder::new()
-            .property(
-                "status",
-                ObjectBuilder::new().schema_type(SchemaType::String),
-            )
-            .property(
-                "error",
-                ObjectBuilder::new().schema_type(SchemaType::String),
-            )
-            .example(Some(serde_json::json!({
-                "status":"404","error":"no speaker"
-            })))
-            .into();
-        ("SpeakerError", sch)
-    }
-}
 
 /// Implements the `Serialize` trait for `SpeakerError`
 /// 
@@ -112,7 +89,7 @@ impl SpeakerError {
     /// 
     /// # Returns
     /// A `Response` instance with the provided status code and error.
-    pub fn response(status: StatusCode, error: Box<dyn Error>) -> Response {
+    pub fn response(status: ApiStatusCode, error: Box<dyn Error>) -> Response {
         let error = SpeakerError {
             status,
             error: error.to_string(),

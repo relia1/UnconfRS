@@ -15,6 +15,7 @@ use axum::response::Response;
 use axum::Json;
 use tracing::trace;
 use crate::config::AppState;
+use crate::types::ApiStatusCode;
 
 #[utoipa::path(
     get,
@@ -23,6 +24,7 @@ use crate::config::AppState;
         (status = 200, description = "List schedules", body = Vec<Schedule>),
     )
 )]
+#[debug_handler]
 /// Retrieves a list of schedules
 /// 
 /// This function is a handler for the route `GET /api/v1/schedules`. It retrieves a list of
@@ -46,7 +48,7 @@ pub async fn schedules(State(app_state): State<Arc<RwLock<AppState>>>) -> Respon
         Err(e) => {
             trace!("Paginated get error");
             ScheduleError::response(
-                StatusCode::NOT_FOUND,
+                ApiStatusCode::from(StatusCode::NOT_FOUND),
                 Box::new(ScheduleErr::DoesNotExist(e.to_string())),
             )
         }
@@ -61,6 +63,7 @@ pub async fn schedules(State(app_state): State<Arc<RwLock<AppState>>>) -> Respon
         (status = 404, description = "No schedule with this id", body = ScheduleError),
     )
 )]
+#[debug_handler]
 /// Retrieves a schedule by id
 /// 
 /// This function is a handler for the route `GET /api/v1/schedules/{id}`. It retrieves a schedule
@@ -85,7 +88,7 @@ pub async fn get_schedule(
     let read_lock = &app_state_lock.unconf_data.read().await.unconf_db;
     match schedule_get(read_lock, schedule_id).await {
         Ok(schedule) => Json(schedule).into_response(),
-        Err(e) => ScheduleError::response(StatusCode::NOT_FOUND, e),
+        Err(e) => ScheduleError::response(ApiStatusCode::from(StatusCode::NOT_FOUND), e),
     }
 }
 
@@ -101,6 +104,7 @@ pub async fn get_schedule(
         (status = 400, description = "Bad request", body = ScheduleError)
     )
 )]
+#[debug_handler]
 /// Adds a new schedule.
 /// 
 /// This function is a handler for the route `POST /api/v1/schedules/add`. It adds a new schedule to
@@ -129,7 +133,7 @@ pub async fn post_schedule(
             trace!("id: {:?}\n", id);
             StatusCode::CREATED.into_response()
         }
-        Err(e) => ScheduleError::response(StatusCode::BAD_REQUEST, e),
+        Err(e) => ScheduleError::response(ApiStatusCode::from(StatusCode::BAD_REQUEST), e),
     }
 }
 
@@ -177,7 +181,7 @@ pub async fn update_schedule(
     let read_lock = &app_state_lock.unconf_data.read().await.unconf_db;
     match schedule_update(read_lock, schedule_id, schedule).await {
         Ok(schedule) => Json(schedule).into_response(),
-        Err(e) => ScheduleError::response(StatusCode::BAD_REQUEST, e),
+        Err(e) => ScheduleError::response(ApiStatusCode::from(StatusCode::BAD_REQUEST), e),
     }
 }
 
@@ -191,6 +195,7 @@ pub async fn update_schedule(
         (status = 422, description = "Unprocessable entity", body = ScheduleError),
     )
 )]
+#[debug_handler]
 /// Generates a schedule
 /// 
 /// This function is a handler for the route `POST /api/v1/schedules/generate`. It generates a
@@ -214,7 +219,8 @@ pub async fn generate(State(app_state): State<Arc<RwLock<AppState>>>,) -> Respon
         Ok(schedule) => {
             Json(schedule).into_response()
         }
-        Err(e) => ScheduleError::response(StatusCode::BAD_REQUEST, Box::new(e)),
+        Err(e) => ScheduleError::response(ApiStatusCode::from(StatusCode::BAD_REQUEST), Box::new
+            (e)),
     }
 }
 
@@ -228,6 +234,7 @@ pub async fn generate(State(app_state): State<Arc<RwLock<AppState>>>,) -> Respon
         (status = 422, description = "Unprocessable entity", body = ScheduleError),
     )
 )]
+#[debug_handler]
 /// Clears a schedule
 /// 
 /// This function is a handler for the route `POST /api/v1/schedules/clear`. It clears the schedule
@@ -251,6 +258,6 @@ pub async fn clear(State(app_state): State<Arc<RwLock<AppState>>>,) -> Response 
         Ok(schedule) => {
             Json(schedule).into_response()
         }
-        Err(e) => ScheduleError::response(StatusCode::BAD_REQUEST, e),
+        Err(e) => ScheduleError::response(ApiStatusCode::from(StatusCode::BAD_REQUEST), e),
     }
 }

@@ -11,6 +11,7 @@ use axum::Json;
 use axum_macros::debug_handler;
 use tracing::trace;
 use crate::config::AppState;
+use crate::types::ApiStatusCode;
 
 #[utoipa::path(
     get,
@@ -20,6 +21,7 @@ use crate::config::AppState;
         (status = 404, description = "No rooms found", body = RoomError)
     )
 )]
+#[debug_handler]
 /// Retrieves a list of rooms
 /// 
 /// This function is a handler for the route `GET /api/v1/rooms`. It retrieves a list of rooms from
@@ -40,13 +42,12 @@ pub async fn rooms(State(app_state): State<Arc<RwLock<AppState>>>) -> Response {
     match rooms_get(read_lock).await {
         Ok(res) => Json(res).into_response(),
         Err(e) => RoomError::response(
-            StatusCode::NOT_FOUND,
+            ApiStatusCode::from(StatusCode::NOT_FOUND),
             Box::new(RoomErr::DoesNotExist(e.to_string())),
         ),
     }
 }
 
-#[debug_handler]
 #[utoipa::path(
     post,
     path = "/api/v1/rooms/add",
@@ -59,6 +60,7 @@ pub async fn rooms(State(app_state): State<Arc<RwLock<AppState>>>) -> Response {
         (status = 400, description = "Bad request", body = RoomError)
     )
 )]
+#[debug_handler]
 /// Adds new rooms.
 /// 
 /// This function is a handler for the route `POST /api/v1/rooms/add`. It adds new rooms to the
@@ -87,7 +89,7 @@ pub async fn post_rooms(
             trace!("Schedule created: {:?}", schedule);
             (StatusCode::CREATED, Json(schedule)).into_response()
         }
-        Err(e) => RoomError::response(StatusCode::BAD_REQUEST, e),
+        Err(e) => RoomError::response(ApiStatusCode::from(StatusCode::BAD_REQUEST), e),
     }
 }
 
@@ -99,6 +101,7 @@ pub async fn post_rooms(
         (status = 400, description = "Bad request", body = RoomError),
     )
 )]
+#[debug_handler]
 /// Deletes a room.
 /// 
 /// This function is a handler for the route `DELETE /api/v1/rooms/{id}`. It deletes a room from the
@@ -125,6 +128,6 @@ pub async fn delete_room(
     let write_lock = &app_state_lock.unconf_data.read().await.unconf_db;
     match room_delete(write_lock, room_id).await {
         Ok(()) => StatusCode::OK.into_response(),
-        Err(e) => RoomError::response(StatusCode::BAD_REQUEST, e),
+        Err(e) => RoomError::response(ApiStatusCode::from(StatusCode::BAD_REQUEST), e),
     }
 }

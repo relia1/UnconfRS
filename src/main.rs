@@ -8,6 +8,7 @@ mod models;
 mod routes;
 mod api_docs;
 mod middleware;
+mod types;
 
 use axum::{
     http::StatusCode,

@@ -3,15 +3,12 @@ use askama_axum::IntoResponse;
 use axum::{http::StatusCode, response::Response, Json};
 use serde::{ser::SerializeStruct, Deserialize, Serialize, Serializer};
 use sqlx::{FromRow, Pool, Postgres};
-use utoipa::{
-    openapi::{ObjectBuilder, RefOr, Schema, SchemaType},
-    ToSchema,
-};
-
+use utoipa::ToSchema;
 use crate::models::timeslot_model::{timeslot_add, TimeSlot};
 use crate::models::schedule_model::*;
+use crate::types::ApiStatusCode;
 
-/// A boxed error type for use in functions that return a `Result` with an error type of 
+/// A boxed error type for use in functions that return a `Result` with an error type of
 /// `BoxedError`.
 /// 
 /// This type is a `Box` containing a trait object that implements the `Error`, `Send`, and `Sync`
@@ -57,41 +54,10 @@ impl From<std::io::Error> for RoomErr {
 /// Fields:
 /// - `status`: The HTTP status code associated with the error.
 /// - `error`: A string describing the specific error that occurred.
-#[derive(Debug)]
+#[derive(Debug, ToSchema)]
 pub struct RoomError {
-    pub status: StatusCode,
+    pub status: ApiStatusCode,
     pub error: String,
-}
-
-/// Implements the `ToSchema` trait for `RoomError`.
-/// 
-/// This trait implementation provides a JSON schema for `RoomError`. The schema defines two
-/// properties:
-/// - `status`: A string representing the HTTP status code associated with the error.
-/// - `error`: A string describing the specific error that occurred.
-impl<'s> ToSchema<'s> for RoomError {
-    /// Returns a JSON schema for `RoomError`
-    ///
-    /// The schema defines two properties:
-    ///
-    /// - `status`: A string representing the HTTP status code associated with the error.
-    /// - `error`: A string describing the specific error that occurred.
-    fn schema() -> (&'s str, RefOr<Schema>) {
-        let sch = ObjectBuilder::new()
-            .property(
-                "status",
-                ObjectBuilder::new().schema_type(SchemaType::String),
-            )
-            .property(
-                "error",
-                ObjectBuilder::new().schema_type(SchemaType::String),
-            )
-            .example(Some(serde_json::json!({
-                "status":"404","error":"no room"
-            })))
-            .into();
-        ("RoomError", sch)
-    }
 }
 
 /// Implements the `Serialize` trait for `RoomError`.
@@ -131,7 +97,7 @@ impl RoomError {
     /// 
     /// # Returns
     /// A new `RoomError` instance with the provided status code and error message.
-    pub fn response(status: StatusCode, error: BoxedError) -> Response {
+    pub fn response(status: ApiStatusCode, error: BoxedError) -> Response {
         let error = RoomError {
             status,
             error: error.to_string(),

@@ -2,14 +2,23 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 
 use crate::models::topics_model::{
-    add, decrement_vote, delete, get, get_all_topics, increment_vote, update, Topic,
-    TopicErr, TopicError,
+    add,
+    decrement_vote,
+    delete,
+    get,
+    get_all_topics,
+    increment_vote,
+    update,
+    Topic,
+    TopicErr,
+    TopicError
 };
-use crate::StatusCode;
+use crate::types::ApiStatusCode;
 use askama_axum::IntoResponse;
 use axum::debug_handler;
 use axum::extract::Path;
 use axum::extract::State;
+use axum::http::StatusCode;
 use axum::response::Response;
 use axum::Json;
 use crate::config::AppState;
@@ -26,6 +35,7 @@ use crate::config::AppState;
         (status = 404, description = "No topics in that range")
     )
 )]
+#[debug_handler]
 /// Retrieves a list of topics
 /// 
 /// This function is a handler for the route `GET /api/v1/topics`. It retrieves a list of topics
@@ -49,7 +59,7 @@ pub async fn topics(State(app_state): State<Arc<RwLock<AppState>>>,) -> Response
             Json(res).into_response()
         }
         Err(e) => TopicError::response(
-            StatusCode::NOT_FOUND,
+            ApiStatusCode::from(StatusCode::NOT_FOUND),
             Box::new(TopicErr::DoesNotExist(e.to_string())),
         ),
     }
@@ -63,6 +73,7 @@ pub async fn topics(State(app_state): State<Arc<RwLock<AppState>>>,) -> Response
         (status = 404, description = "No topic with this id", body = TopicError),
     )
 )]
+#[debug_handler]
 /// Retrieves a topic by id
 /// 
 /// This function is a handler for the route `GET /api/v1/topics/{id}`. It retrieves a topic
@@ -87,7 +98,7 @@ pub async fn get_topic(
     let read_lock = &app_state_lock.unconf_data.read().await.unconf_db;
     match get(read_lock, topic_id).await {
         Ok(topic) => Json(topic).into_response(),
-        Err(e) => TopicError::response(StatusCode::NOT_FOUND, e),
+        Err(e) => TopicError::response(ApiStatusCode::from(StatusCode::NOT_FOUND), e),
     }
 }
 
@@ -103,6 +114,7 @@ pub async fn get_topic(
         (status = 400, description = "Bad request", body = TopicError)
     )
 )]
+#[debug_handler]
 /// Adds a new topic.
 /// 
 /// This function is a handler for the route `POST /api/v1/topics/add`. It adds a new topic to the
@@ -129,7 +141,7 @@ pub async fn post_topic(
         Ok(_) => {
             StatusCode::CREATED.into_response()
         }
-        Err(e) => TopicError::response(StatusCode::BAD_REQUEST, e),
+        Err(e) => TopicError::response(ApiStatusCode::from(StatusCode::BAD_REQUEST), e),
     }
 }
 
@@ -141,6 +153,7 @@ pub async fn post_topic(
         (status = 400, description = "Bad request", body = TopicError),
     )
 )]
+#[debug_handler]
 /// Deletes a topic
 /// 
 /// This function is a handler for the route `DELETE /api/v1/topics/{id}`. It deletes a topic from
@@ -165,7 +178,7 @@ pub async fn delete_topic(
     let write_lock = &app_state_lock.unconf_data.read().await.unconf_db;
     match delete(write_lock, topic_id).await {
         Ok(()) => StatusCode::OK.into_response(),
-        Err(e) => TopicError::response(StatusCode::BAD_REQUEST, e),
+        Err(e) => TopicError::response(ApiStatusCode::from(StatusCode::BAD_REQUEST), e),
     }
 }
 
@@ -210,7 +223,7 @@ pub async fn update_topic(
     let write_lock = &app_state_lock.unconf_data.read().await.unconf_db;
     match update(write_lock, topic_id, topic).await {
         Ok(_) => StatusCode::OK.into_response(),
-        Err(e) => TopicError::response(StatusCode::BAD_REQUEST, e),
+        Err(e) => TopicError::response(ApiStatusCode::from(StatusCode::BAD_REQUEST), e),
     }
 }
 
@@ -249,7 +262,7 @@ pub async fn add_vote_for_topic(
     let write_lock = &app_state_lock.unconf_data.read().await.unconf_db;
     match increment_vote(write_lock, topic_id).await {
         Ok(_) => StatusCode::OK.into_response(),
-        Err(e) => TopicError::response(StatusCode::BAD_REQUEST, e),
+        Err(e) => TopicError::response(ApiStatusCode::from(StatusCode::BAD_REQUEST), e),
     }
 }
 
@@ -288,6 +301,6 @@ pub async fn subtract_vote_for_topic(
     let write_lock = &app_state_lock.unconf_data.read().await.unconf_db;
     match decrement_vote(write_lock, topic_id).await {
         Ok(_) => StatusCode::OK.into_response(),
-        Err(e) => TopicError::response(StatusCode::BAD_REQUEST, e),
+        Err(e) => TopicError::response(ApiStatusCode::from(StatusCode::BAD_REQUEST), e),
     }
 }
