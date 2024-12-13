@@ -4,6 +4,7 @@ use axum::extract::State;
 use axum::http::{HeaderMap, HeaderValue, StatusCode};
 use axum::Json;
 use serde::Deserialize;
+use serde_json::from_str;
 use sqlx::FromRow;
 use tokio::sync::RwLock;
 use crate::config::AppState;
@@ -17,7 +18,6 @@ use crate::config::AppState;
 /// - `username` - The username of the user
 /// - `password` - The hashed/salted password of the user
 pub struct User {
-    username: String,
     password: String,
 }
 
@@ -49,7 +49,7 @@ pub async fn admin_login(
     let db_pool = &app_state_lock.unconf_data.read().await.unconf_db;
     let db_user_result: Result<User, _>  = sqlx::query_as("SELECT * FROM users WHERE username = \
     $1;")
-        .bind(&admin_form.username)
+        .bind("admin")
         .fetch_one(db_pool)
         .await;
 
