@@ -8,7 +8,7 @@ use crate::config::AppState;
 use crate::controllers::room_handler::{delete_room, post_rooms, rooms};
 use crate::controllers::schedule_handler::{clear, generate, get_schedule, post_schedule, schedules, update_schedule};
 use crate::controllers::speakers_handler::{delete_speaker, get_speaker, post_speaker, speakers, update_speaker};
-use crate::controllers::timeslot_handler::update_timeslot;
+use crate::controllers::timeslot_handler::{add_timeslots, update_timeslot};
 use crate::controllers::topics_handler::{add_vote_for_topic, delete_topic, get_topic, post_topic, subtract_vote_for_topic, topics, update_topic};
 use crate::models::admin_model::admin_login;
 use crate::middleware::auth::auth_middleware;
@@ -65,6 +65,13 @@ pub fn get_routes(app_state: Arc<RwLock<AppState>>) -> Router<Arc<RwLock<AppStat
         .route(
             "/timeslots/:id",
             put(update_timeslot.layer(from_fn_with_state(
+                app_state.clone(),
+                auth_middleware
+            )))
+        )
+        .route(
+            "/timeslots/add",
+            post(add_timeslots.layer(from_fn_with_state(
                 app_state.clone(),
                 auth_middleware
             )))

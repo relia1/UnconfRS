@@ -14,7 +14,9 @@
 {% block content %}
     {% if schedule.is_some() && rooms.is_some() %}
         {% include "snippets/display_schedule.html" %}
+    {% else if !rooms.is_some() %}
+        {% include "rooms.html" %}
     {% else %}
-        {% include "snippets/rooms_form.html" %}
+        {% include "timeslots.html" %}
     {% endif %}
 {% endblock %}

@@ -4,8 +4,6 @@ use axum::{http::StatusCode, response::Response, Json};
 use serde::{ser::SerializeStruct, Deserialize, Serialize, Serializer};
 use sqlx::{FromRow, Pool, Postgres};
 use utoipa::ToSchema;
-use crate::models::timeslot_model::{timeslot_add, TimeSlot};
-use crate::models::schedule_model::*;
 use crate::types::ApiStatusCode;
 
 /// A boxed error type for use in functions that return a `Result` with an error type of
@@ -162,30 +160,16 @@ impl IntoResponse for &Room {
         (StatusCode::OK, Json(&self)).into_response()
     }
 }
-
-#[derive(Debug, Deserialize)]
-/// Struct representing a room and its timeslots.
-/// 
-/// This struct represents a room and its associated timeslots.
-/// 
-/// Fields:
-/// - `room`: The room.
-/// - `timeslots`: A vector of timeslots associated with the room.
-pub(crate) struct RoomAndTimeslots {
-    room: Room,
-    timeslots: Vec<TimeSlot>,
-}
-
 #[derive(Debug, Deserialize)]
 /// Struct representing a form for creating rooms.
 /// 
-/// This struct represents a form for creating rooms. It contains a vector of `RoomAndTimeslots`
+/// This struct represents a form for creating rooms. It contains a vector of `Room`
 /// instances.
 /// 
 /// Fields:
-/// - `rooms`: A vector of `RoomAndTimeslots` instances.
+/// - `rooms`: A vector of `Room` instances.
 pub(crate) struct CreateRoomsForm {
-    pub(crate) rooms: Vec<RoomAndTimeslots>,
+    pub(crate) rooms: Vec<Room>,
 }
 
 /// Gets all rooms.
@@ -234,12 +218,10 @@ pub(crate) async fn rooms_get(
 pub async fn rooms_add(
     db_pool: &Pool<Postgres>,
     rooms_form: CreateRoomsForm,
-) -> Result<Schedule, BoxedError> {
-    let mut number_of_timeslots: i32 = 0;
-    let mut schedule_timeslots: Vec<TimeSlot> = Vec::new();
-    for RoomAndTimeslots { room, timeslots } in &rooms_form.rooms {
-        number_of_timeslots += timeslots.len() as i32;        
-        let returned_room = sqlx::query_as::<Postgres, Room>(r#"INSERT INTO rooms (name, 
+) -> Result<(), BoxedError> {
+    let tx = db_pool.begin().await?;
+    for room in &rooms_form.rooms {
+        sqlx::query_as::<Postgres, Room>(r#"INSERT INTO rooms (name,
         available_spots, 
         location) 
         VALUES 
@@ -249,53 +231,10 @@ pub async fn rooms_add(
             .bind(room.location.clone())
             .fetch_one(db_pool)
             .await?;
-        
-        for timeslot in timeslots {
-            let timeslot = TimeSlot::new(
-                None,
-                timeslot.start_time,
-                timeslot.end_time,
-                None,
-                Some(1),
-                None,
-                returned_room.id,
-            );
-            schedule_timeslots.push(timeslot.clone());
-            timeslot_add(db_pool, timeslot).await.map_err(|e| Box::new(RoomErr::IoError(e.to_string())) as BoxedError)?;
-        }
     }
-    
-    let new_schedule: Option<Schedule> = match schedules_get(db_pool).await.map_err(|e| Box::new
-        (RoomErr::IoError(e.to_string())) as BoxedError)? {
-        Some(schedule) => {
-            Some(
-                sqlx::query_as(r#"UPDATE schedules SET num_of_timeslots = $1 WHERE id = $2 returning id,
-                 num_of_timeslots"#)
-                    .bind(number_of_timeslots + schedule.num_of_timeslots)
-                    .bind(schedule.id)
-                    .fetch_one(db_pool)
-                    .await?
-            )
-        }
-        None => {
-            Some(
-                sqlx::query_as(r#"INSERT INTO schedules (num_of_timeslots) 
-                VALUES ($1) RETURNING
-                 id, num_of_timeslots"#)
-                    .bind(number_of_timeslots)
-                    .fetch_one(db_pool)
-                    .await?
-            )
-        }
-    };
-    
-    match new_schedule {
-        Some(new_schedule) => {
-            Ok(Schedule::new(new_schedule.id, number_of_timeslots, schedule_timeslots))
-        }
-        None => Err(Box::new(RoomErr::IoError("Failed to create/fetch schedule".to_string())),
-        )
-    }
+
+    tx.commit().await?;
+    Ok(())
 }
 
 /// Removes a room by ID.

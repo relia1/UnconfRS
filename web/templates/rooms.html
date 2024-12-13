@@ -1,0 +1,390 @@
+<head>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * {
+        box-sizing: border-box;
+        }
+
+        .app-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 2vw;
+            margin: 0 auto;
+            width: 90vw;
+            max-width: 75vw;
+        }
+
+        .header {
+            background: #e2e8f0;
+            padding: 3vw;
+            border-radius: 1.5vw;
+            box-shadow: 0 0.1vw 0.4vw rgba(0, 0, 0, 0.05);
+            margin-bottom: 1vw;
+            width: 100%;
+        }
+
+        h2 {
+            color: #2c3e50;
+            margin-bottom: 2vw;
+            font-weight: 600;
+            text-align: center;
+            font-size: 2.5vw;
+        }
+
+        h3 {
+            color: #34495e;
+            margin-top: 1vw;
+            margin-bottom: 1.5vw;
+            font-weight: 500;
+            font-size: 2vw;
+        }
+
+        input[type="text"] {
+            padding: 0.75vw 1vw;
+            border: 0.1vw solid #e2e8f0;
+            border-radius: 0.75vw;
+            font-size: 1.2vw;
+            width: auto;
+            min-width: 12vw;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        input[type="number"] {
+            padding: 0.75vw 1vw;
+            border: 0.1vw solid #e2e8f0;
+            border-radius: 0.75vw;
+            font-size: 1.2vw;
+            width: auto;
+            max-width: 5vw;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 0 0.2vw rgba(52, 152, 219, 0.1);
+        }
+
+        button {
+            background-color: #4299e1;
+            color: white;
+            border: none;
+            padding: 0.75vw 1.5vw;
+            border-radius: 0.75vw;
+            cursor: pointer;
+            font-size: 1.2vw;
+            font-weight: 500;
+            transition: background-color 0.2s;
+            white-space: nowrap;
+        }
+
+        button:hover {
+            background-color: #3182ce;
+        }
+
+        #rooms-container {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 2vw;
+        }
+
+        .room-container {
+            background: #e2e8f0;
+            padding: 0 2vw;
+            border-radius: 1.5vw;
+            box-shadow: 0 0.1vw 0.4vw rgba(0, 0, 0, 0.05);
+            width: 100%;
+        }
+
+        .room-settings {
+            background-color: #f8fafc;
+            margin-bottom: 1vw;
+            padding: 1.5vw;
+            border-radius: 1vw;
+            border: 0.1vw solid #e2e8f0;
+        }
+
+        .remove-btn {
+            margin-left: auto;
+        }
+
+        .add-slot-btn {
+           margin-bottom: 2vw;
+        }
+
+        .remove-btn:hover {
+            background-color: #c0392b;
+        }
+
+        .blocked {
+            background-color: #fff5f5;
+            border-color: #fed7d7;
+        }
+
+       .form-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1vw;
+            margin-bottom: 1vw;
+        }
+
+        .remove-btn {
+            flex: 0 0 auto;
+            margin-left: auto;
+        }}
+
+        .checkbox-group {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5vw;
+            padding: 0.5vw 1vw;
+            border-radius: 0.5vw;
+            background-color: #f8fafc;
+            white-space: nowrap;
+        }
+
+        label {
+            font-size: 1.2vw;
+            color: #4a5568;
+            white-space: nowrap;
+        }
+
+        #createRoomsBtn {
+            font-size: 1.4vw;
+            padding: 0.75vw 1.5vw;
+        }
+
+        .fas {
+            margin-right: 0.5vw;
+        }
+
+        #submit-container {
+            width: 100%;
+            text-align: center;
+            margin-top: 2vw;
+        }
+
+        #submit-btn {
+            background-color: #48bb78;
+            font-size: 1.4vw;
+            padding: 1vw 2vw;
+        }
+
+        #submit-btn:hover {
+            background-color: #38a169;
+        }
+
+        .room-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1vw;
+        }
+
+        .remove-room-btn {
+            background-color: #e53e3e;
+            padding: 0.5vw 1vw;
+            font-size: 1vw;
+        }
+
+        .remove-room-btn:hover {
+            background-color: #c53030;
+        }
+
+        .error-message {
+            color: #e53e3e;
+            margin-top: 1vw;
+            text-align: center;
+            font-size: 1.2vw;
+        }
+
+        @media screen and (max-width: 768px) {
+            .app-container {
+                max-width: 95vw;
+            }
+
+            input[type="number"],
+            input[type="text"] {
+                min-width: 30vw;
+            }
+
+            h2 {
+                font-size: 4vw;
+            }
+
+            h3, button, input, label {
+                font-size: 2.5vw;
+            }
+
+            .form-group {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+        .form-group > div {
+        flex-basis: calc(100% - 70px);
+    }
+        }
+    </style>
+</head>
+<div class="app-container">
+    <div class="header">
+    <h2>Configure Rooms</h2>
+    <div class="form-group">
+        <button id="addRoomBtn">
+            <i class="fas fa-plus"></i> Add Room
+        </button>
+    </div>
+</div>
+
+    <div id="rooms-container"></div>
+    <div id="submit-container">
+        <button id="submit-btn">
+            <i class="fas fa-save"></i> Save Rooms
+        </button>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        document.getElementById('addRoomBtn').addEventListener('click', addRoom);
+        document.getElementById('rooms-container').addEventListener('click', handleRoomEvents);
+        document.getElementById('rooms-container').addEventListener('change', handleRoomChanges);
+        document.getElementById('submit-btn').addEventListener('click', handleSubmit);
+    });
+
+    function calculateEndTime(startTime, duration) {
+        const [hours, minutes] = startTime.split(':').map(Number);
+        const totalMinutes = hours * 60 + minutes + duration;
+        const endHours = Math.floor(totalMinutes / 60) % 24;
+        const endMinutes = totalMinutes % 60;
+        return `${String(endHours).padStart(2, '0')}:${String(endMinutes).padStart(2, '0')}`;
+    }
+
+    async function handleSubmit() {
+        const roomContainers = document.getElementsByClassName('room-container');
+        const rooms = Array.from(roomContainers).map(container => {
+            const roomId = container.dataset.roomId;
+            return {
+                name: document.getElementById(`room-name-${roomId}`).value,
+                location: document.getElementById(`room-location-${roomId}`).value,
+                available_spots: 0,
+            };
+        });
+
+        const scheduleData = { rooms };
+
+        try {
+            // Validate required fields
+            const emptyFields = findEmptyRequiredFields(rooms);
+            if (emptyFields.length > 0) {
+                throw new Error(`Please fill out the following required fields: ${emptyFields.join(', ')}`);
+            }
+
+            const response = await fetch('/api/v1/rooms/add', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(scheduleData)
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || `Server error: ${response.status}`);
+            }
+
+            alert('Rooms saved successfully!');
+            location.reload();
+
+        } catch (error) {
+            console.error('Error submitting rooms:', error);
+            const existingError = document.querySelector('.error-message');
+            if (existingError) {
+                existingError.remove();
+            }
+
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error-message';
+            errorDiv.textContent = error.message || 'There was an error saving the rooms. Please try again.';
+            document.getElementById('submit-container').appendChild(errorDiv);
+        }
+    }
+
+    // Helper function to find empty required fields
+    function findEmptyRequiredFields(rooms) {
+        const emptyFields = [];
+
+        rooms.forEach((room, roomIndex) => {
+            if (!room.name) emptyFields.push(`Room ${roomIndex + 1} Name`);
+            if (!room.location) emptyFields.push(`Room ${roomIndex + 1} Location`);
+        });
+
+        return emptyFields;
+    }
+
+    function addRoom() {
+        const container = document.getElementById('rooms-container');
+        const roomCount = container.getElementsByClassName('room-container').length;
+
+        const roomDiv = document.createElement('div');
+        roomDiv.className = 'room-container';
+        roomDiv.dataset.roomId = roomCount;
+        roomDiv.innerHTML = `
+            <div class="room-header">
+                <h3>New Room</h3>
+                <button class="remove-room-btn">
+                    <i class="fas fa-trash"></i> Remove Room
+                </button>
+            </div>
+            <div class="room-settings">
+                <div class="room-info">
+                    <div class="room-info-item">
+                        <label>Room Name:</label>
+                        <input type="text" id="room-name-${roomCount}" placeholder="Enter room name" oninput="updateRoomHeader(this)">
+                    </div>
+                    <div class="room-info-item">
+                        <label>Location:</label>
+                        <input type="text" id="room-location-${roomCount}" placeholder="Enter room location">
+                    </div>
+                </div>
+            </div>
+        `;
+        container.appendChild(roomDiv);
+    }
+
+
+    function updateRoomHeader(input) {
+        const roomContainer = input.closest('.room-container');
+        const roomHeader = roomContainer.querySelector('h3');
+        const roomName = input.value.trim();
+        roomHeader.textContent = roomName || 'New Room';
+    }
+
+    function handleRoomEvents(e) {
+        const target = e.target;
+        const button = target.closest('button');
+
+        if (!button) return;
+
+        e.stopPropagation();
+        removeRoom(button.closest('.room-container'));
+    }
+
+    function handleRoomChanges(e) {
+        const target = e.target;
+
+        // Update room header when name changes
+        if (target.id.startsWith('room-name-')) {
+            updateRoomHeader(target);
+        }
+    }
+
+
+
+    function removeRoom(roomElement) {
+        roomElement.remove();
+    }
+</script>

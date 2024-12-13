@@ -4,7 +4,6 @@ use axum::extract::State;
 use axum::http::{HeaderMap, HeaderValue, StatusCode};
 use axum::Json;
 use serde::Deserialize;
-use serde_json::from_str;
 use sqlx::FromRow;
 use tokio::sync::RwLock;
 use crate::config::AppState;

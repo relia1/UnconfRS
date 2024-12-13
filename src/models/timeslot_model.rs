@@ -95,6 +95,17 @@ impl TimeSlotError {
     }
 }
 
+#[derive(Debug, Deserialize)]
+pub struct TimeSlotData {
+    pub start_time: String,
+    pub duration: i32,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct TimeslotForm {
+    pub timeslots: Vec<TimeSlotData>,
+}
+
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, FromRow)]
 /// Struct that represents a timeslot.
@@ -263,6 +274,43 @@ pub async fn timeslot_add(
             .await?;
 
     Ok(timeslot_id)
+}
+
+/// Adds a new timeslot.
+///
+/// This function adds a new timeslot to the database.
+///
+/// # Parameters
+/// - `db_pool`: The database connection pool
+/// - `timeslot`: The timeslot to add
+///
+/// # Returns
+/// The ID of the timeslot if successful, otherwise an error.
+///
+/// # Errors
+/// If the query fails, a boxed error is returned.
+pub async fn timeslots_add(
+    db_pool: &Pool<Postgres>,
+    timeslots: TimeslotForm,
+) -> Result<(), Box<dyn Error>> {
+    for timeslot in timeslots.timeslots {
+        let start_time = NaiveTime::parse_from_str(&timeslot.start_time, "%H:%M:%S")?;
+        let end_time = start_time + chrono::Duration::minutes(timeslot.duration as i64);
+        sqlx::query_as(
+            r#"INSERT INTO time_slots (start_time, end_time, duration, speaker_id, schedule_id,
+        topic_id, room_id) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id"#)
+            .bind(timeslot.start_time)
+            .bind(end_time)
+            .bind(timeslot.duration)
+            .bind(1)
+            .bind(1)
+            .bind(1)
+            .bind(1)
+            .fetch_one(db_pool)
+            .await?
+    }
+
+    Ok(())
 }
 
 /// Updates a timeslot by its ID.
