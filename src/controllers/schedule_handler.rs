@@ -1,11 +1,13 @@
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-use crate::models::schedule_model::{
-    schedule_add, schedule_clear, schedule_generate, schedule_get,
-    schedule_update, schedules_get, Schedule, ScheduleErr, ScheduleError,
-};
+use crate::config::AppState;
 use crate::controllers::site_handler::CreateScheduleForm;
+use crate::models::schedule_model::{
+    schedule_add, schedule_clear, schedule_generate, schedule_get, schedule_update, schedules_get,
+    Schedule, ScheduleErr, ScheduleError,
+};
+use crate::types::ApiStatusCode;
 use crate::StatusCode;
 use askama_axum::IntoResponse;
 use axum::debug_handler;
@@ -14,8 +16,6 @@ use axum::extract::State;
 use axum::response::Response;
 use axum::Json;
 use tracing::trace;
-use crate::config::AppState;
-use crate::types::ApiStatusCode;
 
 #[utoipa::path(
     get,
@@ -26,17 +26,17 @@ use crate::types::ApiStatusCode;
 )]
 #[debug_handler]
 /// Retrieves a list of schedules
-/// 
+///
 /// This function is a handler for the route `GET /api/v1/schedules`. It retrieves a list of
 /// schedules from the database.
-/// 
+///
 /// # Parameters
 /// - `app_state` - Thread-safe shared state wrapped in an Arc and RwLock
-/// 
+///
 /// # Returns
 /// `Response` with a status code of 200 OK and a JSON body containing the list of schedules or an
 /// error response if no schedules are found.
-/// 
+///
 /// # Errors
 /// If an error occurs while retrieving the schedules, a schedule error response with a status code
 /// of 404 Not Found is returned.
@@ -65,18 +65,18 @@ pub async fn schedules(State(app_state): State<Arc<RwLock<AppState>>>) -> Respon
 )]
 #[debug_handler]
 /// Retrieves a schedule by id
-/// 
+///
 /// This function is a handler for the route `GET /api/v1/schedules/{id}`. It retrieves a schedule
 /// from the database by its id.
-/// 
+///
 /// # Parameters
 /// - `app_state` - Thread-safe shared state wrapped in an Arc and RwLock
 /// - `schedule_id` - The id of the schedule to retrieve
-/// 
+///
 /// # Returns
 /// `Response` with a status code of 200 OK and a JSON body containing the schedule or an error
 /// response if the schedule is not found.
-/// 
+///
 /// # Errors
 /// If an error occurs while retrieving the schedule, a schedule error response with a status code
 /// of 404 Not Found is returned.
@@ -106,18 +106,18 @@ pub async fn get_schedule(
 )]
 #[debug_handler]
 /// Adds a new schedule.
-/// 
+///
 /// This function is a handler for the route `POST /api/v1/schedules/add`. It adds a new schedule to
 /// the database.
-/// 
+///
 /// # Parameters
 /// - `app_state` - Thread-safe shared state wrapped in an Arc and RwLock
 /// - `schedule_form` - The schedule form containing the schedule to add
-/// 
+///
 /// # Returns
 /// `Response` with a status code of 201 Created and an empty body if the schedule was added or an
 /// error response if the schedule could not be added.
-/// 
+///
 /// # Errors
 /// If an error occurs while adding the schedule, a schedule error response with a status code of
 /// 400 Bad Request is returned.
@@ -153,19 +153,19 @@ pub async fn post_schedule(
 )]
 #[debug_handler]
 /// Updates a schedule.
-/// 
+///
 /// This function is a handler for the route `PUT /api/v1/schedules/{id}`. It updates a schedule in
 /// the database.
-/// 
+///
 /// # Parameters
 /// - `app_state` - Thread-safe shared state wrapped in an Arc and RwLock
 /// - `schedule_id` - The id of the schedule to update
 /// - `schedule` - The schedule to update
-/// 
+///
 /// # Returns
 /// `Response` with a status code of 200 OK and an empty body if the schedule was updated or an
 /// error response if the schedule could not be updated.
-/// 
+///
 /// # Errors
 /// This function returns a 400 error if:
 /// - The schedule could not be updated
@@ -197,30 +197,29 @@ pub async fn update_schedule(
 )]
 #[debug_handler]
 /// Generates a schedule
-/// 
+///
 /// This function is a handler for the route `POST /api/v1/schedules/generate`. It generates a
 /// schedule based on the data in the database.
-/// 
+///
 /// # Parameters
 /// - `app_state` - Thread-safe shared state wrapped in an Arc and RwLock
-/// 
+///
 /// # Returns
 /// `Response` with a status code of 200 OK and an empty body if the schedule was generated or an
 /// error response if the schedule could not be generated.
-/// 
+///
 /// # Errors
 /// If an error occurs while generating the schedule, a schedule error response with a status code
 /// of 400 Bad Request is returned.
-pub async fn generate(State(app_state): State<Arc<RwLock<AppState>>>,) -> Response {
+pub async fn generate(State(app_state): State<Arc<RwLock<AppState>>>) -> Response {
     let app_state_lock = app_state.read().await;
     let read_lock = &app_state_lock.unconf_data.read().await.unconf_db;
     let res = schedule_generate(read_lock).await;
     match res {
-        Ok(schedule) => {
-            Json(schedule).into_response()
+        Ok(schedule) => Json(schedule).into_response(),
+        Err(e) => {
+            ScheduleError::response(ApiStatusCode::from(StatusCode::BAD_REQUEST), Box::new(e))
         }
-        Err(e) => ScheduleError::response(ApiStatusCode::from(StatusCode::BAD_REQUEST), Box::new
-            (e)),
     }
 }
 
@@ -236,28 +235,26 @@ pub async fn generate(State(app_state): State<Arc<RwLock<AppState>>>,) -> Respon
 )]
 #[debug_handler]
 /// Clears a schedule
-/// 
+///
 /// This function is a handler for the route `POST /api/v1/schedules/clear`. It clears the schedule
 /// data in the database.
-/// 
+///
 /// # Parameters
 /// - `app_state` - Thread-safe shared state wrapped in an Arc and RwLock
-/// 
+///
 /// # Returns
 /// `Response` with a status code of 200 OK and an empty body if the schedule was cleared or an
 /// error response if the schedule could not be cleared.
-/// 
+///
 /// # Errors
 /// If an error occurs while clearing the schedule, a schedule error response with a status code
 /// of 400 Bad Request is returned.
-pub async fn clear(State(app_state): State<Arc<RwLock<AppState>>>,) -> Response {
+pub async fn clear(State(app_state): State<Arc<RwLock<AppState>>>) -> Response {
     let app_state_lock = app_state.read().await;
     let read_lock = &app_state_lock.unconf_data.read().await.unconf_db;
     let res = schedule_clear(read_lock).await;
     match res {
-        Ok(schedule) => {
-            Json(schedule).into_response()
-        }
+        Ok(schedule) => Json(schedule).into_response(),
         Err(e) => ScheduleError::response(ApiStatusCode::from(StatusCode::BAD_REQUEST), e),
     }
 }

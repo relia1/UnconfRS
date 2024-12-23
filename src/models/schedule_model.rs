@@ -1,15 +1,15 @@
-use std::error::Error;
+use crate::types::ApiStatusCode;
 use crate::{
-    models::{room_model::rooms_get, timeslot_model::*, topics_model::*},
     controllers::site_handler::CreateScheduleForm,
+    models::{room_model::rooms_get, timeslot_model::*, topics_model::*},
 };
 use askama_axum::IntoResponse;
 use axum::{http::StatusCode, response::Response, Json};
 use chrono::NaiveTime;
 use serde::{ser::SerializeStruct, Deserialize, Serialize, Serializer};
 use sqlx::{FromRow, Pool, Postgres};
+use std::error::Error;
 use utoipa::ToSchema;
-use crate::types::ApiStatusCode;
 
 /// An enumeration of errors that may occur
 #[derive(Debug, thiserror::Error, ToSchema, Serialize)]
@@ -259,11 +259,7 @@ pub async fn schedule_add(
     let mut timeslots = vec![];
     for i in 0..(schedule_form.num_of_timeslots as usize) {
         let parse_time_from_string = |time| {
-            NaiveTime::parse_from_str(time, "%H:%M").map_err(|error| {
-                ScheduleErr::InvalidTimeFormat(
-                    error.to_string(),
-                )
-            })
+            NaiveTime::parse_from_str(time, "%H:%M").map_err(|error| ScheduleErr::InvalidTimeFormat(error.to_string()))
         };
 
         let start_time = parse_time_from_string(&schedule_form.start_time[i])?;
@@ -446,10 +442,7 @@ pub async fn schedule_clear(db_pool: &Pool<Postgres>) -> Result<(), Box<dyn Erro
             AND speaker_id IS NOT NULL
             AND schedule_id = $1
         "#,
-    )
-    .bind(schedule_id)
-    .execute(db_pool)
-    .await?;
+    ).bind(schedule_id).execute(db_pool).await?;
 
     Ok(())
 }

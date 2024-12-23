@@ -1,17 +1,15 @@
 use crate::types::ApiStatusCode;
-use std::error::Error;
 use askama_axum::IntoResponse;
-use axum::{response::Response, Json};
 use axum::http::StatusCode;
+use axum::{response::Response, Json};
 use serde::{ser::SerializeStruct, Deserialize, Serialize, Serializer};
 use sqlx::{FromRow, Pool, Postgres};
-use utoipa::{
-    ToSchema,
-};
+use std::error::Error;
+use utoipa::ToSchema;
 
 #[derive(Debug, thiserror::Error, ToSchema, Serialize)]
 /// An enumeration of possible errors that can occur when working with topics.
-/// 
+///
 /// # Variants
 /// - `DoesNotExist` - The topic does not exist
 pub enum TopicErr {
@@ -20,7 +18,7 @@ pub enum TopicErr {
 }
 
 /// Struct representing an error that occurred when working with topics.
-/// 
+///
 /// # Fields
 /// - `status` - The HTTP status code associated with the error
 /// - `error` - A string describing the specific error that occurred
@@ -32,11 +30,11 @@ pub struct TopicError {
 
 /// Implements `ToSchema` trait for `TopicError` generating a JSON schema
 /// for the error type
-/// 
+///
 /// The schema defines two properties: `status` and `error`.
 
 /// Implements the `Serialize` trait for `TopicError`
-/// 
+///
 /// This implementation serializes a `TopicError` into a JSON object with two properties:
 /// `status` and `error`.
 impl Serialize for TopicError {
@@ -77,7 +75,7 @@ impl TopicError {
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, FromRow)]
 /// Struct representing a topic.
-/// 
+///
 /// # Fields
 /// - `Option<id>` - The ID of the topic (optional)
 /// - `speaker_id` - The ID of the speaker who created the topic
@@ -95,14 +93,14 @@ pub struct Topic {
 
 impl Topic {
     /// Creates a new `Topic` instance.
-    /// 
+    ///
     /// # Parameters
     /// - `id`: The ID of the topic (optional)
     /// - `speaker_id`: The ID of the speaker who created the topic
     /// - `title`: The title of the topic
     /// - `content`: The content of the topic
     /// - `votes`: The number of votes the topic has
-    /// 
+    ///
     /// # Returns
     /// A new `Topic` instance
     pub fn new(id: Option<i32>, speaker_id: i32, title: &str, content: &str) -> Self {
@@ -119,7 +117,7 @@ impl Topic {
 }
 
 /// Implements the `IntoResponse` trait for `&Topic` struct.
-/// 
+///
 /// This implementation converts a `&Topic` into an HTTP response. The response has a status code
 /// of 200 OK and a JSON body containing the topic data.
 impl IntoResponse for &Topic {
@@ -135,14 +133,14 @@ impl IntoResponse for &Topic {
 /// Retrieves a list of topics from the database.
 ///
 /// This function retrieves a list of topics from the database and returns them as a vector.
-/// 
+///
 /// # Parameters
 /// - `db_pool`: The database connection pool
-/// 
+///
 /// # Returns
 /// A vector of `Topic` instances representing the topics in the database or an error if the query
 /// fails.
-/// 
+///
 /// # Errors
 /// If the query fails, a Box error is returned.
 pub async fn get_all_topics(db_pool: &Pool<Postgres>) -> Result<Vec<Topic>, Box<dyn Error>> {
@@ -161,11 +159,11 @@ pub async fn get_all_topics(db_pool: &Pool<Postgres>) -> Result<Vec<Topic>, Box<
 /// # Parameters
 /// - `db_pool`: The database connection pool
 /// - `index`: The ID of the topic
-/// 
+///
 /// # Returns
 /// The `Topic` instance representing the topic with the provided ID or an error
 /// if the query fails.
-/// 
+///
 /// # Errors
 /// If the query fails, a Box error is returned.
 pub async fn get(db_pool: &Pool<Postgres>, index: i32) -> Result<Topic, Box<dyn Error>> {
@@ -182,10 +180,10 @@ pub async fn get(db_pool: &Pool<Postgres>, index: i32) -> Result<Topic, Box<dyn 
 /// # Parameters
 /// - `db_pool`: The database connection pool
 /// - `topic`: The `Topic` instance to add
-/// 
+///
 /// # Returns
 /// The ID of the newly added topic or an error if the query fails.
-/// 
+///
 /// # Errors
 /// If the query fails, a Box error is returned.
 pub async fn add(db_pool: &Pool<Postgres>, topic: Topic) -> Result<i32, Box<dyn Error>> {
@@ -207,10 +205,10 @@ pub async fn add(db_pool: &Pool<Postgres>, topic: Topic) -> Result<i32, Box<dyn 
 /// # Parameters
 /// - `db_pool`: The database connection pool
 /// - `index`: The ID of the topic to remove
-/// 
+///
 /// # Returns
 /// A `Result` indicating whether the topic was removed successfully or an error if the query fails.
-/// 
+///
 /// # Errors
 /// If the query fails, a Box error is returned.
 pub async fn delete(db_pool: &Pool<Postgres>, index: i32) -> Result<(), Box<dyn Error>> {
@@ -233,7 +231,7 @@ pub async fn delete(db_pool: &Pool<Postgres>, index: i32) -> Result<(), Box<dyn 
 ///
 /// # Returns
 /// The updated `Topic` instance or an error if the query fails.
-/// 
+///
 /// # Errors
 /// If the query fails, a Box error is returned.
 pub async fn update(
@@ -266,10 +264,10 @@ pub async fn update(
 ///
 /// # Parameters
 /// - `index`: The ID of the topic to update.
-/// 
+///
 /// # Returns
 /// An empty `Result` if the vote was incremented successfully or an error if the query fails.
-/// 
+///
 /// # Errors
 /// If the query fails, a boxed error is returned.
 pub async fn increment_vote(db_pool: &Pool<Postgres>, index: i32) -> Result<(), Box<dyn Error>> {
@@ -289,10 +287,10 @@ pub async fn increment_vote(db_pool: &Pool<Postgres>, index: i32) -> Result<(), 
 ///
 /// # Parameters
 /// - `index`: The ID of the topic to update.
-/// 
+///
 /// # Returns
 /// An empty `Result` if the vote was decremented successfully or an error if the query fails.
-/// 
+///
 /// # Errors
 /// If the query fails, a boxed error is returned.
 pub async fn decrement_vote(db_pool: &Pool<Postgres>, index: i32) -> Result<(), Box<dyn Error>> {

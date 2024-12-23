@@ -1,12 +1,12 @@
-use std::sync::Arc;
+use crate::config::AppState;
 use askama_axum::IntoResponse;
 use axum::extract::State;
 use axum::http::{HeaderMap, HeaderValue, StatusCode};
 use axum::Json;
 use serde::Deserialize;
 use sqlx::FromRow;
+use std::sync::Arc;
 use tokio::sync::RwLock;
-use crate::config::AppState;
 
 #[derive(Debug, Deserialize, FromRow)]
 /// User struct
@@ -46,8 +46,10 @@ pub async fn admin_login(
     let app_state_lock = app_state.read().await;
     let jwt_token = app_state_lock.jwt_secret.read().await.clone();
     let db_pool = &app_state_lock.unconf_data.read().await.unconf_db;
-    let db_user_result: Result<User, _>  = sqlx::query_as("SELECT * FROM users WHERE username = \
-    $1;")
+    let db_user_result: Result<User, _> = sqlx::query_as(
+        "SELECT * FROM users WHERE username = \
+    $1;",
+    )
         .bind("admin")
         .fetch_one(db_pool)
         .await;
@@ -55,10 +57,8 @@ pub async fn admin_login(
     let db_user = match db_user_result {
         Err(_) => {
             return (StatusCode::UNAUTHORIZED, HeaderMap::new(), "Unauthorized");
-        },
-        Ok(user) => {
-            user
         }
+        Ok(user) => user,
     };
 
     match bcrypt::verify(&admin_form.password, &db_user.password) {
@@ -71,14 +71,8 @@ pub async fn admin_login(
                     jwt_token
                 )).unwrap_or(HeaderValue::from_static("")),
             );
-            (
-                StatusCode::OK,
-                headers,
-                "Authorized"
-            )
-        },
-        _ => {
-            (StatusCode::UNAUTHORIZED, HeaderMap::new(), "Unauthorized")
+            (StatusCode::OK, headers, "Authorized")
         }
+        _ => (StatusCode::UNAUTHORIZED, HeaderMap::new(), "Unauthorized"),
     }
 }

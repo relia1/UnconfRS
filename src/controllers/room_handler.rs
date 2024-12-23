@@ -2,7 +2,11 @@ use axum::extract::Path;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-use crate::models::room_model::{room_delete, rooms_add, rooms_get, CreateRoomsForm, Room, RoomErr, RoomError};
+use crate::config::AppState;
+use crate::models::room_model::{
+    room_delete, rooms_add, rooms_get, CreateRoomsForm, Room, RoomErr, RoomError,
+};
+use crate::types::ApiStatusCode;
 use crate::StatusCode;
 use askama_axum::IntoResponse;
 use axum::extract::State;
@@ -10,8 +14,6 @@ use axum::response::Response;
 use axum::Json;
 use axum_macros::debug_handler;
 use tracing::trace;
-use crate::config::AppState;
-use crate::types::ApiStatusCode;
 
 #[utoipa::path(
     get,
@@ -23,17 +25,17 @@ use crate::types::ApiStatusCode;
 )]
 #[debug_handler]
 /// Retrieves a list of rooms
-/// 
+///
 /// This function is a handler for the route `GET /api/v1/rooms`. It retrieves a list of rooms from
 /// the database.
-/// 
+///
 /// # Parameters
 /// - `app_state` - Thread-safe shared state wrapped in an Arc and RwLock
-/// 
+///
 /// # Returns
 /// `Response` with a status code of 200 OK and a JSON body containing the list of rooms. If no
 /// rooms are found, a room error response with a status code of 404 Not Found is returned.
-/// 
+///
 /// # Errors
 /// If an error occurs while retrieving the rooms, a room error response with a status code of 404
 pub async fn rooms(State(app_state): State<Arc<RwLock<AppState>>>) -> Response {
@@ -62,19 +64,19 @@ pub async fn rooms(State(app_state): State<Arc<RwLock<AppState>>>) -> Response {
 )]
 #[debug_handler]
 /// Adds new rooms.
-/// 
+///
 /// This function is a handler for the route `POST /api/v1/rooms/add`. It adds new rooms to the
 /// database.
-/// 
+///
 /// # Parameters
 /// - `app_state` - Thread-safe shared state wrapped in an Arc and RwLock
 /// - `rooms_form` - The rooms form containing the rooms to add
-/// 
+///
 /// # Returns
 /// `Response` with a status code of 201 Created and an empty body if the rooms were added. If an
 /// error occurs while adding the rooms, a room error response with a status code of 400 Bad Request
 /// is returned.
-/// 
+///
 /// # Errors
 /// If an error occurs while adding the rooms, a room error response with a status code of 400
 /// Bad Request is returned.
@@ -103,19 +105,19 @@ pub async fn post_rooms(
 )]
 #[debug_handler]
 /// Deletes a room.
-/// 
+///
 /// This function is a handler for the route `DELETE /api/v1/rooms/{id}`. It deletes a room from the
 /// database.
-/// 
+///
 /// # Parameters
 /// - `app_state` - Thread-safe shared state wrapped in an Arc and RwLock
 /// - `room_id` - The ID of the room to delete
-/// 
+///
 /// # Returns
 /// `Response` with a status code of 200 OK and an empty body if the room was deleted. If an error
 /// occurs while deleting the room, a room error response with a status code of 400 Bad Request is
 /// returned.
-/// 
+///
 /// # Errors
 /// If an error occurs while deleting the room, a room error response with a status code of 400
 /// Bad Request is returned.

@@ -3,13 +3,13 @@ use std::error::Error;
 use tracing::trace;
 
 /// Sets up the database connection pool
-/// 
+///
 /// This function reads the environment variables for the database connection and sets up the
 /// connection pool, then runs any migrations that are needed.
-/// 
+///
 /// # Returns
 /// `Ok(Pool<Postgres>)` if the connection is successful, or an error if not.
-/// 
+///
 /// # Errors
 /// This function will return an error if:
 /// - The environment variables are not set
@@ -35,18 +35,18 @@ pub async fn db_setup() -> Result<Pool<Postgres>, Box<dyn Error>> {
 }
 
 /// Connects to the database
-/// 
+///
 /// This function connects to the database using the provided configuration.
-/// 
+///
 /// # Parameters
 /// - `pg_user`: The username for the database
 /// - `password`: The password for the database
 /// - `pg_host`: The hostname for the database
 /// - `pg_dbname`: The name of the database
-/// 
+///
 /// # Returns
 /// `Ok(Pool<Postgres>)` if the connection is successful, or an error if not.
-/// 
+///
 /// # Errors
 /// This function will return an error if the connection to the database cannot be established.
 async fn db_connect(

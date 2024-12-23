@@ -1,20 +1,13 @@
-use utoipa::OpenApi;
 use crate::{
     controllers::{
-        room_handler,
-        schedule_handler,
-        speakers_handler,
-        timeslot_handler,
-        topics_handler,
+        room_handler, schedule_handler, speakers_handler, timeslot_handler, topics_handler,
     },
     models::{
-    topics_model::Topic,
-    room_model::Room,
-    schedule_model::Schedule,
-    speakers_model::Speaker,
-    timeslot_model::TimeSlot,
-}
+        room_model::Room, schedule_model::Schedule, speakers_model::Speaker,
+        timeslot_model::TimeSlot, topics_model::Topic,
+    },
 };
+use utoipa::OpenApi;
 
 #[derive(OpenApi)]
 #[openapi(

@@ -1,17 +1,17 @@
-use std::error::Error;
+use crate::models::room_model::Room;
+use crate::models::schedule_model::ScheduleErr;
+use crate::models::topics_model::Topic;
+use crate::types::ApiStatusCode;
 use askama_axum::IntoResponse;
 use axum::{response::Response, Json};
 use chrono::NaiveTime;
 use serde::{ser::SerializeStruct, Deserialize, Serialize, Serializer};
 use sqlx::{FromRow, Pool, Postgres};
+use std::error::Error;
 use utoipa::ToSchema;
-use crate::models::room_model::Room;
-use crate::models::schedule_model::ScheduleErr;
-use crate::models::topics_model::Topic;
-use crate::types::ApiStatusCode;
 
 /// An enumeration of possible errors that can occur when working with timeslots.
-/// 
+///
 /// # Variants
 /// - `IoError` - An I/O error occurred
 #[derive(Debug, thiserror::Error, ToSchema, Serialize)]
@@ -21,7 +21,7 @@ pub enum TimeSlotErr {
 }
 
 /// Implements the `From` trait for `std::io::Error` to convert it into a `TimeSlotErr`.
-/// 
+///
 /// This implementation allows `std::io::Error` instances to be converted into `TimeSlotErr`
 /// instances. The I/O error is wrapped as a `TimeSlotIoError`.
 impl From<std::io::Error> for TimeSlotErr {
@@ -37,7 +37,7 @@ impl From<std::io::Error> for TimeSlotErr {
 }
 
 /// Struct that represents an error that occurred when working with timeslots.
-/// 
+///
 /// # Fields
 /// - `status` - The HTTP status code associated with the error
 /// - `error` - A string describing the specific error that occurred
@@ -48,13 +48,13 @@ pub struct TimeSlotError {
 }
 
 /// Implements the `ToSchema` trait for `TimeSlotError` struct.
-/// 
-/// This implementation provides a JSON schema for the `TimeSlotError` struct. The schema defines 
+///
+/// This implementation provides a JSON schema for the `TimeSlotError` struct. The schema defines
 /// two properties: `status` and `error`.
 
 /// Implements the `Serialize` trait for `TimeSlotError`
-/// 
-/// This implementation serializes a `TimeSlotError` into a JSON object with two properties: 
+///
+/// This implementation serializes a `TimeSlotError` into a JSON object with two properties:
 /// `status` and `error`.
 impl Serialize for TimeSlotError {
     /// Serializes a `TimeSlotError`
@@ -79,11 +79,11 @@ impl TimeSlotError {
     ///
     /// This function creates a `Response` instance from a `StatusCode` and a `TimeSlotErr`. The
     /// `TimeSlotErr` is serialized into a JSON object with two properties: `status` and `error`.
-    /// 
+    ///
     /// # Parameters
     /// - `status`: The HTTP status code to return
     /// - `error`: The `TimeSlotErr` to return
-    /// 
+    ///
     /// # Returns
     /// A `Response` instance with the HTTP status code and the serialized `TimeSlotErr`.
     pub fn response(status: ApiStatusCode, error: Box<dyn Error>) -> Response {
@@ -109,7 +109,7 @@ pub struct TimeslotForm {
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, FromRow)]
 /// Struct that represents a timeslot.
-/// 
+///
 /// # Fields
 /// - `Option<id>` - The ID of the timeslot (optional)
 /// - `start_time` - The start time of the timeslot
@@ -130,10 +130,10 @@ pub struct TimeSlot {
 
 impl TimeSlot {
     /// Creates a new `TimeSlot` instance.
-    /// 
+    ///
     /// This function creates a new `TimeSlot` instance with the provided ID, start time, end time,
     /// speaker ID, schedule ID, topic ID, and room ID.
-    /// 
+    ///
     /// # Parameters
     /// - `id`: The ID of the timeslot (optional)
     /// - `start_time`: The start time of the timeslot
@@ -164,15 +164,15 @@ impl TimeSlot {
 }
 
 /// Retrieves all timeslots from the database.
-/// 
+///
 /// This function retrieves all timeslots from the database.
-/// 
+///
 /// # Parameters
 /// - `db_pool`: The database connection pool
-/// 
+///
 /// # Returns
 /// A `Result` containing a vector of `TimeSlot` instances if successful, otherwise an error.
-/// 
+///
 /// # Errors
 /// If the query fails, a boxed error is returned.
 pub async fn timeslot_get(db_pool: &Pool<Postgres>) -> Result<Vec<TimeSlot>, Box<dyn Error>> {
@@ -184,21 +184,21 @@ pub async fn timeslot_get(db_pool: &Pool<Postgres>) -> Result<Vec<TimeSlot>, Box
 }
 
 /// Assigns topics to timeslots.
-/// 
+///
 /// This function assigns topics to timeslots based on the provided topics, rooms, and existing
 /// timeslots. The topics are assigned to the timeslots in the order they are provided, starting
 /// with the first topic and moving to the next topic for each room.
-/// 
+///
 /// # Parameters
 /// - `topics`: A slice of `Topic` instances representing the topics to assign
 /// - `rooms`: A slice of `Room` instances representing the rooms to assign the topics to
 /// - `existing_timeslots`: A slice of `TimeSlot` instances representing the existing timeslots
 /// - `schedule_id`: The ID of the schedule to assign the timeslots to
-/// 
+///
 /// # Returns
 /// A `Result` containing a vector of `TimeSlot` instances with the topics assigned if successful,
 /// otherwise a `ScheduleErr` error.
-/// 
+///
 /// # Errors
 /// If an I/O error occurs, a `ScheduleErr` error is returned.
 pub async fn assign_topics_to_timeslots(
@@ -234,7 +234,7 @@ pub async fn assign_topics_to_timeslots(
             result.push(updated_slot);
             topic_index += 1;
         }
-        
+
         if topic_index >= topics.len() {
             break;
         }
@@ -246,14 +246,14 @@ pub async fn assign_topics_to_timeslots(
 /// Adds a new timeslot.
 ///
 /// This function adds a new timeslot to the database.
-/// 
+///
 /// # Parameters
 /// - `db_pool`: The database connection pool
 /// - `timeslot`: The timeslot to add
-/// 
+///
 /// # Returns
 /// The ID of the timeslot if successful, otherwise an error.
-/// 
+///
 /// # Errors
 /// If the query fails, a boxed error is returned.
 pub async fn timeslot_add(
@@ -262,16 +262,8 @@ pub async fn timeslot_add(
 ) -> Result<i32, Box<dyn Error>> {
     let (timeslot_id,) = sqlx::query_as(
         r#"INSERT INTO time_slots (start_time, end_time, duration, speaker_id, schedule_id, 
-        topic_id, room_id) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id"#)
-            .bind(timeslot.start_time)
-            .bind(timeslot.end_time)
-            .bind(timeslot.end_time - timeslot.start_time)
-            .bind(timeslot.speaker_id)
-            .bind(timeslot.schedule_id)
-            .bind(timeslot.topic_id)
-            .bind(timeslot.room_id)
-            .fetch_one(db_pool)
-            .await?;
+        topic_id, room_id) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id"#,
+    ).bind(timeslot.start_time).bind(timeslot.end_time).bind(timeslot.end_time - timeslot.start_time).bind(timeslot.speaker_id).bind(timeslot.schedule_id).bind(timeslot.topic_id).bind(timeslot.room_id).fetch_one(db_pool).await?;
 
     Ok(timeslot_id)
 }
@@ -298,7 +290,8 @@ pub async fn timeslots_add(
         let end_time = start_time + chrono::Duration::minutes(timeslot.duration as i64);
         sqlx::query_as(
             r#"INSERT INTO time_slots (start_time, end_time, duration, speaker_id, schedule_id,
-        topic_id, room_id) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id"#)
+        topic_id, room_id) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id"#,
+        )
             .bind(timeslot.start_time)
             .bind(end_time)
             .bind(timeslot.duration)
@@ -316,15 +309,15 @@ pub async fn timeslots_add(
 /// Updates a timeslot by its ID.
 ///
 /// This function updates a timeslot by its ID.
-/// 
+///
 /// # Parameters
 /// - `db_pool`: The database connection pool
 /// - `timeslot_id`: The ID of the timeslot to update
 /// - `timeslot`: The timeslot to use for the update
-/// 
+///
 /// # Returns
 /// The ID of the updated timeslot if successful, otherwise an error.
-/// 
+///
 /// # Errors
 /// If the query fails, a boxed error is returned.
 pub async fn timeslot_update(
@@ -343,8 +336,9 @@ pub async fn timeslot_update(
         .bind(timeslot.start_time)
         .bind(timeslot.end_time)
         .bind(timeslot.speaker_id)
-        .bind(timeslot.schedule_id)
-        .bind(timeslot.topic_id.unwrap())
+        .bind(timeslot.schedule_id).bind(
+        timeslot.topic_id.unwrap(),
+    )
         .bind(timeslot.room_id)
         .fetch_one(db_pool)
         .await?;
@@ -363,23 +357,23 @@ pub async fn timeslot_update(
 }
 
 /// Updates a timeslot by its ID.
-/// 
+///
 /// This function updates a timeslot by its ID.
-/// 
+///
 /// # Parameters
 /// - `db_pool`: The database connection pool
 /// - `timeslot_id`: The ID of the timeslot to update
 /// - `timeslot`: The timeslot to use for the update
-/// 
+///
 /// # Returns
 /// The ID of the updated timeslot if successful, otherwise an error.
-/// 
+///
 /// # Errors
 /// If the query fails, a boxed error is returned.
 pub async fn update_timeslots_in_db(
-    db_pool: &Pool<Postgres>, 
-    timeslots: &[TimeSlot], 
-    schedule_id: i32
+    db_pool: &Pool<Postgres>,
+    timeslots: &[TimeSlot],
+    schedule_id: i32,
 ) -> Result<(), ScheduleErr> {
     for slot in timeslots {
         sqlx::query(

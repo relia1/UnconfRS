@@ -1,8 +1,8 @@
-use std::fmt::{Display, Formatter};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, IntoResponseParts, Response, ResponseParts};
-use utoipa::ToSchema;
 use serde::{Deserialize, Serialize};
+use std::fmt::{Display, Formatter};
+use utoipa::ToSchema;
 
 #[derive(Debug, ToSchema, Copy, Clone, Serialize, Deserialize)]
 
