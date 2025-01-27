@@ -20,20 +20,21 @@ CREATE TABLE speakers (
     phone_number TEXT NOT NULL
 );
 
-CREATE TABLE schedules (
-	id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    num_of_timeslots INT NOT NULL
-);
-
 CREATE TABLE time_slots (
 	id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     start_time TIME NOT NULL,
     end_time TIME NOT NULL,
-    duration INTERVAL NOT NULL,
-    schedule_id INTEGER,
-    speaker_id INTEGER,
+    duration INTERVAL NOT NULL
+);
+
+CREATE TABLE timeslot_assignments
+(
+    id           INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    time_slot_id INTEGER REFERENCES time_slots (id),
+    speaker_id   INTEGER REFERENCES speakers (id),
     topic_id INTEGER REFERENCES topics(id),
-    room_id INTEGER REFERENCES rooms(id)
+    room_id      INTEGER REFERENCES rooms (id),
+    UNIQUE (time_slot_id, room_id)
 );
 
 CREATE TABLE users (
