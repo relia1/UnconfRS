@@ -5,7 +5,50 @@
 {% block head %}
     {% if schedule.is_some() && rooms.is_some() %}
         <style>{% include "../styles/display_schedule.css" %}</style>
-        <script>{% include "../scripts/display_schedule.js" %}</script>
+        <script>
+            window.APP = window.APP || {};
+            window.APP.rooms = [
+                {% if let Some(vec_rooms) = rooms %}
+                    {% for room in vec_rooms %}
+                        {
+                            id: Number({{ room.id.unwrap() }}),
+                            name: "{{ room.name }}",
+                            available_spots: Number({{ room.available_spots }})
+                        },
+                    {% endfor %}
+                {% endif %}
+            ];
+
+            window.APP.events = [
+            {% for topic_event in events %}
+                {
+                    roomId: Number({{ topic_event.room_id }}),
+                    startTime: "{{ topic_event.start_time }}",
+                    endTime: "{{ topic_event.end_time }}",
+                    timeslotId: Number({{ topic_event.timeslot_id }}),
+                    title: "{{ topic_event.title }}",
+                    topicId: Number({{ topic_event.topic_id }}),
+                    speakerId: Number({{ topic_event.speaker_id }}),
+                    scheduleId: Number({{ topic_event.schedule_id }})
+                },
+                {% endfor %}
+            ];
+
+            // Get unique timeslots from events
+            window.APP.timeslots = [];
+            {% if let Some(schedule) = schedule %}
+                {% for timeslot in schedule.timeslots %}
+                    window.APP.timeslots.push(
+                        {
+                            id: {{ timeslot.id.unwrap_or(0) }},
+                            start: "{{ timeslot.start_time }}",
+                            end: "{{ timeslot.end_time }}"
+                        }
+                    );
+                {% endfor %}
+            {% endif %}
+        </script>
+        <script src="../scripts/display_schedule.js"></script>
     {% else %}
         <link rel="stylesheet" href="../styles/rooms_form.css">
     {% endif %}

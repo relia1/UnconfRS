@@ -1,42 +1,22 @@
+let numOfTimeslots = 0;
+let numOfRooms = 0;
+let scheduleContainer = null;
+let displayControls = null;
+let draggedEvent = null;
+
 document.addEventListener('DOMContentLoaded', function () {
     if (localStorage.getItem('admin') === 'true') {
         document.body.classList.add('admin');
     }
 
-    let numOfHalfHourSegments = 0;
-    let numOfRooms = 0;
-    const scheduleContainer = document.querySelector('.schedule-container');
-    const displayControls = document.getElementById('controls');
-
-    const rooms = [
-        {% if let Some(vec_rooms) = rooms %}
-            {% for room in vec_rooms %}
-                {
-                    id: Number({{ room.id.unwrap() }}),
-                    name: "{{ room.name }}",
-                    available_spots: Number({{ room.available_spots }})
-                },
-            {% endfor %}
-        {% endif %}
-    ];
+    scheduleContainer = document.querySelector('.schedule-container');
+    displayControls = document.getElementById('controls');
+    let timeslots = window.APP.timeslots;
+    let rooms = window.APP.rooms;
+    let events = window.APP.events;
 
     numOfRooms = rooms.length;
-    const events = [
-        {% for topic_event in events %}
-            {
-                roomId: Number({{ topic_event.room_id }}),
-                startTime: "{{ topic_event.start_time }}",
-                endTime: "{{ topic_event.end_time }}",
-                timeslotId: Number({{ topic_event.timeslot_id }}),
-                title: "{{ topic_event.title }}",
-                topicId: Number({{ topic_event.topic_id }}),
-                speakerId: Number({{ topic_event.speaker_id }}),
-                scheduleId: Number({{ topic_event.schedule_id }})
-            },
-        {% endfor %}
-    ];
-
-    let viewSelectorValue = document.getElementById('view-selector').value;
+    numOfTimeslots = timeslots.length;
 
 
     /* Takes an event and creates an event div element with the
