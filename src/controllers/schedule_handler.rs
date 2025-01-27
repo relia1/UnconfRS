@@ -82,11 +82,10 @@ pub async fn schedules(State(app_state): State<Arc<RwLock<AppState>>>) -> Respon
 /// of 404 Not Found is returned.
 pub async fn get_schedule(
     State(app_state): State<Arc<RwLock<AppState>>>,
-    Path(schedule_id): Path<i32>,
 ) -> Response {
     let app_state_lock = app_state.read().await;
     let read_lock = &app_state_lock.unconf_data.read().await.unconf_db;
-    match schedule_get(read_lock, schedule_id).await {
+    match schedule_get(read_lock).await {
         Ok(schedule) => Json(schedule).into_response(),
         Err(e) => ScheduleError::response(ApiStatusCode::from(StatusCode::NOT_FOUND), e),
     }
@@ -211,7 +210,9 @@ pub async fn update_schedule(
 /// # Errors
 /// If an error occurs while generating the schedule, a schedule error response with a status code
 /// of 400 Bad Request is returned.
-pub async fn generate(State(app_state): State<Arc<RwLock<AppState>>>) -> Response {
+pub async fn generate(
+    State(app_state): State<Arc<RwLock<AppState>>>
+) -> Response {
     let app_state_lock = app_state.read().await;
     let read_lock = &app_state_lock.unconf_data.read().await.unconf_db;
     let res = schedule_generate(read_lock).await;

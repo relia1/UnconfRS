@@ -95,72 +95,59 @@ impl TimeSlotError {
     }
 }
 
-#[derive(Debug, Deserialize)]
-pub struct TimeSlotData {
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct TimeslotAssignmentForm {
+    pub speaker_id: i32,
+    pub topic_id: i32,
+    pub room_id: i32,
+    pub old_room_id: i32,
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct TimeslotForm {
     pub start_time: String,
     pub duration: i32,
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub assignments: Vec<TimeslotAssignmentForm>,
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct TimeslotRequest {
+    pub timeslots: Vec<TimeslotForm>,
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct TimeslotRequestWrapper {
+    pub timeslot_request: TimeslotRequest
 }
 
 #[derive(Debug, Deserialize)]
-pub struct TimeslotForm {
-    pub timeslots: Vec<TimeSlotData>,
+pub struct TimeslotUpdateRequest {
+    id: i32,
+    pub start_time: String,
+    pub end_time: String,
+    pub speaker_id: i32,
+    pub topic_id: i32,
+    pub room_id: i32,
+    pub old_room_id: i32,
+    schedule_id: i32,
 }
 
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, FromRow)]
-/// Struct that represents a timeslot.
-///
-/// # Fields
-/// - `Option<id>` - The ID of the timeslot (optional)
-/// - `start_time` - The start time of the timeslot
-/// - `end_time` - The end time of the timeslot
-/// - `Option<speaker_id>` - The ID of the speaker for the timeslot (optional)
-/// - `Option<schedule_id>` - The ID of the schedule for the timeslot (optional)
-/// - `Option<topic_id>` - The ID of the topic for the timeslot (optional)
-/// - `Option<room_id>` - The ID of the room for the timeslot (optional)
 pub struct TimeSlot {
     pub id: Option<i32>,
-    pub start_time: NaiveTime,    // unix timestamp (seconds since epoch)
-    pub end_time: NaiveTime,      // unix timestamp (seconds since epoch)
-    pub speaker_id: Option<i32>,  // id of the speaker
-    pub schedule_id: Option<i32>, // id of the schedule
-    pub topic_id: Option<i32>,    // id of the topic or none
-    pub room_id: Option<i32>,     // id of the topic or none
+    pub start_time: NaiveTime,
+    pub end_time: NaiveTime,
 }
 
-impl TimeSlot {
-    /// Creates a new `TimeSlot` instance.
-    ///
-    /// This function creates a new `TimeSlot` instance with the provided ID, start time, end time,
-    /// speaker ID, schedule ID, topic ID, and room ID.
-    ///
-    /// # Parameters
-    /// - `id`: The ID of the timeslot (optional)
-    /// - `start_time`: The start time of the timeslot
-    /// - `end_time`: The end time of the timeslot
-    /// - `speaker_id`: The ID of the speaker for the timeslot (optional)
-    /// - `schedule_id`: The ID of the schedule for the timeslot (optional)
-    /// - `topic_id`: The ID of the topic for the timeslot (optional)
-    /// - `room_id`: The ID of the room for the timeslot (optional)
-    pub fn new(
-        id: Option<i32>,
-        start_time: NaiveTime,
-        end_time: NaiveTime,
-        speaker_id: Option<i32>,
-        schedule_id: Option<i32>,
-        topic_id: Option<i32>,
-        room_id: Option<i32>,
-    ) -> Self {
-        Self {
-            id,
-            start_time,
-            end_time,
-            speaker_id,
-            schedule_id,
-            topic_id,
-            room_id,
-        }
-    }
+#[derive(Debug, Deserialize, FromRow)]
+pub struct TimeslotAssignment {
+    pub id: Option<i32>,
+    pub time_slot_id: i32,
+    pub speaker_id: i32,
+    pub topic_id: i32,
+    pub room_id: i32,
 }
 
 /// Retrieves all timeslots from the database.
@@ -183,216 +170,53 @@ pub async fn timeslot_get(db_pool: &Pool<Postgres>) -> Result<Vec<TimeSlot>, Box
     Ok(timeslots)
 }
 
-/// Assigns topics to timeslots.
-///
-/// This function assigns topics to timeslots based on the provided topics, rooms, and existing
-/// timeslots. The topics are assigned to the timeslots in the order they are provided, starting
-/// with the first topic and moving to the next topic for each room.
-///
-/// # Parameters
-/// - `topics`: A slice of `Topic` instances representing the topics to assign
-/// - `rooms`: A slice of `Room` instances representing the rooms to assign the topics to
-/// - `existing_timeslots`: A slice of `TimeSlot` instances representing the existing timeslots
-/// - `schedule_id`: The ID of the schedule to assign the timeslots to
-///
-/// # Returns
-/// A `Result` containing a vector of `TimeSlot` instances with the topics assigned if successful,
-/// otherwise a `ScheduleErr` error.
-///
-/// # Errors
-/// If an I/O error occurs, a `ScheduleErr` error is returned.
-pub async fn assign_topics_to_timeslots(
-    topics: &[Topic],
-    rooms: &[Room],
-    existing_timeslots: &[TimeSlot],
-    schedule_id: i32,
-) -> Result<Vec<TimeSlot>, ScheduleErr> {
-    let mut result = Vec::new();
-    let mut topic_index = 0;
-
-    for room in rooms {
-        let room_timeslots: Vec<_> = existing_timeslots.iter()
-            .filter(|slot| slot.room_id == room.id)
-            .collect();
-
-        for slot in room_timeslots {
-            if topic_index >= topics.len() {
-                break;
-            }
-
-            let topic = &topics[topic_index];
-            let updated_slot = TimeSlot::new(
-                slot.id,
-                slot.start_time,
-                slot.end_time,
-                Some(topic.speaker_id),
-                Some(schedule_id),
-                topic.id,
-                room.id,
-            );
-
-            result.push(updated_slot);
-            topic_index += 1;
-        }
-
-        if topic_index >= topics.len() {
-            break;
-        }
-    }
-
-    Ok(result)
-}
-
-/// Adds a new timeslot.
-///
-/// This function adds a new timeslot to the database.
-///
-/// # Parameters
-/// - `db_pool`: The database connection pool
-/// - `timeslot`: The timeslot to add
-///
-/// # Returns
-/// The ID of the timeslot if successful, otherwise an error.
-///
-/// # Errors
-/// If the query fails, a boxed error is returned.
-pub async fn timeslot_add(
+async fn insert_timeslot(
     db_pool: &Pool<Postgres>,
-    timeslot: TimeSlot,
+    start_time: NaiveTime,
+    duration: i64,
 ) -> Result<i32, Box<dyn Error>> {
-    let (timeslot_id,) = sqlx::query_as(
-        r#"INSERT INTO time_slots (start_time, end_time, duration, speaker_id, schedule_id, 
-        topic_id, room_id) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id"#,
-    ).bind(timeslot.start_time).bind(timeslot.end_time).bind(timeslot.end_time - timeslot.start_time).bind(timeslot.speaker_id).bind(timeslot.schedule_id).bind(timeslot.topic_id).bind(timeslot.room_id).fetch_one(db_pool).await?;
-
-    Ok(timeslot_id)
+    let end_time = start_time + chrono::Duration::minutes(duration);
+    let (id, ) = sqlx::query_as(
+        "INSERT INTO time_slots (start_time, end_time, duration) VALUES ($1, $2, $3) RETURNING id"
+    )
+        .bind(start_time)
+        .bind(end_time)
+        .bind(duration)
+        .fetch_one(db_pool)
+        .await?;
+    Ok(id)
 }
 
-/// Adds a new timeslot.
+
+/// Adds new timeslots.
 ///
-/// This function adds a new timeslot to the database.
+/// This function adds new timeslots to the database.
 ///
 /// # Parameters
 /// - `db_pool`: The database connection pool
-/// - `timeslot`: The timeslot to add
+/// - `timeslots`: The timeslots to add
 ///
 /// # Returns
-/// The ID of the timeslot if successful, otherwise an error.
+/// Vec of IDs of the timeslots if successful, otherwise an error.
 ///
 /// # Errors
 /// If the query fails, a boxed error is returned.
 pub async fn timeslots_add(
     db_pool: &Pool<Postgres>,
-    timeslots: TimeslotForm,
-) -> Result<(), Box<dyn Error>> {
+    timeslots: TimeslotRequest,
+) -> Result<Vec<i32>, Box<dyn Error>> {
+    tracing::debug!("Adding timeslots: {:?}", timeslots);
+    let mut timeslot_ids = Vec::new();
     for timeslot in timeslots.timeslots {
-        let start_time = NaiveTime::parse_from_str(&timeslot.start_time, "%H:%M:%S")?;
-        let end_time = start_time + chrono::Duration::minutes(timeslot.duration as i64);
-        sqlx::query_as(
-            r#"INSERT INTO time_slots (start_time, end_time, duration, speaker_id, schedule_id,
-        topic_id, room_id) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id"#,
-        )
-            .bind(timeslot.start_time)
-            .bind(end_time)
-            .bind(timeslot.duration)
-            .bind(1)
-            .bind(1)
-            .bind(1)
-            .bind(1)
-            .fetch_one(db_pool)
-            .await?
+        let start_time = NaiveTime::parse_from_str(&timeslot.start_time, "%H:%M")?;
+        let id = insert_timeslot(db_pool, start_time, timeslot.duration as i64).await?;
+        if !timeslot.assignments.is_empty() {
+            tracing::debug!("Adding assignments: {:?}", timeslot.assignments);
+            //insert_assignments(db_pool, id, timeslot.assignments).await?;
+        }
+        timeslot_ids.push(id);
     }
-
-    Ok(())
+    Ok(timeslot_ids)
 }
 
-/// Updates a timeslot by its ID.
-///
-/// This function updates a timeslot by its ID.
-///
-/// # Parameters
-/// - `db_pool`: The database connection pool
-/// - `timeslot_id`: The ID of the timeslot to update
-/// - `timeslot`: The timeslot to use for the update
-///
-/// # Returns
-/// The ID of the updated timeslot if successful, otherwise an error.
-///
-/// # Errors
-/// If the query fails, a boxed error is returned.
-pub async fn timeslot_update(
-    db_pool: &Pool<Postgres>,
-    timeslot_id: i32,
-    timeslot: &TimeSlot,
-) -> Result<i32, Box<dyn Error>> {
-    let (new_timeslot_id,) = sqlx::query_as(
-        r#"
-        UPDATE time_slots SET start_time = $1, end_time = $2, speaker_id = $3, schedule_id = $4,
-        topic_id = $5, room_id = $6
-        WHERE start_time = $1 AND room_id = $6
-        RETURNING id
-        "#,
-    )
-        .bind(timeslot.start_time)
-        .bind(timeslot.end_time)
-        .bind(timeslot.speaker_id)
-        .bind(timeslot.schedule_id).bind(
-        timeslot.topic_id.unwrap(),
-    )
-        .bind(timeslot.room_id)
-        .fetch_one(db_pool)
-        .await?;
 
-    sqlx::query(
-        r#"
-        UPDATE time_slots SET speaker_id = NULL, topic_id = NULL
-        WHERE id = $1
-        "#,
-    )
-        .bind(timeslot_id)
-        .execute(db_pool)
-        .await?;
-
-    Ok(new_timeslot_id)
-}
-
-/// Updates a timeslot by its ID.
-///
-/// This function updates a timeslot by its ID.
-///
-/// # Parameters
-/// - `db_pool`: The database connection pool
-/// - `timeslot_id`: The ID of the timeslot to update
-/// - `timeslot`: The timeslot to use for the update
-///
-/// # Returns
-/// The ID of the updated timeslot if successful, otherwise an error.
-///
-/// # Errors
-/// If the query fails, a boxed error is returned.
-pub async fn update_timeslots_in_db(
-    db_pool: &Pool<Postgres>,
-    timeslots: &[TimeSlot],
-    schedule_id: i32,
-) -> Result<(), ScheduleErr> {
-    for slot in timeslots {
-        sqlx::query(
-            r#"UPDATE time_slots
-            SET start_time = $1, end_time = $2, duration = $3, 
-                speaker_id = $4, topic_id = $5, room_id = $6
-            WHERE id = $7 AND schedule_id = $8"#,
-        )
-            .bind(slot.start_time)
-            .bind(slot.end_time)
-            .bind(slot.end_time - slot.start_time)
-            .bind(slot.speaker_id)
-            .bind(slot.topic_id)
-            .bind(slot.room_id)
-            .bind(slot.id)
-            .bind(schedule_id)
-            .execute(db_pool)
-            .await
-            .map_err(|e| ScheduleErr::IoError(e.to_string()))?;
-    }
-    Ok(())
-}

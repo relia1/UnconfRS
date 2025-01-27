@@ -2,6 +2,7 @@ use crate::config::AppState;
 use crate::models::room_model::{rooms_get, Room};
 use crate::models::schedule_model::{schedules_get, Schedule};
 use crate::models::speakers_model::Speaker;
+use crate::models::timeslot_model::{timeslot_get, TimeslotAssignment};
 use crate::models::topics_model::{get_all_topics, Topic};
 use askama::Template;
 use askama_axum::{IntoResponse, Response};
@@ -9,7 +10,7 @@ use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::Html;
 use axum_macros::debug_handler;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, Pool, Postgres};
 use std::error::Error;
 use std::sync::Arc;
@@ -45,7 +46,7 @@ pub async fn index_handler() -> Response {
     IndexTemplate.into_response()
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 /// Event struct
 ///
 /// This struct represents the parameters of an event.
@@ -70,16 +71,8 @@ pub struct Event {
     pub schedule_id: i32,
 }
 
-#[derive(Template, Debug)]
+#[derive(Template, Debug, Serialize)]
 #[template(path = "create_schedule.html")]
-/// Schedule template
-///
-/// This struct represents the parameters passed to the client for rendering the schedule page.
-///
-/// # Fields
-/// - `schedule` - The schedule
-/// - `rooms` - The rooms
-/// - `events` - The events
 struct ScheduleTemplate {
     schedule: Option<Schedule>,
     rooms: Option<Vec<Room>>,
@@ -119,39 +112,46 @@ pub async fn schedule_handler(State(app_state): State<Arc<RwLock<AppState>>>) ->
     let read_lock = &app_state_lock.unconf_data.read().await.unconf_db;
 
     let result: Result<String, Response> = async {
-        let schedules = schedules_get(read_lock)
+        let schedule = schedules_get(read_lock)
             .await
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR.into_response())?;
 
         let rooms = rooms_get(read_lock).await.unwrap_or(None);
         let topics = get_all_topics(read_lock).await.unwrap_or_default();
+        let timeslots = timeslot_get(read_lock)
+            .await
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR.into_response())?;
+        let assignments = sqlx::query_as::<_, TimeslotAssignment>(
+            "SELECT * FROM timeslot_assignments"
+        )
+            .fetch_all(read_lock)
+            .await
+            .unwrap_or_default();
 
-        let mut events = vec![];
-        if let Some(schedule) = &schedules {
-            events = schedule.timeslots.iter().filter_map(|timeslot| {
-                let event_topic = topics.iter().find(|&topic| topic.id == timeslot.topic_id)?;
-
+        let events = if let Some(schedule) = &schedule {
+            let schedule_id = schedule.id.ok_or(StatusCode::INTERNAL_SERVER_ERROR.into_response())?;
+            timeslots.iter().filter_map(|timeslot| {
                 let timeslot_id = timeslot.id?;
-                let room_id = timeslot.room_id?;
-                let topic_id = timeslot.topic_id?;
-                let speaker_id = timeslot.speaker_id?;
-                let schedule_id = schedule.id?;
+                let assignment = assignments.iter().find(|a| a.time_slot_id == timeslot_id)?;
+                let event_topic = topics.iter().find(|&topic| topic.id == Some(assignment.topic_id))?;
 
                 Some(Event {
                     timeslot_id,
                     title: event_topic.title.clone(),
                     start_time: timeslot.start_time.to_string(),
                     end_time: timeslot.end_time.to_string(),
-                    room_id,
-                    topic_id,
-                    speaker_id,
+                    room_id: assignment.room_id,
+                    topic_id: assignment.topic_id,
+                    speaker_id: assignment.speaker_id,
                     schedule_id,
                 })
-            }).collect();
-        }
+            }).collect()
+        } else {
+            vec![]
+        };
 
         let template = ScheduleTemplate {
-            schedule: schedules,
+            schedule,
             rooms,
             events,
         };
@@ -159,14 +159,13 @@ pub async fn schedule_handler(State(app_state): State<Arc<RwLock<AppState>>>) ->
         template.render()
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR.into_response())
     }
-    .await;
+        .await;
 
     match result {
         Ok(html) => Html(html).into_response(),
         Err(response) => response,
     }
 }
-
 #[derive(Template, Debug)]
 #[template(path = "topics.html")]
 /// Topics template

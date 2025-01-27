@@ -1,3 +1,5 @@
+use crate::models::room_model::RoomErr;
+use crate::models::timeslot_assignment_model::{assign_topics_to_timeslots, timeslot_assignment_update};
 use crate::types::ApiStatusCode;
 use crate::{
     controllers::site_handler::CreateScheduleForm,
@@ -26,8 +28,10 @@ pub enum ScheduleErr {
     IoError(String),
     #[error("Schedule {0} doesn't exist")]
     DoesNotExist(String),
-    #[error("Invalid query parameter values")]
-    InvalidTimeFormat(String),
+    #[error("Topic error: {0}")]
+    TopicError(TopicErr),
+    #[error("Room error: {0}")]
+    RoomError(RoomErr),
 }
 
 /// Implements the `From` trait for `std::io::Error` to convert it into a `ScheduleErr`.
@@ -47,6 +51,18 @@ impl From<std::io::Error> for ScheduleErr {
     /// A `ScheduleErr` with the error message from the `std::io::Error`.
     fn from(e: std::io::Error) -> Self {
         ScheduleErr::IoError(e.to_string())
+    }
+}
+
+impl From<TopicErr> for ScheduleErr {
+    fn from(err: TopicErr) -> Self {
+        ScheduleErr::TopicError(err)
+    }
+}
+
+impl From<RoomErr> for ScheduleErr {
+    fn from(err: RoomErr) -> Self {
+        ScheduleErr::RoomError(err)
     }
 }
 
@@ -176,26 +192,16 @@ impl IntoResponse for &Schedule {
 /// If an error occurs while fetching the schedules from the database, a `ScheduleErr` error is
 /// returned.
 pub async fn schedules_get(db_pool: &Pool<Postgres>) -> Result<Option<Schedule>, Box<dyn Error>> {
-    let mut schedules: Vec<Schedule> = sqlx::query_as::<Postgres, Schedule>(
-        r#"
-        SELECT * FROM schedules
-        ORDER BY id"#,
-    )
-    .fetch_all(db_pool)
-    .await?;
-
-    for schedule in &mut schedules {
-        let timeslots = sqlx::query_as::<Postgres, TimeSlot>(
-            "SELECT * FROM time_slots WHERE schedule_id = $1 ORDER BY id;",
-        )
-        .bind(schedule.id)
-        .fetch_all(db_pool)
-        .await?;
-
-        schedule.timeslots = timeslots;
+    let timeslots = timeslot_get(db_pool).await?;
+    if timeslots.is_empty() {
+        Ok(None)
+    } else {
+        Ok(Some(Schedule::new(
+            Some(1),
+            timeslots.len() as i32,
+            timeslots,
+        )))
     }
-
-    Ok(schedules.first().cloned())
 }
 
 /// Retrieves a schedule by its index.
@@ -212,24 +218,17 @@ pub async fn schedules_get(db_pool: &Pool<Postgres>) -> Result<Option<Schedule>,
 /// # Errors
 /// If an error occurs while fetching the schedule from the database, a `ScheduleErr` error is
 /// returned.
-pub async fn schedule_get(
-    db_pool: &Pool<Postgres>,
-    index: i32,
-) -> Result<Schedule, Box<dyn Error>> {
-    // Join the timeslots, schedules, topics, and speakers tables to get the full schedule data
-    let schedule_vec = sqlx::query_as::<Postgres, Schedule>(
-        r#"select ts.*, t.*, sched.*, s.* from time_slots ts
-        join schedules sched on ts.schedule_id = sched.id
-        left join topics t on t.id = ts.topic_id
-        left join speakers s on ts.speaker_id = s.id
-        where ts.schedule_id = $1
-        group by ts.id, t.id, s.id, sched.id;"#,
-    )
-    .bind(index)
-    .fetch_one(db_pool)
-    .await?;
-
-    Ok(schedule_vec)
+pub async fn schedule_get(db_pool: &Pool<Postgres>) -> Result<Option<Schedule>, Box<dyn Error>> {
+    let timeslots = timeslot_get(db_pool).await?;
+    if timeslots.is_empty() {
+        Ok(None)
+    } else {
+        Ok(Some(Schedule::new(
+            Some(1),
+            timeslots.len() as i32,
+            timeslots,
+        )))
+    }
 }
 
 /// Adds a new schedule.
@@ -250,34 +249,39 @@ pub async fn schedule_add(
     db_pool: &Pool<Postgres>,
     Json(schedule_form): Json<CreateScheduleForm>,
 ) -> Result<Schedule, Box<dyn Error>> {
-    let (schedule_id,) =
-        sqlx::query_as(r#"INSERT INTO schedules (num_of_timeslots) VALUES ($1) RETURNING id"#)
-            .bind(schedule_form.num_of_timeslots)
-            .fetch_one(db_pool)
-            .await?;
+    let (schedule_id, ) = sqlx::query_as(
+        "INSERT INTO schedules (num_of_timeslots) VALUES ($1) RETURNING id"
+    )
+        .bind(schedule_form.num_of_timeslots)
+        .fetch_one(db_pool)
+        .await?;
 
-    let mut timeslots = vec![];
-    for i in 0..(schedule_form.num_of_timeslots as usize) {
-        let parse_time_from_string = |time| {
-            NaiveTime::parse_from_str(time, "%H:%M").map_err(|error| ScheduleErr::InvalidTimeFormat(error.to_string()))
-        };
+    let timeslot_forms: Vec<TimeslotForm> = schedule_form.start_time.iter()
+                                                         .zip(schedule_form.end_time.iter())
+                                                         .map(|(start, end)| {
+                                                             let start_time = NaiveTime::parse_from_str(start, "%H:%M")?;
+                                                             let end_time = NaiveTime::parse_from_str(end, "%H:%M")?;
 
-        let start_time = parse_time_from_string(&schedule_form.start_time[i])?;
-        let end_time = parse_time_from_string(&schedule_form.end_time[i])?;
+                                                             Ok(TimeslotForm {
+                                                                 start_time: start.clone(),
+                                                                 duration: (end_time - start_time).num_minutes() as i32,
+                                                                 assignments: vec![],
+                                                             })
+                                                         })
+                                                         .collect::<Result<_, Box<dyn Error>>>()?;
 
-        let mut timeslot = TimeSlot::new(
-            None,
-            start_time,
-            end_time,
-            None,
-            Some(schedule_id),
-            None,
-            None,
-        );
-        let timeslot_id = timeslot_add(db_pool, timeslot.clone()).await?;
-        timeslot.id = Some(timeslot_id);
-        timeslots.push(timeslot);
-    }
+    let timeslot_ids = timeslots_add(db_pool, TimeslotRequest { timeslots: timeslot_forms }).await?;
+
+    let timeslots = timeslot_ids.into_iter()
+                                .zip(schedule_form.start_time.iter().zip(schedule_form.end_time.iter()))
+                                .map(|(id, (start, end))| -> Result<TimeSlot, Box<dyn Error>> {
+                                    Ok(TimeSlot {
+                                        id: Some(id),
+                                        start_time: NaiveTime::parse_from_str(start, "%H:%M")?,
+                                        end_time: NaiveTime::parse_from_str(end, "%H:%M")?,
+                                    })
+                                })
+                                .collect::<Result<Vec<_>, _>>()?;
 
     Ok(Schedule::new(
         Some(schedule_id),
@@ -306,45 +310,21 @@ pub async fn schedule_update(
     index: i32,
     schedule: Schedule,
 ) -> Result<Schedule, Box<dyn Error>> {
-    // Update the schedule
     sqlx::query(
-        r#"
-        UPDATE schedules
-        SET num_of_timeslots = $1
-        WHERE id = $2
-        "#,
+        "UPDATE schedules SET num_of_timeslots = $1 WHERE id = $2"
     )
         .bind(schedule.num_of_timeslots)
         .bind(index)
         .execute(db_pool)
         .await?;
 
-    // Update timeslots
-    for timeslot in &schedule.timeslots {
-        sqlx::query(
-            r#"
-            UPDATE time_slots
-            SET
-                start_time = $1,
-                end_time = $2,
-                duration = $3,
-                speaker_id = $4,
-                topic_id = $5,
-                room_id = $6
-            WHERE id = $7 AND schedule_id = $8
-            "#,
-        )
-            .bind(timeslot.start_time)
-            .bind(timeslot.end_time)
-            .bind(timeslot.end_time - timeslot.start_time)
-            .bind(timeslot.speaker_id)
-            .bind(timeslot.topic_id)
-            .bind(timeslot.room_id)
-            .bind(timeslot.id)
-            .bind(index)
-            .execute(db_pool)
-            .await?;
-    }
+    let timeslot_forms = schedule.timeslots.iter()
+                                 .map(|t| TimeslotForm {
+                                     start_time: t.start_time.format("%H:%M").to_string(),
+                                     duration: (t.end_time - t.start_time).num_minutes() as i32,
+                                     assignments: vec![],
+                                 })
+                                 .collect();
 
     Ok(schedule)
 }
@@ -367,52 +347,24 @@ pub async fn schedule_generate(db_pool: &Pool<Postgres>) -> Result<Schedule, Sch
     let rooms = rooms_get(db_pool).await
         .map_err(|e| ScheduleErr::IoError(e.to_string()))?
         .ok_or_else(|| ScheduleErr::DoesNotExist("No rooms found".to_string()))?;
-
     let mut schedule = schedules_get(db_pool).await
         .map_err(|e| ScheduleErr::IoError(e.to_string()))?
         .ok_or_else(|| ScheduleErr::DoesNotExist("No schedule found".to_string()))?;
-    let schedule_id = schedule.id.ok_or_else(|| ScheduleErr::DoesNotExist("Schedule ID not found".to_string()))?;
 
     let existing_timeslots = timeslot_get(db_pool)
         .await
         .map_err(|e| ScheduleErr::IoError(e.to_string()))?;
 
-    let updated_timeslots = assign_topics_to_timeslots(&topics, &rooms, &existing_timeslots, schedule_id).await?;
+    match assign_topics_to_timeslots(&topics, &rooms, &existing_timeslots, db_pool).await {
+        Ok(_) => {
+            schedule.timeslots = timeslot_get(db_pool)
+                .await
+                .map_err(|e| ScheduleErr::IoError(e.to_string()))?;
 
-    update_timeslots_in_db(db_pool, &updated_timeslots, schedule_id).await?;
-    update_schedule_count(db_pool, schedule.num_of_timeslots, schedule_id).await?;
-
-    schedule.timeslots = updated_timeslots;
-    Ok(schedule)
-}
-
-/// Updates the number of timeslots in a schedule.
-///
-/// This function updates the number of timeslots in a schedule.
-///
-/// # Parameters
-/// - `db_pool` - The database connection pool
-/// - `num_of_timeslots` - The new number of timeslots
-/// - `schedule_id` - The ID of the schedule to update
-///
-/// # Returns
-/// A `Result` containing `()` or a `ScheduleErr` error.
-///
-/// # Errors
-/// If an error occurs while updating the number of timeslots in the schedule, a `ScheduleErr` error
-/// is returned.
-async fn update_schedule_count(
-    db_pool: &Pool<Postgres>,
-    num_of_timeslots: i32,
-    schedule_id: i32,
-) -> Result<(), ScheduleErr> {
-    sqlx::query("UPDATE schedules SET num_of_timeslots = $1 WHERE id = $2")
-        .bind(num_of_timeslots)
-        .bind(schedule_id)
-        .execute(db_pool)
-        .await
-        .map_err(|e| ScheduleErr::IoError(e.to_string()))?;
-    Ok(())
+            Ok(schedule)
+        },
+        Err(e) => Err(ScheduleErr::IoError(e.to_string())),
+    }
 }
 
 /// Clears the schedule by removing topic associations with timeslots.
