@@ -377,7 +377,11 @@
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ timeslots })
+                body: JSON.stringify({
+                    timeslot_request: {
+                        timeslots
+                    }
+                })
             });
 
             if (!response.ok) {
