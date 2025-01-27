@@ -57,7 +57,7 @@ pub fn get_routes(app_state: Arc<RwLock<AppState>>) -> Router<Arc<RwLock<AppStat
         .route("/schedules/add", post(post_schedule))
         .route(
             "/schedules/generate",
-            post(generate.layer(from_fn_with_state(app_state.clone(), auth_middleware))),
+            post(generate).layer(from_fn_with_state(app_state.clone(), auth_middleware)),
         )
         .route(
             "/schedules/clear",

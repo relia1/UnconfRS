@@ -3,7 +3,7 @@ FROM rust:latest AS build
 WORKDIR /app
 
 # Cache downloaded+built dependencies
-COPY *.toml /app/
+COPY *.toml Cargo.lock /app/
 RUN \
     mkdir /app/src && \
     mkdir /app/web && \

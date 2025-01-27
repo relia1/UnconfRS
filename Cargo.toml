@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-askama = { version = "0.12.1", features = ["with-axum"] }
+askama = { version = "0.12.1", features = ["with-axum", "serde-json"] }
 askama_axum = "0.4.0"
 axum = { version = "0.7.9", features = ["macros", "form"] }
 axum-macros = "0.4.2"

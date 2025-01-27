@@ -1,6 +1,3 @@
-use crate::models::room_model::Room;
-use crate::models::schedule_model::ScheduleErr;
-use crate::models::topics_model::Topic;
 use crate::types::ApiStatusCode;
 use askama_axum::IntoResponse;
 use axum::{response::Response, Json};
