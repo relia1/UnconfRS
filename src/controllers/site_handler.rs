@@ -130,21 +130,29 @@ pub async fn schedule_handler(State(app_state): State<Arc<RwLock<AppState>>>) ->
 
         let events = if let Some(schedule) = &schedule {
             let schedule_id = schedule.id.ok_or(StatusCode::INTERNAL_SERVER_ERROR.into_response())?;
-            timeslots.iter().filter_map(|timeslot| {
-                let timeslot_id = timeslot.id?;
-                let assignment = assignments.iter().find(|a| a.time_slot_id == timeslot_id)?;
-                let event_topic = topics.iter().find(|&topic| topic.id == Some(assignment.topic_id))?;
+            timeslots.iter().flat_map(|timeslot| {
+                let timeslot_id = match timeslot.id {
+                    Some(id) => id,
+                    None => return vec![],
+                };
 
-                Some(Event {
-                    timeslot_id,
-                    title: event_topic.title.clone(),
-                    start_time: timeslot.start_time.to_string(),
-                    end_time: timeslot.end_time.to_string(),
-                    room_id: assignment.room_id,
-                    topic_id: assignment.topic_id,
-                    speaker_id: assignment.speaker_id,
-                    schedule_id,
-                })
+                assignments.iter()
+                           .filter(|assignment| assignment.time_slot_id == timeslot_id)
+                           .filter_map(|filtered_assignment| {
+                               let event_topic = topics.iter().find(|&topic| topic.id == Some(filtered_assignment.topic_id))?;
+
+                               Some(Event {
+                                   timeslot_id,
+                                   title: event_topic.title.clone(),
+                                   start_time: timeslot.start_time.to_string(),
+                                   end_time: timeslot.end_time.to_string(),
+                                   room_id: filtered_assignment.room_id,
+                                   topic_id: filtered_assignment.topic_id,
+                                   speaker_id: filtered_assignment.speaker_id,
+                                   schedule_id,
+                               })
+                           })
+                           .collect::<Vec<_>>()
             }).collect()
         } else {
             vec![]
