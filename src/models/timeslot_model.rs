@@ -173,12 +173,13 @@ async fn insert_timeslot(
     duration: i64,
 ) -> Result<i32, Box<dyn Error>> {
     let end_time = start_time + chrono::Duration::minutes(duration);
+    let duration_interval = format!("{} minutes", duration);
     let (id, ) = sqlx::query_as(
-        "INSERT INTO time_slots (start_time, end_time, duration) VALUES ($1, $2, $3) RETURNING id"
+        "INSERT INTO time_slots (start_time, end_time, duration) VALUES ($1, $2, $3::interval) RETURNING id"
     )
         .bind(start_time)
         .bind(end_time)
-        .bind(duration)
+        .bind(duration_interval)
         .fetch_one(db_pool)
         .await?;
     Ok(id)
