@@ -1,7 +1,7 @@
 use crate::config::AppState;
 use crate::controllers::room_handler::{delete_room, post_rooms, rooms};
 use crate::controllers::schedule_handler::{
-    clear, generate, get_schedule, post_schedule, schedules, update_schedule,
+    clear, generate, get_schedule, post_schedule, schedules,
 };
 use crate::controllers::speakers_handler::{
     delete_speaker, get_speaker, post_speaker, speakers, update_speaker,

@@ -1,5 +1,5 @@
 use crate::models::room_model::RoomErr;
-use crate::models::timeslot_assignment_model::{assign_topics_to_timeslots, timeslot_assignment_update};
+use crate::models::timeslot_assignment_model::assign_topics_to_timeslots;
 use crate::types::ApiStatusCode;
 use crate::{
     controllers::site_handler::CreateScheduleForm,
