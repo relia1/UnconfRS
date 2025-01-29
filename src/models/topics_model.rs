@@ -28,11 +28,6 @@ pub struct TopicError {
     pub error: String,
 }
 
-/// Implements `ToSchema` trait for `TopicError` generating a JSON schema
-/// for the error type
-///
-/// The schema defines two properties: `status` and `error`.
-
 /// Implements the `Serialize` trait for `TopicError`
 ///
 /// This implementation serializes a `TopicError` into a JSON object with two properties:

@@ -48,11 +48,6 @@ pub struct SpeakerError {
     pub error: String,
 }
 
-/// Implements `ToSchema` trait for `SpeakerError` struct.
-///
-/// This implementation provides a JSON schema for the `SpeakerError` struct. The schema defines two
-/// properties: `status` and `error`.
-
 /// Implements the `Serialize` trait for `SpeakerError`
 ///
 /// This implementation serializes a `SpeakerError` into a JSON object with two properties: `status`

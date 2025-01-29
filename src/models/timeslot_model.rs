@@ -44,11 +44,6 @@ pub struct TimeSlotError {
     pub error: String,
 }
 
-/// Implements the `ToSchema` trait for `TimeSlotError` struct.
-///
-/// This implementation provides a JSON schema for the `TimeSlotError` struct. The schema defines
-/// two properties: `status` and `error`.
-
 /// Implements the `Serialize` trait for `TimeSlotError`
 ///
 /// This implementation serializes a `TimeSlotError` into a JSON object with two properties:
@@ -120,14 +115,12 @@ pub struct TimeslotRequestWrapper {
 
 #[derive(Debug, Deserialize)]
 pub struct TimeslotUpdateRequest {
-    id: i32,
     pub start_time: String,
     pub end_time: String,
     pub speaker_id: i32,
     pub topic_id: i32,
     pub room_id: i32,
     pub old_room_id: i32,
-    schedule_id: i32,
 }
 
 #[serde_with::skip_serializing_none]
@@ -140,7 +133,6 @@ pub struct TimeSlot {
 
 #[derive(Debug, Deserialize, FromRow)]
 pub struct TimeslotAssignment {
-    pub id: Option<i32>,
     pub time_slot_id: i32,
     pub speaker_id: i32,
     pub topic_id: i32,

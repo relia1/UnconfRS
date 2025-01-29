@@ -79,10 +79,6 @@ pub struct ScheduleError {
     pub error: String,
 }
 
-/// Implements the `ToSchema` trait for `ScheduleError`
-///
-/// This trait allows `ScheduleError` to be converted into a JSON schema.
-
 /// Implements the `Serialize` trait for `ScheduleError`
 ///
 /// This trait allows `ScheduleError` to be serialized into JSON.
