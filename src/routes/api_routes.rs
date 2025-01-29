@@ -53,7 +53,6 @@ pub fn get_routes(app_state: Arc<RwLock<AppState>>) -> Router<Arc<RwLock<AppStat
         // Schedule routes with authentication
         .route("/schedules", get(schedules))
         .route("/schedules/:id", get(get_schedule))
-        .route("/schedules/:id", put(update_schedule))
         .route("/schedules/add", post(post_schedule))
         .route(
             "/schedules/generate",

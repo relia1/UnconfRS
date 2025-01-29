@@ -290,44 +290,6 @@ pub async fn schedule_add(
     ))
 }
 
-/// Updates a schedule.
-///
-/// This function updates a schedule in the database.
-///
-/// # Parameters
-/// - `db_pool` - The database connection pool
-/// - `index` - The index of the schedule to update
-/// - `schedule` - The schedule data passed in to use for the update
-///
-/// # Returns
-/// A `Result` containing the updated `Schedule` or a `Box<dyn Error>` error.
-///
-/// # Errors
-/// If an error occurs while updating the schedule in the database, a `Box<dyn Error>` error is
-/// returned.
-pub async fn schedule_update(
-    db_pool: &Pool<Postgres>,
-    index: i32,
-    schedule: Schedule,
-) -> Result<Schedule, Box<dyn Error>> {
-    sqlx::query(
-        "UPDATE schedules SET num_of_timeslots = $1 WHERE id = $2"
-    )
-        .bind(schedule.num_of_timeslots)
-        .bind(index)
-        .execute(db_pool)
-        .await?;
-
-    let timeslot_forms = schedule.timeslots.iter()
-                                 .map(|t| TimeslotForm {
-                                     start_time: t.start_time.format("%H:%M").to_string(),
-                                     duration: (t.end_time - t.start_time).num_minutes() as i32,
-                                     assignments: vec![],
-                                 })
-                                 .collect();
-
-    Ok(schedule)
-}
 
 /// Generates a schedule.
 ///
@@ -380,21 +342,7 @@ pub async fn schedule_generate(db_pool: &Pool<Postgres>) -> Result<Schedule, Sch
 /// # Errors
 /// If an error occurs while clearing the schedule, a `Box<dyn Error>` error is returned.
 pub async fn schedule_clear(db_pool: &Pool<Postgres>) -> Result<(), Box<dyn Error>> {
-    let schedule = schedules_get(db_pool).await?.ok_or("No schedule found")?;
-    let schedule_id = schedule.id.ok_or("Schedule ID not found")?;
-
-    sqlx::query(
-        r#"
-        UPDATE time_slots
-        SET
-            speaker_id = NULL,
-            topic_id = NULL
-        WHERE
-            topic_id IS NOT NULL
-            AND speaker_id IS NOT NULL
-            AND schedule_id = $1
-        "#,
-    ).bind(schedule_id).execute(db_pool).await?;
+    sqlx::query(r#"DELETE FROM timeslot_assignments"#).execute(db_pool).await?;
 
     Ok(())
 }

@@ -73,10 +73,10 @@ pub struct Event {
 
 #[derive(Template, Debug, Serialize)]
 #[template(path = "create_schedule.html")]
-struct ScheduleTemplate {
-    schedule: Option<Schedule>,
-    rooms: Option<Vec<Room>>,
-    events: Vec<Event>,
+pub(crate) struct ScheduleTemplate {
+    pub(crate) schedule: Option<Schedule>,
+    pub(crate) rooms: Option<Vec<Room>>,
+    pub(crate) events: Vec<Event>,
 }
 
 #[derive(Debug, Deserialize)]

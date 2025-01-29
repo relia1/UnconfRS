@@ -4,14 +4,13 @@ use tokio::sync::RwLock;
 use crate::config::AppState;
 use crate::controllers::site_handler::CreateScheduleForm;
 use crate::models::schedule_model::{
-    schedule_add, schedule_clear, schedule_generate, schedule_get, schedule_update, schedules_get,
+    schedule_add, schedule_clear, schedule_generate, schedule_get, schedules_get,
     Schedule, ScheduleErr, ScheduleError,
 };
 use crate::types::ApiStatusCode;
 use crate::StatusCode;
 use askama_axum::IntoResponse;
 use axum::debug_handler;
-use axum::extract::Path;
 use axum::extract::State;
 use axum::response::Response;
 use axum::Json;
@@ -132,54 +131,6 @@ pub async fn post_schedule(
             trace!("id: {:?}\n", id);
             StatusCode::CREATED.into_response()
         }
-        Err(e) => ScheduleError::response(ApiStatusCode::from(StatusCode::BAD_REQUEST), e),
-    }
-}
-
-#[utoipa::path(
-    put,
-    path = "/api/v1/schedules/{id}",
-    request_body(
-        content = inline(Schedule),
-        description = "Schedule to update"
-    ),
-    responses(
-        (status = 200, description = "Updated schedule", body = ()),
-        (status = 400, description = "Bad request", body = ScheduleError),
-        (status = 404, description = "Schedule not found", body = ScheduleError),
-        (status = 422, description = "Unprocessable entity", body = ScheduleError),
-    )
-)]
-#[debug_handler]
-/// Updates a schedule.
-///
-/// This function is a handler for the route `PUT /api/v1/schedules/{id}`. It updates a schedule in
-/// the database.
-///
-/// # Parameters
-/// - `app_state` - Thread-safe shared state wrapped in an Arc and RwLock
-/// - `schedule_id` - The id of the schedule to update
-/// - `schedule` - The schedule to update
-///
-/// # Returns
-/// `Response` with a status code of 200 OK and an empty body if the schedule was updated or an
-/// error response if the schedule could not be updated.
-///
-/// # Errors
-/// This function returns a 400 error if:
-/// - The schedule could not be updated
-/// - The schedule does not exist
-/// - The schedule is invalid
-pub async fn update_schedule(
-    State(app_state): State<Arc<RwLock<AppState>>>,
-    Path(schedule_id): Path<i32>,
-    Json(schedule): Json<Schedule>,
-) -> Response {
-    trace!("schedule id: {:?}", &schedule.id);
-    let app_state_lock = app_state.read().await;
-    let read_lock = &app_state_lock.unconf_data.read().await.unconf_db;
-    match schedule_update(read_lock, schedule_id, schedule).await {
-        Ok(schedule) => Json(schedule).into_response(),
         Err(e) => ScheduleError::response(ApiStatusCode::from(StatusCode::BAD_REQUEST), e),
     }
 }

@@ -33,7 +33,6 @@ use utoipa::OpenApi;
         // Schedules
         schedule_handler::schedules,
         schedule_handler::get_schedule,
-        schedule_handler::update_schedule,
         schedule_handler::post_schedule,
         schedule_handler::generate,
         schedule_handler::clear,
