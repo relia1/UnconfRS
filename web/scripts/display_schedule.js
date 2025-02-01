@@ -258,6 +258,45 @@ document.addEventListener('DOMContentLoaded', function () {
         document.querySelector('#overlay').addEventListener('click', closePopup);
     });
 
+    document.getElementById('submit-btn').addEventListener('click', async (e) => {
+        e.preventDefault();
+        const createRoomsForm = {
+            rooms: [
+                {
+                    name:            document.getElementById('room-name').value,
+                    location:        document.getElementById('room-location').value,
+                    available_spots: Number(20)
+                }
+            ]
+        };
+        try {
+            const response = await fetch('/api/v1/rooms/add', {
+                method:  'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body:    JSON.stringify(createRoomsForm)
+            });
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            closePopup();
+            location.reload();
+        } catch (error) {
+            console.error('Error submitting room:', error);
+            alert('There was an error submitting the room. Please try again.');
+        }
+    });
+
+    function closePopup() {
+        const popup = document.getElementById('popup');
+        const overlay = document.getElementById('overlay');
+        popup.style.display = 'none';
+        overlay.style.display = 'none';
+        document.querySelector('#cancelButton').removeEventListener('click', closePopup);
+        document.querySelector('#overlay').removeEventListener('click', closePopup);
+    }
+
     async function removeRoom(roomId) {
         try {
             const response = await fetch(`/api/v1/rooms/${roomId}`, {
