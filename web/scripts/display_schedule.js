@@ -4,6 +4,66 @@ let scheduleContainer = null;
 let displayControls = null;
 let draggedEvent = null;
 
+class EventElement {
+    constructor(div) {
+        this.element = div.element || div;
+    }
+
+    updatePosition(top, height) {
+        this.element.style.top    = top;
+        this.element.style.height = height;
+    }
+
+    moveTo(column) {
+        column.appendChild(this.element);
+    }
+
+    updateAttributes(newData) {
+        // Map properties to their corresponding data-attributes
+        const attributeMap = {
+            startTime:  'data-start-time',
+            endTime:    'data-end-time',
+            roomId:     'data-room-id',
+            timeslotId: 'data-timeslot-id',
+            topicId:    'data-topic-id',
+            speakerId:  'data-speaker-id',
+            scheduleId: 'data-schedule-id',
+        };
+
+        // Only update attributes that are provided in newData
+        Object.entries(attributeMap).forEach(([key, attr]) => {
+            if (newData[key] !== undefined) {
+                this.element.setAttribute(attr, newData[key]);
+            }
+        });
+
+        if (newData.title !== undefined) {
+            this.element.textContent = newData.title;
+        }
+    }
+
+    getData() {
+        return new EventData({...this.element.dataset, title: this.element.textContent});
+    }
+}
+
+class EventData {
+    constructor({roomId, timeslotId, topicId, speakerId, scheduleId, startTime, endTime, title}) {
+        this.roomId     = Number(roomId);
+        this.timeslotId = Number(timeslotId);
+        this.topicId    = Number(topicId);
+        this.speakerId  = Number(speakerId);
+        this.scheduleId = Number(scheduleId);
+        this.startTime  = startTime;
+        this.endTime    = endTime;
+        this.title      = title;
+    }
+}
+
+const STATUS_CODES = Object.freeze({
+    UNAUTHORIZED: 401,
+});
+
 document.addEventListener('DOMContentLoaded', function () {
     if (localStorage.getItem('admin') === 'true') {
         document.documentElement.className += ' admin';
@@ -19,50 +79,36 @@ document.addEventListener('DOMContentLoaded', function () {
     numOfTimeslots = timeslots.length;
 
     function createEventBlock(event, displayType) {
-        const eventBlock = document.createElement('div');
-        eventBlock.className = 'event-block';
-        eventBlock.textContent = event.title;
-        eventBlock.draggable = true;
+        const div     = document.createElement('div');
+        div.className = 'event-block';
+        div.draggable = true;
 
-        // Set attributes for event block
-        const attributes = {
-            'data-start-time':  event.startTime.substring(0, 5),
-            'data-end-time':    event.endTime.substring(0, 5),
-            'data-timeslot-id': event.timeslotId,
-            'data-topic-id':    event.topicId,
-            'data-speaker-id':  event.speakerId,
-            'data-schedule-id': event.scheduleId,
-            'data-room-id':     event.roomId,
-        };
-
-        Object.entries(attributes).forEach(([attr, value]) => {
-            eventBlock.setAttribute(attr, value);
+        const eventElement = new EventElement(div);
+        eventElement.updateAttributes({
+            startTime:  event.startTime.substring(0, 5),
+            endTime:    event.endTime.substring(0, 5),
+            roomId:     event.roomId,
+            timeslotId: event.timeslotId,
+            title:      event.title,
+            speakerId:  event.speakerId,
+            topicId:    event.topicId,
+            scheduleId: event.scheduleId,
         });
 
-        eventBlock.addEventListener('dragstart', handleDragStart);
+        div.addEventListener('dragstart', handleDragStart);
 
         const {top, height} = displayType === 'time' ?
-            calculateEventPosition(attributes["data-start-time"]) :
-            calculateRoomBasedEventPosition(attributes["data-room-id"]);
+                              calculateEventPosition(event.startTime.substring(0, 5)) :
+                              calculateRoomBasedEventPosition(event.roomId);
 
-        eventBlock.style.top = top;
-        eventBlock.style.height = height;
+        eventElement.updatePosition(top, height);
 
-        return eventBlock;
+        return div;
     }
 
     function calculatePosition(index, total) {
-        const multiplier = (
-                               1 /
-                               (
-                                   total + 1
-                               )
-                           ) * 100;
-        const top = (
-                        (
-                            index + 1
-                        ) * multiplier
-                    ) + '%';
+        const multiplier = (1 / (total + 1)) * 100;
+        const top        = ((index + 1) * multiplier) + '%';
         const height = multiplier + '%';
         return {top, height};
     }
@@ -84,7 +130,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function handleDragStart(event) {
         if (localStorage.getItem('admin') === 'true') {
-            draggedEvent = event.target;
+            draggedEvent = new EventElement(event.target);
             event.dataTransfer.effectAllowed = "move";
             event.dataTransfer.setData("text/plain", null);
         } else {
@@ -97,116 +143,175 @@ document.addEventListener('DOMContentLoaded', function () {
         event.dataTransfer.dropEffect = "move";
     }
 
-    async function handleDrop(event) {
-        event.preventDefault();
+    async function handleDrop(dropEvent) {
+        dropEvent.preventDefault();
         if (!draggedEvent) {
             return;
         }
 
-        const column = event.target.closest('.column');
-        if (!column) {
+        const draggedEventData              = draggedEvent.getData();
+        const draggedEventElement           = draggedEvent.element;
+        const view                          = document.getElementById('view-selector').value;
+        const [timeslotIndex, targetRoomId] = await getTimeslotIndexAndRoomId(dropEvent, view);
+        if (timeslotIndex === undefined || targetRoomId === undefined) {
+            draggedEvent = null;
             return;
         }
 
-        const view = document.getElementById('view-selector').value;
-        const rect = column.getBoundingClientRect();
-        const relativePosition = (
-                                     event.clientY - rect.top
-                                 ) / rect.height;
+        const existingEvent = events.find(event => event.timeslotId === timeslotIndex + 1 &&
+            event.roomId === targetRoomId);
 
-        // Calculate new position data
-        let timeslotIndex;
-        if (view === 'time') {
-            timeslotIndex =
-                Math.floor(relativePosition *
-                           (
-                               numOfTimeslots + 1
-                           )) - 1;
+        // If there is an event in the same timeslot or room, swap the events
+        if (existingEvent) {
+            // If the dragged event is dropped on itself, do nothing
+            if (existingEvent.timeslotId === draggedEventData.timeslotId && existingEvent.roomId ===
+                draggedEventData.roomId) {
+                draggedEvent = null;
+                return;
+            }
+
+            try {
+                await swapAssignedEvents(draggedEventData, existingEvent);
+            } catch (error) {
+                draggedEvent = null;
+                return;
+            }
         } else {
-            const columnTime = column.getAttribute('data-time');
-            timeslotIndex = timeslots.findIndex(slot => slot.start.substring(0, 5) === columnTime);
+            const newData = {
+                roomId:     targetRoomId,
+                timeslotId: timeslotIndex + 1,
+                startTime:  timeslots[timeslotIndex].start.substring(0, 5),
+                endTime:    timeslots[timeslotIndex].end.substring(0, 5),
+                title:      draggedEventData.title,
+                speakerId:  draggedEventData.speakerId,
+                topicId:    draggedEventData.topicId,
+                scheduleId: draggedEventData.scheduleId,
+            };
+            try {
+                await updateEventInBackend(newData, draggedEventData);
+            } catch (error) {
+                draggedEvent = null;
+                return;
+            }
         }
+
+        updateView();
+        draggedEvent = null;
+    }
+
+    async function getTimeslotIndexAndRoomId(dropEvent, view) {
+        const targetColumn = dropEvent.target.closest('.column');
+        if (!targetColumn) {
+            return [undefined, undefined];
+        }
+
+        const rect             = targetColumn.getBoundingClientRect();
+        const relativePosition = (dropEvent.clientY - rect.top) / rect.height;
+
+        let [timeslotIndex, roomId] = (() => {
+            if (view === 'time') {
+                return [
+                    Math.floor(relativePosition * (numOfTimeslots + 1)) - 1,
+                    Number(targetColumn.getAttribute('data-room-id')),
+                ];
+            } else {
+                const columnTime = targetColumn.getAttribute('data-time');
+                return [
+                    timeslots.findIndex(slot => slot.start.substring(0, 5) === columnTime),
+                    rooms[Math.floor(relativePosition * (numOfRooms + 1)) - 1].id,
+                ];
+            }
+        })();
 
         if (timeslotIndex < 0 || timeslotIndex >= numOfTimeslots) {
-            return;
+            timeslotIndex = undefined;
         }
 
-        const oldTimeslotId = Number(draggedEvent.getAttribute('data-timeslot-id'));
-        const oldRoomId = draggedEvent.getAttribute('data-room-id');
-
-        let newData = {
-            timeslotId: timeslots[timeslotIndex].id,
-            startTime:  timeslots[timeslotIndex].start.substring(0, 5),
-            endTime:    timeslots[timeslotIndex].end.substring(0, 5),
-            roomId:     view === 'time' ?
-                            column.getAttribute('data-room-id') :
-                            rooms[Math.floor(relativePosition *
-                                             (
-                                                 numOfRooms + 1
-                                             )) - 1].id
-        };
-
-        if (!newData.roomId) {
-            return;
+        if (roomId < 0 || roomId > numOfRooms) {
+            roomId = undefined;
         }
 
-        // Update dragged event attributes
-        Object.entries({
-                           'data-start-time':  newData.startTime.substring(0, 5),
-                           'data-end-time':    newData.endTime.substring(0, 5),
-                           'data-room-id':     newData.roomId,
-                           'data-timeslot-id': newData.timeslotId
-                       }).forEach(([attr, value]) => {
-            draggedEvent.setAttribute(attr, value);
+        return [timeslotIndex, roomId];
+    }
+
+    async function getExistingEventElement(dropEvent, roomId, view, draggedEventData) {
+        const targetColumn = dropEvent.target.closest('.column');
+        return Array.from(targetColumn.children).find(child => {
+            if (!child.classList.contains('event-block')) {
+                return false;
+            }
+
+            if (view === 'time' || child === draggedEvent.element) {
+                return child.getAttribute('data-start-time') === draggedEventData.startTime;
+            } else {
+                return Number(child.getAttribute('data-room-id')) === roomId;
+            }
+        });
+    }
+
+    async function updateEventInBackend(newData, originalData) {
+        const response = await fetch(`api/v1/timeslots/${originalData.timeslotId}`, {
+            method:  'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body:    JSON.stringify({
+                id:          newData.timeslotId,
+                start_time:  newData.startTime,
+                end_time:    newData.endTime,
+                speaker_id:  originalData.speakerId,
+                topic_id:    originalData.topicId,
+                room_id:     Number(newData.roomId),
+                old_room_id: originalData.roomId,
+                schedule_id: originalData.scheduleId,
+            }),
         });
 
-        // Update position
-        const {top, height} = view === 'time' ?
-            calculateEventPosition(newData.startTime.substring(0, 5)) :
-            calculateRoomBasedEventPosition(newData.roomId);
-
-        draggedEvent.style.top = top;
-        draggedEvent.style.height = height;
-
-        column.appendChild(draggedEvent);
-
-        // Update the event in the backend
-        try {
-            const response = await fetch(`api/v1/timeslots/${oldTimeslotId}`, {
-                method:  'PUT',
-                headers: {'Content-Type': 'application/json'},
-                body:    JSON.stringify({
-                                            id:          newData.timeslotId,
-                                            start_time:  newData.startTime,
-                                            end_time:    newData.endTime,
-                                            speaker_id:  Number(draggedEvent.getAttribute('data-speaker-id')),
-                                            topic_id:    Number(draggedEvent.getAttribute('data-topic-id')),
-                                            room_id:     Number(newData.roomId),
-                                            old_room_id: Number(oldRoomId),
-                                            schedule_id: Number(draggedEvent.getAttribute('data-schedule-id'))
-                                        })
-            });
-
-            if (!response.ok) {
-                if (response.status === 401) {
-                    alert('You do not have permission to move events');
-                } else {
-                    alert('There was an error updating the schedule. Please try again.');
-                }
-                throw new Error(`HTTP error! status: ${response.status}`);
+        if (!response.ok) {
+            if (response.status === STATUS_CODES.UNAUTHORIZED) {
+                alert('You do not have permission to move events');
+            } else {
+                alert('There was an error updating the schedule. Please try again.');
             }
-
-            // Update local events array
-            const eventIndex = events.findIndex(e => e.timeslotId === oldTimeslotId);
-            if (eventIndex !== -1) {
-                events[eventIndex] = {...events[eventIndex], ...newData};
-            }
-        } catch (error) {
-            console.error('Error updating the schedule:', error);
-            alert('There was an error updating the schedule.');
+            throw new Error(`HTTP error! status: ${response.status}`);
         }
 
-        draggedEvent = null;
+        // Update local events array
+        const eventIndex = events.findIndex(e => e.timeslotId === originalData.timeslotId &&
+            e.roomId === originalData.roomId);
+        if (eventIndex !== -1) {
+            events[eventIndex] = {...events[eventIndex], ...newData};
+        }
+    }
+
+    async function swapAssignedEvents(draggedEvent, targetEvent) {
+        const response = await fetch(`api/v1/timeslots/swap`, {
+            method:  'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body:    JSON.stringify({
+                timeslot_id_1: draggedEvent.timeslotId,
+                timeslot_id_2: targetEvent.timeslotId,
+                room_id_1:     draggedEvent.roomId,
+                room_id_2:     targetEvent.roomId,
+            }),
+        });
+
+        if (!response.ok) {
+            if (response.status === STATUS_CODES.UNAUTHORIZED) {
+                alert('You do not have permission to move events');
+            } else {
+                alert('There was an error updating the schedule. Please try again.');
+            }
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        // Update local events array
+        const draggedEventIndex = events.findIndex(e => e.timeslotId === draggedEvent.timeslotId &&
+            e.roomId === draggedEvent.roomId);
+        const targetEventIndex  = events.findIndex(e => e.timeslotId === targetEvent.timeslotId &&
+            e.roomId === targetEvent.roomId);
+        if (draggedEventIndex !== -1 && targetEventIndex !== -1) {
+            events[draggedEventIndex] = {...events[draggedEventIndex], ...targetEvent};
+            events[targetEventIndex]  = {...events[targetEventIndex], ...draggedEvent};
+        }
     }
 
     document.getElementById('populate-schedule').addEventListener('click', async () => {
@@ -306,7 +411,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 },
             });
 
-            if (response.status === 401) {
+            if (response.status === STATUS_CODES.UNAUTHORIZED) {
                 alert('You do not have permission to delete rooms');
                 return;
             }
@@ -345,7 +450,6 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-
     function updateView() {
         const view = document.getElementById('view-selector').value;
         view === 'time' ? generateTimeBasedView() : generateRoomBasedView();
@@ -353,11 +457,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function generateTimeBasedView() {
         scheduleContainer.innerHTML = '';
-        let timeSelector = document.getElementById('time-selector');
-        if (timeSelector) {
-            timeSelector.remove();
-            document.getElementById('time-selector-label').remove();
-        }
 
         // Create time slots column
         let rowColumn = document.createElement('div');
@@ -377,15 +476,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
         scheduleContainer.appendChild(rowColumn);
 
-        // Create room selector
-        let roomSelectorLabel = document.createElement('label');
-        roomSelectorLabel.setAttribute('for', 'room-selector');
-        roomSelectorLabel.setAttribute('id', 'room-selector-label');
-        roomSelectorLabel.innerText = 'Choose a room: ';
-        let roomSelector = document.createElement('select');
-        roomSelector.setAttribute('name', 'room-selector');
-        roomSelector.setAttribute('id', 'room-selector');
-
         // Create room columns
         rooms.forEach((room, index) => {
             const column = document.createElement('div');
@@ -400,28 +490,9 @@ document.addEventListener('DOMContentLoaded', function () {
             column.addEventListener('drop', handleDrop);
             scheduleContainer.appendChild(column);
 
-            const option = document.createElement('option');
-            option.value = room.id;
-            option.textContent = room.name;
-            roomSelector.appendChild(option);
-
             if (index === 0) {
                 column.classList.add('active');
             }
-        });
-
-        displayControls.appendChild(roomSelectorLabel);
-        displayControls.appendChild(roomSelector);
-
-        // Add room selection handler
-        roomSelector.addEventListener('change', (event) => {
-            const selectedRoomId = event.target.value;
-            document.querySelectorAll('.column').forEach(column => {
-                column.classList.toggle(
-                    'active',
-                    column.getAttribute('data-room-id') === selectedRoomId
-                );
-            });
         });
 
         // Add events to room columns
@@ -436,11 +507,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function generateRoomBasedView() {
         scheduleContainer.innerHTML = '';
-        let roomSelector = document.getElementById('room-selector');
-        if (roomSelector) {
-            roomSelector.remove();
-            document.getElementById('room-selector-label').remove();
-        }
 
         // Create rooms column
         let rowColumn = document.createElement('div');
@@ -460,15 +526,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
         scheduleContainer.appendChild(rowColumn);
 
-        // Create time selector
-        let timeSelectorLabel = document.createElement('label');
-        timeSelectorLabel.setAttribute('for', 'time-selector');
-        timeSelectorLabel.setAttribute('id', 'time-selector-label');
-        timeSelectorLabel.innerText = 'Choose a starting time: ';
-        let timeSelector = document.createElement('select');
-        timeSelector.setAttribute('name', 'time-selector');
-        timeSelector.setAttribute('id', 'time-selector');
-
         // Create time columns based on actual timeslots
         timeslots.forEach((slot, index) => {
             const column = document.createElement('div');
@@ -479,28 +536,9 @@ document.addEventListener('DOMContentLoaded', function () {
             column.addEventListener('drop', handleDrop);
             scheduleContainer.appendChild(column);
 
-            const option = document.createElement('option');
-            option.value = slot.start.substring(0, 5);
-            option.textContent = slot.start.substring(0, 5);
-            timeSelector.appendChild(option);
-
             if (index === 0) {
                 column.classList.add('active');
             }
-        });
-
-        displayControls.appendChild(timeSelectorLabel);
-        displayControls.appendChild(timeSelector);
-
-        // Add time selection handler
-        timeSelector.addEventListener('change', (event) => {
-            const selectedTime = event.target.value;
-            document.querySelectorAll('.column').forEach(column => {
-                column.classList.toggle(
-                    'active',
-                    column.getAttribute('data-time') === selectedTime
-                );
-            });
         });
 
         // Add events to time columns
