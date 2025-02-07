@@ -1,25 +1,46 @@
 ARG APP_NAME=unconfrs
-FROM rust:latest AS build
+FROM rust:slim-bookworm AS build
+ARG BUILD_TYPE
 WORKDIR /app
+
+RUN apt-get update && apt-get install -y \
+    pkg-config \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
 
 # Cache downloaded+built dependencies
 COPY *.toml Cargo.lock /app/
-RUN \
+RUN if [ "$BUILD_TYPE" = "release" ]; then \
     mkdir /app/src && \
     mkdir /app/web && \
     echo 'fn main() {}' > /app/src/main.rs && \
     cargo build --release && \
-    rm -Rvf /repo/src
+    rm -Rvf /app/src target/${BUILD_TYPE}/deps/unconfrs*; \
+else \
+    mkdir /app/src && \
+    mkdir /app/web && \
+    echo 'fn main() {}' > /app/src/main.rs && \
+    cargo build && \
+    rm -Rvf /app/src target/${BUILD_TYPE}/deps/unconfrs*; \
+fi
 
 # Build our actual code
 COPY src /app/src
 COPY web /app/web
 COPY migrations /app/migrations
-RUN \
+RUN if [ "$BUILD_TYPE" = "release" ]; then \
     touch src/main.rs && \
-    cargo build --release
+    cargo build --release; \
+else \
+    touch src/main.rs && \
+    cargo build; \
+fi
 
-FROM rust:latest AS final
+FROM debian:bookworm-slim AS final
+ARG BUILD_TYPE
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 # Create a non-privileged user that the app will run under.
 # See https://docs.docker.com/go/dockerfile-user-best-practices/
 ARG UID=10001
@@ -34,7 +55,7 @@ RUN adduser \
 USER appuser
 
 # Copy the executable from the "build" stage.
-COPY --from=build /app/target/release/Unconfrs /bin/
+COPY --from=build /app/target/${BUILD_TYPE}/Unconfrs /bin/
 COPY --from=build /app/web/ /
 RUN ls -l
 # COPY --chown=appuser:appuser ./assets ./assets

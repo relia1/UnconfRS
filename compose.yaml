@@ -12,6 +12,8 @@ services:
     build:
       context: .
       target: final
+      args:
+        BUILD_TYPE: ${BUILD_TYPE:-release}
     ports:
       - 3000:3000
     environment:
