@@ -2,10 +2,20 @@ use crate::models::room_model::Room;
 use crate::models::timeslot_model::{TimeSlot, TimeslotAssignment, TimeslotAssignmentForm, TimeslotRequest};
 use crate::models::topics_model::Topic;
 use chrono::NaiveTime;
+use serde::{Deserialize, Serialize};
 use sqlx::{Pool, Postgres};
 use std::collections::HashSet;
 use std::error::Error;
 use tracing::trace;
+use utoipa::ToSchema;
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct TimeslotSwapRequest {
+    pub timeslot_id_1: i32,
+    pub timeslot_id_2: i32,
+    pub room_id_1: i32,
+    pub room_id_2: i32,
+}
 
 /// Assigns topics to timeslots.
 ///
@@ -153,4 +163,35 @@ pub async fn timeslot_assignment_update(
     trace!("\n\n\n");
 
     Ok(assignment_ids)
+}
+
+pub async fn timeslot_assignment_swap(
+    db_pool: &Pool<Postgres>,
+    request: TimeslotSwapRequest,
+) -> Result<(), Box<dyn Error>> {
+    let mut tx = db_pool.begin().await?;
+
+    sqlx::query(
+        "UPDATE timeslot_assignments t1
+        SET
+            speaker_id = t2.speaker_id,
+            topic_id = t2.topic_id
+        FROM (
+            SELECT id, speaker_id, topic_id
+            FROM timeslot_assignments
+            WHERE (time_slot_id, room_id) IN (($1, $2), ($3, $4))
+        ) t2
+        WHERE t1.id != t2.id
+        AND (t1.time_slot_id, t1.room_id) IN (($1, $2), ($3, $4))"
+    )
+        .bind(request.timeslot_id_1)
+        .bind(request.room_id_1)
+        .bind(request.timeslot_id_2)
+        .bind(request.room_id_2)
+        .execute(&mut *tx)
+        .await?;
+
+    tx.commit().await?;
+
+    Ok(())
 }

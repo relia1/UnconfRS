@@ -3,7 +3,7 @@ use tokio::sync::RwLock;
 
 use crate::config::AppState;
 use crate::models::{
-    timeslot_assignment_model::timeslot_assignment_update,
+    timeslot_assignment_model::{timeslot_assignment_swap, timeslot_assignment_update, TimeslotSwapRequest},
     timeslot_model::{timeslots_add, TimeSlot, TimeSlotError, TimeslotAssignmentForm, TimeslotForm, TimeslotRequest, TimeslotRequestWrapper, TimeslotUpdateRequest},
 };
 use askama_axum::IntoResponse;
@@ -137,6 +137,52 @@ pub async fn update_timeslot(
 
     match timeslot_assignment_update(write_lock, timeslot_id, TimeslotRequest { timeslots: vec![timeslot] }).await {
         Ok(assignment_ids) => Json(assignment_ids).into_response(),
+        Err(e) => TimeSlotError::response(StatusCode::INTERNAL_SERVER_ERROR.into(), e),
+    }
+}
+
+#[utoipa::path(
+    put,
+    path = "/api/v1/timeslots/swap",
+    request_body(
+        content = inline(TimeslotSwapRequest),
+        description = "Timeslots to swap assignments"
+    ),
+    responses(
+        (status = 200, description = "Updated timeslots", body = ()),
+        (status = 400, description = "Bad request", body = TimeSlotError),
+        (status = 404, description = "Timeslot not found", body = TimeSlotError),
+        (status = 422, description = "Unprocessable entity", body = TimeSlotError),
+    )
+)]
+#[debug_handler]
+/// Swaps 2 timeslots
+///
+/// This function is a handler for the route `PUT /api/v1/timeslots/swap`. It updates 2 timeslot in
+/// the database swapping their assignments
+///
+/// # Parameters
+/// - `app_state` - Thread-safe shared state wrapped in an Arc and RwLock
+/// - `timeslots composite key` - The values to identify the timeslots to swap
+///
+/// # Returns
+/// `Response` with a status code of 200 OK and an empty body if the timeslots were updated or an
+/// error response if the timeslots could not be updated.
+///
+/// # Errors
+/// This function returns a 400 error if:
+/// - The timeslots could not be updated
+/// - The timeslot does not exist
+/// - The timeslot is invalid
+pub async fn swap_timeslots(
+    State(app_state): State<Arc<RwLock<AppState>>>,
+    Json(request): Json<TimeslotSwapRequest>,
+) -> Response {
+    let app_state_lock = app_state.read().await;
+    let write_lock = &app_state_lock.unconf_data.read().await.unconf_db;
+
+    match timeslot_assignment_swap(write_lock, request).await {
+        Ok(_) => Json(()).into_response(),
         Err(e) => TimeSlotError::response(StatusCode::INTERNAL_SERVER_ERROR.into(), e),
     }
 }

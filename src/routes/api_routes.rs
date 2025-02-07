@@ -6,7 +6,7 @@ use crate::controllers::schedule_handler::{
 use crate::controllers::speakers_handler::{
     delete_speaker, get_speaker, post_speaker, speakers, update_speaker,
 };
-use crate::controllers::timeslot_handler::{add_timeslots, update_timeslot};
+use crate::controllers::timeslot_handler::{add_timeslots, swap_timeslots, update_timeslot};
 use crate::controllers::topics_handler::{
     add_vote_for_topic, delete_topic, get_topic, post_topic, subtract_vote_for_topic, topics,
     update_topic,
@@ -69,5 +69,9 @@ pub fn get_routes(app_state: Arc<RwLock<AppState>>) -> Router<Arc<RwLock<AppStat
         .route(
             "/timeslots/add",
             post(add_timeslots.layer(from_fn_with_state(app_state.clone(), auth_middleware))),
+        )
+        .route(
+            "/timeslots/swap",
+            put(swap_timeslots.layer(from_fn_with_state(app_state.clone(), auth_middleware))),
         )
 }
