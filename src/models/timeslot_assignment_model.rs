@@ -1,5 +1,5 @@
 use crate::models::room_model::Room;
-use crate::models::timeslot_model::{TimeSlot, TimeslotAssignment, TimeslotAssignmentForm, TimeslotRequest};
+use crate::models::timeslot_model::{ExistingTimeslot, TimeslotAssignment, TimeslotAssignmentForm, TimeslotRequest};
 use crate::models::topics_model::Topic;
 use chrono::NaiveTime;
 use serde::{Deserialize, Serialize};
@@ -38,7 +38,7 @@ pub struct TimeslotSwapRequest {
 pub async fn assign_topics_to_timeslots(
     topics: &[Topic],
     rooms: &[Room],
-    existing_timeslots: &[TimeSlot],
+    existing_timeslots: &[ExistingTimeslot],
     db_pool: &Pool<Postgres>,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
     let mut topic_index = 0;
@@ -51,7 +51,7 @@ pub async fn assign_topics_to_timeslots(
         let existing_assignments = sqlx::query_as::<_, TimeslotAssignment>(
             "SELECT * FROM timeslot_assignments WHERE time_slot_id = $1"
         )
-            .bind(slot.id.unwrap_or_default())
+            .bind(slot.id)
             .fetch_all(db_pool)
             .await?;
 
@@ -89,7 +89,7 @@ pub async fn assign_topics_to_timeslots(
         }
 
         if !assignments.is_empty() {
-            insert_assignments(db_pool, slot.id.unwrap_or_default(), assignments).await?;
+            insert_assignments(db_pool, slot.id, assignments).await?;
         }
     }
 

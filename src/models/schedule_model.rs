@@ -135,7 +135,7 @@ pub struct Schedule {
     pub id: Option<i32>,
     pub num_of_timeslots: i32,
     #[sqlx(skip)]
-    pub timeslots: Vec<TimeSlot>,
+    pub timeslots: Vec<ExistingTimeslot>,
 }
 
 impl Schedule {
@@ -151,7 +151,7 @@ impl Schedule {
     ///
     /// # Returns
     /// A new `Schedule` instance
-    pub fn new(id: Option<i32>, num_of_timeslots: i32, timeslots: Vec<TimeSlot>) -> Self {
+    pub fn new(id: Option<i32>, num_of_timeslots: i32, timeslots: Vec<ExistingTimeslot>) -> Self {
         Self {
             id,
             num_of_timeslots,
@@ -270,11 +270,12 @@ pub async fn schedule_add(
 
     let timeslots = timeslot_ids.into_iter()
                                 .zip(schedule_form.start_time.iter().zip(schedule_form.end_time.iter()))
-                                .map(|(id, (start, end))| -> Result<TimeSlot, Box<dyn Error>> {
-                                    Ok(TimeSlot {
-                                        id: Some(id),
+        .map(|(id, (start, end))| -> Result<ExistingTimeslot, Box<dyn Error>> {
+            Ok(ExistingTimeslot {
+                id,
                                         start_time: NaiveTime::parse_from_str(start, "%H:%M")?,
                                         end_time: NaiveTime::parse_from_str(end, "%H:%M")?,
+                duration: (NaiveTime::parse_from_str(end, "%H:%M")? - NaiveTime::parse_from_str(start, "%H:%M")?).num_minutes() as i32,
                                     })
                                 })
                                 .collect::<Result<Vec<_>, _>>()?;

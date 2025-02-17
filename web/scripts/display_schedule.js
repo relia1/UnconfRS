@@ -227,7 +227,7 @@ document.addEventListener('DOMContentLoaded', function () {
             timeslotIndex = undefined;
         }
 
-        if (roomId < 0 || roomId > numOfRooms) {
+        if (roomId < 0) {
             roomId = undefined;
         }
 

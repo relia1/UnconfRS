@@ -1,6 +1,6 @@
 use crate::config::AppState;
 use crate::controllers::admin_handler::admin_handler;
-use crate::controllers::site_handler::{index_handler, schedule_handler, topic_handler};
+use crate::controllers::site_handler::{index_handler, schedule_handler, topic_handler, unconf_timeslots_handler};
 use axum::{routing::get, Router};
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -13,7 +13,7 @@ use tower_http::services::ServeDir;
 /// - The schedule page is served at `/unconf_schedule`
 /// - The admin page is served at `/admin`
 /// - The topics page is served at `/topics`
-/// - Static assets are served from `/scripts` and `/styles`
+/// - Static assets served from `/scripts` and `/styles`
 ///
 /// # Parameters
 /// - `app_state` - Thread-safe shared state wrapped in an Arc and RwLock
@@ -25,6 +25,7 @@ pub fn get_routes(app_state: Arc<RwLock<AppState>>) -> Router<Arc<RwLock<AppStat
         .route("/", get(index_handler))
         .route("/unconf_schedule", get(schedule_handler))
         .route("/admin", get(admin_handler))
-        .route("/topics", get(topic_handler)).nest_service("/scripts", ServeDir::new("scripts")).nest_service("/styles", ServeDir::new("styles"))
+        .route("/topics", get(topic_handler))
+        .route("/unconf_timeslots", get(unconf_timeslots_handler)).nest_service("/scripts", ServeDir::new("scripts")).nest_service("/styles", ServeDir::new("styles"))
         .with_state(app_state)
 }

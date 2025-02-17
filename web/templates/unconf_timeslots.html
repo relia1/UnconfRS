@@ -1,0 +1,566 @@
+{% let timeslots = existing_timeslots.clone() %}
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Configure Timeslots</title>
+        <style>{% include "../styles/nav.css" %}</style>
+        <script src="../scripts/nav.js" defer></script>
+        <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+        <style>
+            * {
+            box-sizing: border-box;
+            }
+
+            .app-container {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                padding: 2vw;
+                margin: 0 auto;
+                width: 90vw;
+                max-width: 75vw;
+            }
+
+            .header {
+                background: #e2e8f0;
+                padding: 3vw;
+                border-radius: 1.5vw;
+                box-shadow: 0 0.1vw 0.4vw rgba(0, 0, 0, 0.05);
+                margin-bottom: 1vw;
+                width: 100%;
+            }
+
+            h2 {
+                color: #2c3e50;
+                margin-bottom: 2vw;
+                font-weight: 600;
+                text-align: center;
+                font-size: 2.5vw;
+            }
+
+            h3 {
+                color: #34495e;
+                margin-top: 1vw;
+                margin-bottom: 1.5vw;
+                font-weight: 500;
+                font-size: 2vw;
+            }
+
+            input[type="time"],
+            input[type="text"] {
+                padding: 0.75vw 1vw;
+                border: 0.1vw solid #e2e8f0;
+                border-radius: 0.75vw;
+                font-size: 1.2vw;
+                width: auto;
+                min-width: 12vw;
+                transition: border-color 0.2s, box-shadow 0.2s;
+            }
+
+            input[type="number"] {
+                padding: 0.75vw 1vw;
+                border: 0.1vw solid #e2e8f0;
+                border-radius: 0.75vw;
+                font-size: 1.2vw;
+                width: auto;
+                max-width: 5vw;
+                transition: border-color 0.2s, box-shadow 0.2s;
+            }
+
+            input:focus {
+                outline: none;
+                border-color: #3498db;
+                box-shadow: 0 0 0 0.2vw rgba(52, 152, 219, 0.1);
+            }
+
+            input:disabled {
+                background-color: #f8fafc;
+                border-color: #e2e8f0;
+                color: #718096;
+                cursor: not-allowed;
+            }
+
+            button {
+                background-color: #4299e1;
+                color: white;
+                border: none;
+                padding: 0.75vw 1.5vw;
+                border-radius: 0.75vw;
+                cursor: pointer;
+                font-size: 1.2vw;
+                font-weight: 500;
+                transition: background-color 0.2s;
+                white-space: nowrap;
+            }
+
+            button:hover {
+                background-color: #3182ce;
+            }
+
+            button:disabled {
+                background-color: #cbd5e0;
+                cursor: not-allowed;
+            }
+
+            #rooms-container {
+                width: 100%;
+                display: flex;
+                flex-direction: column;
+                gap: 2vw;
+            }
+
+            .room-container {
+                background: #e2e8f0;
+                padding: 0 2vw;
+                border-radius: 1.5vw;
+                box-shadow: 0 0.1vw 0.4vw rgba(0, 0, 0, 0.05);
+                width: 100%;
+            }
+
+            .room-settings {
+                background-color: #f8fafc;
+                margin-bottom: 1vw;
+                padding: 1.5vw;
+                border-radius: 1vw;
+                border: 0.1vw solid #e2e8f0;
+            }
+
+            .time-slot {
+                background-color: white;
+                margin: .2vw 0;
+                padding: .7vw;
+                border-radius: 1vw;
+                border: 0.1vw solid #e2e8f0;
+            }
+
+            .time-slot.existing {
+                background-color: #f8fafc;
+                border-color: #e2e8f0;
+            }
+
+            .time-slot label {
+                display: inline-block;
+                font-weight: 500;
+                color: #2c3e50;
+                font-size: 1.2vw;
+                white-space: nowrap;
+            }
+
+            .remove-btn {
+                margin-left: auto;
+            }
+
+            .add-slot-btn {
+               margin-bottom: 2vw;
+            }
+
+            .remove-btn:hover {
+                background-color: #c0392b;
+            }
+
+            .blocked {
+                background-color: #fff5f5;
+                border-color: #fed7d7;
+            }
+
+           .form-group {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 1vw;
+                margin-bottom: 1vw;
+            }
+
+            .time-inputs, .block-inputs {
+                display: flex;
+                align-items: center;
+                gap: 1vw;
+                flex-wrap: wrap;
+            }
+
+            .time-inputs {
+                flex: 0 1 auto;
+            }
+
+            .block-inputs {
+                flex: 1 1 auto;
+            }
+
+            .remove-btn {
+                flex: 0 0 auto;
+                margin-left: auto;
+            }}
+
+            .checkbox-group {
+                display: inline-flex;
+                align-items: center;
+                gap: 0.5vw;
+                padding: 0.5vw 1vw;
+                border-radius: 0.5vw;
+                background-color: #f8fafc;
+                white-space: nowrap;
+            }
+
+            label {
+                font-size: 1.2vw;
+                color: #4a5568;
+                white-space: nowrap;
+            }
+
+            #createRoomsBtn {
+                font-size: 1.4vw;
+                padding: 0.75vw 1.5vw;
+            }
+
+            .fas {
+                margin-right: 0.5vw;
+            }
+
+            #submit-container {
+                width: 100%;
+                text-align: center;
+                margin-top: 2vw;
+            }
+
+            #submit-btn {
+                background-color: #48bb78;
+                font-size: 1.4vw;
+                padding: 1vw 2vw;
+            }
+
+            #submit-btn:hover {
+                background-color: #38a169;
+            }
+
+            .room-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 1vw;
+            }
+
+            .remove-room-btn {
+                background-color: #e53e3e;
+                padding: 0.5vw 1vw;
+                font-size: 1vw;
+            }
+
+            .remove-room-btn:hover {
+                background-color: #c53030;
+            }
+
+            .error-message {
+                color: #e53e3e;
+                margin-top: 1vw;
+                text-align: center;
+                font-size: 1.2vw;
+            }
+
+            @media screen and (max-width: 768px) {
+                .app-container {
+                    max-width: 95vw;
+                }
+
+                input[type="number"],
+                input[type="time"],
+                input[type="text"] {
+                    min-width: 30vw;
+                }
+
+                h2 {
+                    font-size: 4vw;
+                }
+
+                h3, button, input, label {
+                    font-size: 2.5vw;
+                }
+
+                .form-group {
+                    flex-direction: column;
+                    align-items: stretch;
+                }
+
+                .form-group > div {
+                    flex-basis: calc(100% - 70px);
+                }
+            }
+        </style>
+    </head>
+    <body>
+        {% include "nav.html"  %}
+        <div class="app-container">
+            <div class="header">
+                <h2>Configure Timeslots</h2>
+                <div class="form-group">
+                    <button id="addTimeslotBtn">
+                        <i class="fas fa-plus"></i> Add Timeslot
+                    </button>
+                </div>
+            </div>
+
+            <div id="timeslots-container">
+                {% for timeslot in timeslots %}
+                <div class="time-slot existing" data-id="{{ timeslot.id }}">
+                    <div class="form-group">
+                        <div class="time-inputs">
+                            <label>Start Time:</label>
+                            <input type="time" name="start_time[]" value="{{ timeslot.start_time }}" disabled>
+                            <label>Duration (mins):</label>
+                            <input type="number" name="duration[]" min="1" value="30" disabled>
+                        </div>
+                        <div class="block-inputs">
+                            <div class="checkbox-group">
+                                <input type="checkbox" id="blocked-{{ timeslot.id }}" disabled>
+                                <label for="blocked-{{ timeslot.id }}">Blocked</label>
+                            </div>
+                            <label>Reason:</label>
+                            <input type="text" id="reason-{{ timeslot.id }}" placeholder="e.g., Lunch Break" disabled>
+                        </div>
+                        <button class="remove-btn" disabled>
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <div id="submit-container">
+                <button id="submit-btn">
+                    <i class="fas fa-save"></i> Save Timeslots
+                </button>
+            </div>
+        </div>
+
+        <script>
+            let nextSlotId = 0;
+            document.addEventListener('DOMContentLoaded', () => {
+                const existingSlots = document.getElementsByClassName('time-slot');
+
+                if (existingSlots.length > 0) {
+                    nextSlotId = parseInt(Array.from(existingSlots).findLast(slot => slot).dataset.id) + 1;
+                }
+
+                document.getElementById('addTimeslotBtn').addEventListener('click', addTimeSlot);
+                document.getElementById('timeslots-container').addEventListener('click', handleTimeslotEvents);
+                document.getElementById('submit-btn').addEventListener('click', handleSubmit);
+            });
+
+            function addTimeSlot() {
+                const container = document.getElementById('timeslots-container');
+                const slotDiv = document.createElement('div');
+                slotDiv.className = 'time-slot';
+                slotDiv.dataset.slotId = nextSlotId;
+
+                const nextStartTime = calculateNextStartTime();
+
+                slotDiv.innerHTML = `
+                    <div class="form-group">
+                        <div class="time-inputs">
+                            <label>Start Time:</label>
+                            <input type="time" id="start-${nextSlotId}" value="${nextStartTime}">
+                            <label>Duration (mins):</label>
+                            <input type="number" id="duration-${nextSlotId}" min="1" value="30">
+                        </div>
+                        <div class="block-inputs">
+                            <div class="checkbox-group">
+                                <input type="checkbox" id="blocked-${nextSlotId}">
+                                <label for="blocked-${nextSlotId}">Blocked</label>
+                            </div>
+                            <label>Reason:</label>
+                            <input type="text" id="reason-${nextSlotId}" placeholder="e.g., Lunch Break">
+                        </div>
+                        <button class="remove-btn">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                `;
+                container.appendChild(slotDiv);
+                nextSlotId++;
+            }
+
+            function calculateNextStartTime() {
+                const slots = document.getElementsByClassName('time-slot');
+                if (slots.length === 0) return '08:00';
+
+                const lastSlot = slots[slots.length - 1];
+                const lastStartTime = lastSlot.querySelector('input[type="time"]').value;
+                const lastDuration = parseInt(lastSlot.querySelector('input[type="number"]').value);
+
+                if (!lastStartTime || !lastDuration) return '08:00';
+
+                const [hours, minutes] = lastStartTime.split(':').map(Number);
+                const totalMinutes = hours * 60 + minutes + lastDuration;
+                const newHours = Math.floor(totalMinutes / 60);
+                const newMinutes = totalMinutes % 60;
+
+                return `${String(newHours).padStart(2, '0')}:${String(newMinutes).padStart(2, '0')}`;
+            }
+
+            function handleTimeslotEvents(e) {
+                if (e.target.closest('.remove-btn') && !e.target.closest('.remove-btn').disabled) {
+                    const timeSlot = e.target.closest('.time-slot');
+                    timeSlot.remove();
+                }
+            }
+
+            async function handleSubmit() {
+                document.querySelectorAll('.error-message').forEach(errorMessage => errorMessage.remove());
+
+                const newSlots = Array.from(document.querySelectorAll('.time-slot:not(.existing)'));
+
+                let isValid = true;
+                let errorMessage = '';
+
+                for (const slot of newSlots) {
+                    const startTime = slot.querySelector('input[type="time"]').value;
+                    const duration = parseInt(slot.querySelector('input[type="number"]').value);
+
+                    const result = validateTimeslot(startTime, duration, slot);
+                    if (!result.valid) {
+                        isValid = false;
+                        errorMessage = result.message;
+                        break;
+                    }
+                }
+
+                if (!isValid) {
+                    const errorDiv = document.createElement('div');
+                    errorDiv.className = 'error-message';
+                    errorDiv.textContent = 'Cannot save: ' + errorMessage;
+                    document.getElementById('submit-container').appendChild(errorDiv);
+                    return;
+                }
+
+
+                const startTimes = newSlots.map(slot => slot.querySelector('input[type="time"]').value);
+                const durations = newSlots.map(slot => parseInt(slot.querySelector('input[type="number"]').value));
+
+                const timeslots = startTimes.map((start_time, index) => ({
+                    start_time,
+                    duration: durations[index],
+                    assignments: []
+                }));
+
+                try {
+                    const response = await fetch('/api/v1/timeslots/add', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            timeslot_request: {
+                                timeslots
+                            }
+                        })
+                    });
+
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.error || `Server error: ${response.status}`);
+                    }
+
+                    window.location.reload();
+                } catch (error) {
+                    console.error('Error submitting timeslots:', error);
+                    const errorDiv = document.createElement('div');
+                    errorDiv.className = 'error-message';
+                    errorDiv.textContent = error.message || 'There was an error saving the timeslots. Please try again.';
+                    document.getElementById('submit-container').appendChild(errorDiv);
+                }
+            }
+
+            function timeToMinutes(timeStr) {
+                const [hours, minutes] = timeStr.split(':').map(Number);
+                return hours * 60 + minutes;
+            }
+
+            function isOverlapping(start1, duration1, start2, duration2) {
+                const end1 = start1 + duration1;
+                const end2 = start2 + duration2;
+                return start1 < end2 && end1 > start2;
+            }
+
+            function getExistingTimeslots() {
+                const existingSlots = document.getElementsByClassName('time-slot existing');
+                return Array.from(existingSlots).map(slot => {
+                    const startTime = slot.querySelector('input[type="time"]').value;
+                    const duration = parseInt(slot.querySelector('input[type="number"]').value);
+                    return {
+                        start: timeToMinutes(startTime),
+                        duration: duration
+                    };
+                });
+            }
+
+            function getNewTimeslots() {
+                const newSlots = Array.from(document.getElementsByClassName('time-slot'))
+                    .filter(slot => !slot.classList.contains('existing'));
+
+                return newSlots.map(slot => {
+                    const startTime = slot.querySelector('input[type="time"]').value;
+                    const duration = parseInt(slot.querySelector('input[type="number"]').value);
+                    return {
+                        start: timeToMinutes(startTime),
+                        duration: duration,
+                        element: slot
+                    };
+                });
+            }
+
+            function validateTimeslot(startTime, duration, skipElement = null) {
+                const startMinutes = timeToMinutes(startTime);
+
+                const existingSlots = getExistingTimeslots();
+                for (const slot of existingSlots) {
+                    if (isOverlapping(startMinutes, duration, slot.start, slot.duration)) {
+                        return {
+                            valid: false,
+                            message: `Overlaps with existing timeslot at ${Math.floor(slot.start/60)}:${(slot.start%60).toString().padStart(2,'0')}`
+                        };
+                    }
+                }
+
+                const newSlots = getNewTimeslots();
+                for (const slot of newSlots) {
+                    if (slot.element === skipElement) continue;
+                    if (isOverlapping(startMinutes, duration, slot.start, slot.duration)) {
+                        return {
+                            valid: false,
+                            message: `Overlaps with another new timeslot at ${Math.floor(slot.start/60)}:${(slot.start%60).toString().padStart(2,'0')}`
+                        };
+                    }
+                }
+
+                return { valid: true };
+            }
+
+            document.addEventListener('DOMContentLoaded', () => {
+                const container = document.getElementById('timeslots-container');
+
+                container.addEventListener('change', (e) => {
+                    if (e.target.matches('input[type="time"], input[type="number"]')) {
+                        const slot = e.target.closest('.time-slot');
+                        if (!slot || slot.classList.contains('existing')) return;
+
+                        const startInput = slot.querySelector('input[type="time"]');
+                        const durationInput = slot.querySelector('input[type="number"]');
+
+                        if (startInput.value && durationInput.value) {
+                            const result = validateTimeslot(startInput.value, parseInt(durationInput.value), slot);
+
+                            const existingError = slot.querySelector('.error-message');
+                            if (existingError) existingError.remove();
+
+                            if (!result.valid) {
+                                const errorDiv = document.createElement('div');
+                                errorDiv.className = 'error-message';
+                                errorDiv.textContent = result.message;
+                                slot.appendChild(errorDiv);
+                            }
+                        }
+                    }
+                });
+            });
+        </script>
+    </body>
+</html>

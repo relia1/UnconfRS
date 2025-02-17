@@ -40,7 +40,7 @@
                 {% for timeslot in schedule.timeslots %}
                     window.APP.timeslots.push(
                         {
-                            id: {{ timeslot.id.unwrap_or(0) }},
+                            id: {{ timeslot.id }},
                             start: "{{ timeslot.start_time }}",
                             end: "{{ timeslot.end_time }}"
                         }

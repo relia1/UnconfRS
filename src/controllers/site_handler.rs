@@ -2,7 +2,7 @@ use crate::config::AppState;
 use crate::models::room_model::{rooms_get, Room};
 use crate::models::schedule_model::{schedules_get, Schedule};
 use crate::models::speakers_model::Speaker;
-use crate::models::timeslot_model::{timeslot_get, TimeslotAssignment};
+use crate::models::timeslot_model::{timeslot_get, ExistingTimeslot, TimeslotAssignment};
 use crate::models::topics_model::{get_all_topics, Topic};
 use askama::Template;
 use askama_axum::{IntoResponse, Response};
@@ -131,10 +131,7 @@ pub async fn schedule_handler(State(app_state): State<Arc<RwLock<AppState>>>) ->
         let events = if let Some(schedule) = &schedule {
             let schedule_id = schedule.id.ok_or(StatusCode::INTERNAL_SERVER_ERROR.into_response())?;
             timeslots.iter().flat_map(|timeslot| {
-                let timeslot_id = match timeslot.id {
-                    Some(id) => id,
-                    None => return vec![],
-                };
+                let timeslot_id = timeslot.id;
 
                 assignments.iter()
                            .filter(|assignment| assignment.time_slot_id == timeslot_id)
@@ -260,5 +257,41 @@ pub async fn topic_handler(State(app_state): State<Arc<RwLock<AppState>>>) -> Re
             tracing::debug!(e);
             Html("<h1>Error fetching topics</h1>".to_string()).into_response()
         }
+    }
+}
+
+
+#[derive(Template, Clone, Deserialize, FromRow)]
+#[template(path = "unconf_timeslots.html")]
+struct UnconfTimeslotsTemplate {
+    existing_timeslots: Vec<ExistingTimeslot>,
+}
+
+#[debug_handler]
+pub async fn unconf_timeslots_handler(State(app_state): State<Arc<RwLock<AppState>>>) -> Response {
+    let app_state_lock = app_state.read().await;
+    let read_lock = &app_state_lock.unconf_data.read().await.unconf_db;
+
+    let timeslots = match timeslot_get(read_lock).await {
+        Ok(timeslots) => timeslots,
+        Err(e) => {
+            tracing::error!("Error getting timeslots: {:?}", e);
+            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+        },
+    };
+
+    tracing::trace!("Timeslots: {:?}", timeslots);
+
+    let template = UnconfTimeslotsTemplate {
+        existing_timeslots: timeslots,
+    };
+
+
+    match template.render() {
+        Ok(html) => Html(html).into_response(),
+        Err(e) => {
+            tracing::error!("Error rendering template: {:?}", e);
+            StatusCode::INTERNAL_SERVER_ERROR.into_response()
+        },
     }
 }

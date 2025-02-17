@@ -131,6 +131,14 @@ pub struct TimeSlot {
     pub end_time: NaiveTime,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, FromRow)]
+pub struct ExistingTimeslot {
+    pub id: i32,
+    pub start_time: NaiveTime,
+    pub end_time: NaiveTime,
+    pub duration: i32,
+}
+
 #[derive(Debug, Deserialize, FromRow)]
 pub struct TimeslotAssignment {
     pub time_slot_id: i32,
@@ -151,10 +159,17 @@ pub struct TimeslotAssignment {
 ///
 /// # Errors
 /// If the query fails, a boxed error is returned.
-pub async fn timeslot_get(db_pool: &Pool<Postgres>) -> Result<Vec<TimeSlot>, Box<dyn Error>> {
-    let timeslots = sqlx::query_as("SELECT * FROM time_slots")
+pub async fn timeslot_get(db_pool: &Pool<Postgres>) -> Result<Vec<ExistingTimeslot>, Box<dyn Error>> {
+    tracing::trace!("Getting timeslots");
+    let timeslots = sqlx::query_as(
+        "SELECT id, start_time, end_time,
+        (EXTRACT(EPOCH FROM duration) / 60)::integer as duration
+        FROM time_slots"
+    )
         .fetch_all(db_pool)
         .await?;
+
+    tracing::trace!("Timeslots: {:?}", timeslots);
 
     Ok(timeslots)
 }
