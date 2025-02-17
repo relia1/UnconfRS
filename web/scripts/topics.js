@@ -223,7 +223,7 @@ async function showPopup(isEdit, data=null) {
         document.getElementById('topicContent').value = data.content;
         document.getElementById('name').value = data.name;
         document.getElementById('phone').value = data.phone_number;
-        document.getElementById('email').value = data.email
+        document.getElementById('email').value = data.email;
         currentTopicId = data.topic_id;
         currentSpeakerId = data.speaker_id;
     } else {
@@ -257,7 +257,7 @@ function closePopup() {
 /* Voting functions */
 async function hasVoted(topicId) {
     votesCookie = await cookieStore.get('votes');
-    return votesCookie.value.split(',').includes(String(topicId));
+    return votesCookie?.value.split(',').includes(String(topicId));
 }
 
 async function setVotesCookie(topicId) {
