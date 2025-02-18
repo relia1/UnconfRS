@@ -124,7 +124,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function calculateRoomBasedEventPosition(roomId) {
-        return calculatePosition(roomId - 1, numOfRooms);
+        return calculatePosition(rooms.findIndex(room => room.id === roomId), numOfRooms);
     }
 
 
@@ -179,7 +179,7 @@ document.addEventListener('DOMContentLoaded', function () {
         } else {
             const newData = {
                 roomId:     targetRoomId,
-                timeslotId: timeslotIndex + 1,
+                timeslotId: timeslots[timeslotIndex].id,
                 startTime:  timeslots[timeslotIndex].start.substring(0, 5),
                 endTime:    timeslots[timeslotIndex].end.substring(0, 5),
                 title:      draggedEventData.title,
