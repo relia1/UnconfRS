@@ -54,8 +54,8 @@ class EventData {
         this.topicId    = Number(topicId);
         this.speakerId  = Number(speakerId);
         this.scheduleId = Number(scheduleId);
-        this.startTime  = startTime;
-        this.endTime    = endTime;
+        this.startTime = startTime + ':00';
+        this.endTime   = endTime + ':00';
         this.title      = title;
     }
 }
@@ -158,7 +158,8 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
 
-        const existingEvent = events.find(event => event.timeslotId === timeslotIndex + 1 &&
+        const existingEvent = events.find(event => event.timeslotId ===
+            timeslots[timeslotIndex].id &&
             event.roomId === targetRoomId);
 
         // If there is an event in the same timeslot or room, swap the events
@@ -309,8 +310,21 @@ document.addEventListener('DOMContentLoaded', function () {
         const targetEventIndex  = events.findIndex(e => e.timeslotId === targetEvent.timeslotId &&
             e.roomId === targetEvent.roomId);
         if (draggedEventIndex !== -1 && targetEventIndex !== -1) {
-            events[draggedEventIndex] = {...events[draggedEventIndex], ...targetEvent};
-            events[targetEventIndex]  = {...events[targetEventIndex], ...draggedEvent};
+            const swapToDraggedEvent = {
+                ...Object.fromEntries(
+                    Object.entries(events[targetEventIndex])
+                          .filter(([key]) => ['title', 'speakerId', 'topicId'].includes(key)),
+                ),
+            };
+            const swapToTargetEvent  = {
+                ...Object.fromEntries(
+                    Object.entries(events[draggedEventIndex])
+                          .filter(([key]) => ['title', 'speakerId', 'topicId'].includes(key)),
+                ),
+            };
+
+            events[draggedEventIndex] = {...events[draggedEventIndex], ...swapToDraggedEvent};
+            events[targetEventIndex]  = {...events[targetEventIndex], ...swapToTargetEvent};
         }
     }
 
