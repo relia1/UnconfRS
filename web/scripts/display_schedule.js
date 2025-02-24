@@ -108,8 +108,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function calculatePosition(index, total) {
         const multiplier = (1 / (total + 1)) * 100;
-        const top        = ((index + 1) * multiplier) + '%';
-        const height = multiplier + '%';
+        const top    = (((index + 1) * multiplier) + 1) + '%';
+        const height = (multiplier - 1.5) + '%';
         return {top, height};
     }
 
