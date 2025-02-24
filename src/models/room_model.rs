@@ -254,7 +254,7 @@ pub async fn rooms_add(
 pub async fn room_delete(db_pool: &Pool<Postgres>, index: i32) -> Result<(), BoxedError> {
     sqlx::query(
         r#"
-        DELETE FROM time_slots
+        DELETE FROM timeslot_assignments
         WHERE room_id = $1
         "#,
     ).bind(index).execute(db_pool).await?;
