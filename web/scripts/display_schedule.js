@@ -65,8 +65,14 @@ const STATUS_CODES = Object.freeze({
 });
 
 document.addEventListener('DOMContentLoaded', function () {
+    let scheduleOperations = document.getElementById('schedule-operations');
     if (localStorage.getItem('admin') === 'true') {
         document.documentElement.className += ' admin';
+        if (scheduleOperations.style.display === 'none') {
+            scheduleOperations.style.display = 'block';
+        }
+    } else {
+        scheduleOperations.style.display = 'none';
     }
 
     scheduleContainer = document.querySelector('.schedule-container');
@@ -135,6 +141,7 @@ document.addEventListener('DOMContentLoaded', function () {
             event.dataTransfer.setData("text/plain", null);
         } else {
             console.log('You do not have permission to move events');
+            alert('You do not have permission to move events');
         }
     }
 
@@ -329,52 +336,67 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     document.getElementById('populate-schedule').addEventListener('click', async () => {
-        try {
-            const response = await fetch('/api/v1/schedules/generate', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-            });
+        if (localStorage.getItem('admin') === 'true') {
+            try {
+                const response = await fetch('/api/v1/schedules/generate', {
+                    method:  'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                });
 
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                location.reload();
+            } catch (error) {
+                console.error('Error populating schedule:', error);
+                alert('There was an error populating the schedule. Please try again.');
             }
-
-            location.reload();
-        } catch (error) {
-            console.error('Error populating schedule:', error);
-            alert('There was an error populating the schedule. Please try again.');
+        } else {
+            console.log('You do not have permission to populate the schedule');
+            alert('You do not have permission to populate the schedule');
         }
     });
 
     document.getElementById('clear-schedule').addEventListener('click', async () => {
-        try {
-            const response = await fetch('/api/v1/schedules/clear', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-            });
+        if (localStorage.getItem('admin') === 'true') {
+            try {
+                const response = await fetch('/api/v1/schedules/clear', {
+                    method:  'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                });
 
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                location.reload();
+            } catch (error) {
+                console.error('Error clearing schedule:', error);
+                alert('There was an error clearing the schedule. Please try again.');
             }
-
-            location.reload();
-        } catch (error) {
-            console.error('Error clearing schedule:', error);
-            alert('There was an error clearing the schedule. Please try again.');
+        } else {
+            console.log('You do not have permission to clear the schedule');
+            alert('You do not have permission to clear the schedule');
         }
     });
 
     document.getElementById('add-room').addEventListener('click', async () => {
-        const popup = document.getElementById('popup');
-        const overlay = document.getElementById('overlay');
-        popup.style.display = 'block';
-        overlay.style.display = 'block';
-        document.querySelector('#cancelButton').addEventListener('click', closePopup);
-        document.querySelector('#overlay').addEventListener('click', closePopup);
+        if (localStorage.getItem('admin') === 'true') {
+            const popup           = document.getElementById('popup');
+            const overlay         = document.getElementById('overlay');
+            popup.style.display   = 'block';
+            overlay.style.display = 'block';
+            document.querySelector('#cancelButton').addEventListener('click', closePopup);
+            document.querySelector('#overlay').addEventListener('click', closePopup);
+        } else {
+            console.log('You do not have permission to add rooms');
+            alert('You do not have permission to add rooms');
+        }
     });
 
     document.getElementById('submit-btn').addEventListener('click', async (e) => {
