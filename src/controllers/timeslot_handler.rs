@@ -3,8 +3,13 @@ use tokio::sync::RwLock;
 
 use crate::config::AppState;
 use crate::models::{
-    timeslot_assignment_model::{timeslot_assignment_swap, timeslot_assignment_update, TimeslotSwapRequest},
-    timeslot_model::{timeslots_add, TimeSlot, TimeSlotError, TimeslotAssignmentForm, TimeslotForm, TimeslotRequest, TimeslotRequestWrapper, TimeslotUpdateRequest},
+    timeslot_assignment_model::{
+        timeslot_assignment_swap, timeslot_assignment_update, TimeslotSwapRequest,
+    },
+    timeslot_model::{
+        timeslots_add, TimeSlot, TimeSlotError, TimeslotAssignmentForm, TimeslotForm,
+        TimeslotRequest, TimeslotRequestWrapper, TimeslotUpdateRequest,
+    },
 };
 use askama_axum::IntoResponse;
 use axum::debug_handler;
@@ -113,8 +118,8 @@ pub async fn update_timeslot(
         Ok(time) => time,
         Err(e) => {
             trace!("Error parsing start time: {:?}", e);
-            return TimeSlotError::response(StatusCode::BAD_REQUEST.into(), Box::new(e))
-        },
+            return TimeSlotError::response(StatusCode::BAD_REQUEST.into(), Box::new(e));
+        }
     };
 
     let end_time = match NaiveTime::parse_from_str(&request.end_time, "%H:%M") {
@@ -135,7 +140,15 @@ pub async fn update_timeslot(
         }],
     };
 
-    match timeslot_assignment_update(write_lock, timeslot_id, TimeslotRequest { timeslots: vec![timeslot] }).await {
+    match timeslot_assignment_update(
+        write_lock,
+        timeslot_id,
+        TimeslotRequest {
+            timeslots: vec![timeslot],
+        },
+    )
+        .await
+    {
         Ok(assignment_ids) => Json(assignment_ids).into_response(),
         Err(e) => TimeSlotError::response(StatusCode::INTERNAL_SERVER_ERROR.into(), e),
     }

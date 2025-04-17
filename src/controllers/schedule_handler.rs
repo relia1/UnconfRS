@@ -4,8 +4,8 @@ use tokio::sync::RwLock;
 use crate::config::AppState;
 use crate::controllers::site_handler::CreateScheduleForm;
 use crate::models::schedule_model::{
-    schedule_add, schedule_clear, schedule_generate, schedule_get, schedules_get,
-    Schedule, ScheduleErr, ScheduleError,
+    schedule_add, schedule_clear, schedule_generate, schedule_get, schedules_get, Schedule,
+    ScheduleErr, ScheduleError,
 };
 use crate::types::ApiStatusCode;
 use crate::StatusCode;
@@ -79,9 +79,7 @@ pub async fn schedules(State(app_state): State<Arc<RwLock<AppState>>>) -> Respon
 /// # Errors
 /// If an error occurs while retrieving the schedule, a schedule error response with a status code
 /// of 404 Not Found is returned.
-pub async fn get_schedule(
-    State(app_state): State<Arc<RwLock<AppState>>>,
-) -> Response {
+pub async fn get_schedule(State(app_state): State<Arc<RwLock<AppState>>>) -> Response {
     let app_state_lock = app_state.read().await;
     let read_lock = &app_state_lock.unconf_data.read().await.unconf_db;
     match schedule_get(read_lock).await {
@@ -161,9 +159,7 @@ pub async fn post_schedule(
 /// # Errors
 /// If an error occurs while generating the schedule, a schedule error response with a status code
 /// of 400 Bad Request is returned.
-pub async fn generate(
-    State(app_state): State<Arc<RwLock<AppState>>>
-) -> Response {
+pub async fn generate(State(app_state): State<Arc<RwLock<AppState>>>) -> Response {
     let app_state_lock = app_state.read().await;
     let read_lock = &app_state_lock.unconf_data.read().await.unconf_db;
     let res = schedule_generate(read_lock).await;

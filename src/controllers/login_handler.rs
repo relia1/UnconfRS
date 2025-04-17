@@ -2,11 +2,7 @@ use crate::middleware::auth::AuthSessionLayer;
 use crate::models::auth_model::{Credentials, LoginRequest, LoginResponse};
 use askama::Template;
 use askama_axum::{IntoResponse, Response};
-use axum::{
-    http::StatusCode,
-    response::Html,
-    Json,
-};
+use axum::{http::StatusCode, response::Html, Json};
 use axum_macros::debug_handler;
 
 #[derive(Template, Debug)]
@@ -50,7 +46,7 @@ pub async fn login_handler(
                 Json(LoginResponse {
                     success: false,
                     message: "Invalid credentials".to_string(),
-                })
+                }),
             )
         }
         Err(_) => {
@@ -98,6 +94,6 @@ pub async fn logout_handler(mut auth_session: AuthSessionLayer) -> impl IntoResp
                 success: false,
                 message: "Failed to logout".to_string(),
             }),
-        )
+        ),
     }
 }

@@ -28,9 +28,7 @@ async fn main() {
     setup_tracing();
 
     // Connect to database and setup app state
-    let app_state = Arc::new(RwLock::new(
-        AppState::new().await.unwrap(),
-    ));
+    let app_state = Arc::new(RwLock::new(AppState::new().await.unwrap()));
 
     // Configure the application router
     let app = configure_app_router(app_state).await;
@@ -38,12 +36,7 @@ async fn main() {
     // start up webserver on localhost:3000
     let ip = SocketAddr::new([0, 0, 0, 0].into(), 3000);
     let listener = tokio::net::TcpListener::bind(ip).await.unwrap();
-    tracing::info!(
-        "serving {}",
-        listener
-            .local_addr()
-            .unwrap()
-    );
+    tracing::info!("serving {}", listener.local_addr().unwrap());
     axum::serve(listener, app).await.unwrap();
 }
 

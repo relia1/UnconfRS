@@ -149,7 +149,9 @@ pub async fn speakers_get(db_pool: &Pool<Postgres>) -> Result<Vec<Speaker>, Box<
     let speakers: Vec<Speaker> = sqlx::query_as(
         r#"
         SELECT * FROM speakers;"#,
-    ).fetch_all(db_pool).await?;
+    )
+        .fetch_all(db_pool)
+        .await?;
 
     Ok(speakers)
 }
@@ -274,6 +276,6 @@ pub async fn speaker_update(
         .bind(index)
         .fetch_all(db_pool)
         .await?;
-    
+
     Ok(speaker_to_update)
 }

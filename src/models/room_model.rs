@@ -189,9 +189,11 @@ pub(crate) async fn rooms_get(db_pool: &Pool<Postgres>) -> Result<Option<Vec<Roo
     let rooms = Some(
         sqlx::query_as::<Postgres, Room>(
             r#"
-        SELECT * FROM rooms
-        ORDER BY id"#,
-        ).fetch_all(db_pool).await?,
+            SELECT * FROM rooms
+            ORDER BY id"#,
+        )
+            .fetch_all(db_pool)
+            .await?,
     );
 
     Ok(rooms.filter(|res| !res.is_empty()))
@@ -223,12 +225,10 @@ pub async fn rooms_add(
         location) 
         VALUES 
         ($1, $2, $3) RETURNING id, available_spots, name, location"#,
-        ).bind(
-            room.name.clone(),
         )
-            .bind(room.available_spots).bind(
-            room.location.clone(),
-        )
+            .bind(room.name.clone())
+            .bind(room.available_spots)
+            .bind(room.location.clone())
             .fetch_one(db_pool)
             .await?;
     }
@@ -257,14 +257,20 @@ pub async fn room_delete(db_pool: &Pool<Postgres>, index: i32) -> Result<(), Box
         DELETE FROM timeslot_assignments
         WHERE room_id = $1
         "#,
-    ).bind(index).execute(db_pool).await?;
+    )
+        .bind(index)
+        .execute(db_pool)
+        .await?;
 
     sqlx::query(
         r#"
         DELETE FROM rooms
         WHERE id = $1
         "#,
-    ).bind(index).execute(db_pool).await?;
+    )
+        .bind(index)
+        .execute(db_pool)
+        .await?;
 
     Ok(())
 }

@@ -5,7 +5,6 @@ use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use std::collections::HashSet;
 
-
 #[derive(Debug, Deserialize)]
 pub struct LoginRequest {
     pub username: String,
@@ -30,10 +29,10 @@ pub struct User {
 impl std::fmt::Debug for User {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("User")
-         .field("id", &self.id)
-         .field("username", &self.username)
-         .field("password", &"[redacted]")
-         .finish()
+            .field("id", &self.id)
+            .field("username", &self.username)
+            .field("password", &"[redacted]")
+            .finish()
     }
 }
 
@@ -72,7 +71,10 @@ impl AuthnBackend for Backend {
     type Credentials = Credentials;
     type Error = sqlx::Error;
 
-    async fn authenticate(&self, creds: Self::Credentials) -> Result<Option<Self::User>, Self::Error> {
+    async fn authenticate(
+        &self,
+        creds: Self::Credentials,
+    ) -> Result<Option<Self::User>, Self::Error> {
         let user: Option<Self::User> = sqlx::query_as(r#"SELECT * FROM users WHERE username = $1"#)
             .bind(creds.username)
             .fetch_optional(&self.db_pool)
@@ -98,7 +100,6 @@ impl AuthnBackend for Backend {
     }
 }
 
-
 #[derive(Debug, Clone, Eq, PartialEq, Hash, FromRow)]
 pub struct Permission {
     pub name: String,
@@ -116,7 +117,10 @@ impl From<&str> for Permission {
 impl AuthzBackend for Backend {
     type Permission = Permission;
 
-    async fn get_group_permissions(&self, user: &Self::User) -> Result<HashSet<Self::Permission>, Self::Error> {
+    async fn get_group_permissions(
+        &self,
+        user: &Self::User,
+    ) -> Result<HashSet<Self::Permission>, Self::Error> {
         let permissions: Vec<Self::Permission> = sqlx::query_as(
             r#"
             select distinct permissions.name

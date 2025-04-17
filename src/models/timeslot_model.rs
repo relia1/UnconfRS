@@ -110,7 +110,7 @@ pub struct TimeslotRequest {
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct TimeslotRequestWrapper {
-    pub timeslot_request: TimeslotRequest
+    pub timeslot_request: TimeslotRequest,
 }
 
 #[derive(Debug, Deserialize)]
@@ -159,12 +159,14 @@ pub struct TimeslotAssignment {
 ///
 /// # Errors
 /// If the query fails, a boxed error is returned.
-pub async fn timeslot_get(db_pool: &Pool<Postgres>) -> Result<Vec<ExistingTimeslot>, Box<dyn Error>> {
+pub async fn timeslot_get(
+    db_pool: &Pool<Postgres>,
+) -> Result<Vec<ExistingTimeslot>, Box<dyn Error>> {
     tracing::trace!("Getting timeslots");
     let timeslots = sqlx::query_as(
         "SELECT id, start_time, end_time,
         (EXTRACT(EPOCH FROM duration) / 60)::integer as duration
-        FROM time_slots"
+        FROM time_slots",
     )
         .fetch_all(db_pool)
         .await?;
@@ -191,7 +193,6 @@ async fn insert_timeslot(
         .await?;
     Ok(id)
 }
-
 
 /// Adds new timeslots.
 ///
@@ -223,5 +224,3 @@ pub async fn timeslots_add(
     }
     Ok(timeslot_ids)
 }
-
-

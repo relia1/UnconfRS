@@ -121,36 +121,43 @@ pub async fn schedule_handler(State(app_state): State<Arc<RwLock<AppState>>>) ->
         let timeslots = timeslot_get(read_lock)
             .await
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR.into_response())?;
-        let assignments = sqlx::query_as::<_, TimeslotAssignment>(
-            "SELECT * FROM timeslot_assignments"
-        )
-            .fetch_all(read_lock)
-            .await
-            .unwrap_or_default();
+        let assignments =
+            sqlx::query_as::<_, TimeslotAssignment>("SELECT * FROM timeslot_assignments")
+                .fetch_all(read_lock)
+                .await
+                .unwrap_or_default();
 
         let events = if let Some(schedule) = &schedule {
-            let schedule_id = schedule.id.ok_or(StatusCode::INTERNAL_SERVER_ERROR.into_response())?;
-            timeslots.iter().flat_map(|timeslot| {
-                let timeslot_id = timeslot.id;
+            let schedule_id = schedule
+                .id
+                .ok_or(StatusCode::INTERNAL_SERVER_ERROR.into_response())?;
+            timeslots
+                .iter()
+                .flat_map(|timeslot| {
+                    let timeslot_id = timeslot.id;
 
-                assignments.iter()
-                           .filter(|assignment| assignment.time_slot_id == timeslot_id)
-                           .filter_map(|filtered_assignment| {
-                               let event_topic = topics.iter().find(|&topic| topic.id == Some(filtered_assignment.topic_id))?;
+                    assignments
+                        .iter()
+                        .filter(|assignment| assignment.time_slot_id == timeslot_id)
+                        .filter_map(|filtered_assignment| {
+                            let event_topic = topics
+                                .iter()
+                                .find(|&topic| topic.id == Some(filtered_assignment.topic_id))?;
 
-                               Some(Event {
-                                   timeslot_id,
-                                   title: event_topic.title.clone(),
-                                   start_time: timeslot.start_time.to_string(),
-                                   end_time: timeslot.end_time.to_string(),
-                                   room_id: filtered_assignment.room_id,
-                                   topic_id: filtered_assignment.topic_id,
-                                   speaker_id: filtered_assignment.speaker_id,
-                                   schedule_id,
-                               })
-                           })
-                           .collect::<Vec<_>>()
-            }).collect()
+                            Some(Event {
+                                timeslot_id,
+                                title: event_topic.title.clone(),
+                                start_time: timeslot.start_time.to_string(),
+                                end_time: timeslot.end_time.to_string(),
+                                room_id: filtered_assignment.room_id,
+                                topic_id: filtered_assignment.topic_id,
+                                speaker_id: filtered_assignment.speaker_id,
+                                schedule_id,
+                            })
+                        })
+                        .collect::<Vec<_>>()
+                })
+                .collect()
         } else {
             vec![]
         };
@@ -161,7 +168,8 @@ pub async fn schedule_handler(State(app_state): State<Arc<RwLock<AppState>>>) ->
             events,
         };
 
-        template.render()
+        template
+            .render()
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR.into_response())
     }
         .await;
@@ -219,7 +227,9 @@ pub async fn combine_topic_and_speaker(
         FROM topics t \
         JOIN speakers s ON s.id = t.speaker_id \
         GROUP BY t.id, s.id",
-    ).fetch_all(db_pool).await?;
+    )
+        .fetch_all(db_pool)
+        .await?;
 
     Ok(topic_with_speaker)
 }
@@ -260,7 +270,6 @@ pub async fn topic_handler(State(app_state): State<Arc<RwLock<AppState>>>) -> Re
     }
 }
 
-
 #[derive(Template, Clone, Deserialize, FromRow)]
 #[template(path = "unconf_timeslots.html")]
 struct UnconfTimeslotsTemplate {
@@ -277,7 +286,7 @@ pub async fn unconf_timeslots_handler(State(app_state): State<Arc<RwLock<AppStat
         Err(e) => {
             tracing::error!("Error getting timeslots: {:?}", e);
             return StatusCode::INTERNAL_SERVER_ERROR.into_response();
-        },
+        }
     };
 
     tracing::trace!("Timeslots: {:?}", timeslots);
@@ -286,12 +295,11 @@ pub async fn unconf_timeslots_handler(State(app_state): State<Arc<RwLock<AppStat
         existing_timeslots: timeslots,
     };
 
-
     match template.render() {
         Ok(html) => Html(html).into_response(),
         Err(e) => {
             tracing::error!("Error rendering template: {:?}", e);
             StatusCode::INTERNAL_SERVER_ERROR.into_response()
-        },
+        }
     }
 }

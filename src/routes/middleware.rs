@@ -15,7 +15,6 @@ use tower_http::{
 };
 use tower_sessions_sqlx_store::PostgresStore;
 
-
 /// Configures middleware for the application
 ///
 /// This function configures middleware for the application. It adds compression, CORS, and tracing
@@ -31,7 +30,8 @@ pub async fn configure_middleware(app: Router, app_state: Arc<RwLock<AppState>>)
     let session_store = PostgresStore::new(read_lock.unconf_data.read().await.unconf_db.clone());
     let session_layer = SessionManagerLayer::new(session_store)
         .with_expiry(Expiry::OnInactivity(Duration::days(1)));
-    let auth_layer = AuthManagerLayerBuilder::new(read_lock.auth_backend.clone(), session_layer).build();
+    let auth_layer =
+        AuthManagerLayerBuilder::new(read_lock.auth_backend.clone(), session_layer).build();
 
     app.layer(CompressionLayer::new())
         .layer(

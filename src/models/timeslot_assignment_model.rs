@@ -1,5 +1,7 @@
 use crate::models::room_model::Room;
-use crate::models::timeslot_model::{ExistingTimeslot, TimeslotAssignment, TimeslotAssignmentForm, TimeslotRequest};
+use crate::models::timeslot_model::{
+    ExistingTimeslot, TimeslotAssignment, TimeslotAssignmentForm, TimeslotRequest,
+};
 use crate::models::topics_model::Topic;
 use chrono::NaiveTime;
 use serde::{Deserialize, Serialize};
@@ -49,16 +51,13 @@ pub async fn assign_topics_to_timeslots(
 
         // Get existing assignments for this timeslot
         let existing_assignments = sqlx::query_as::<_, TimeslotAssignment>(
-            "SELECT * FROM timeslot_assignments WHERE time_slot_id = $1"
+            "SELECT * FROM timeslot_assignments WHERE time_slot_id = $1",
         )
             .bind(slot.id)
             .fetch_all(db_pool)
             .await?;
 
-        let used_rooms: HashSet<i32> = existing_assignments
-            .iter()
-            .map(|a| a.room_id)
-            .collect();
+        let used_rooms: HashSet<i32> = existing_assignments.iter().map(|a| a.room_id).collect();
 
         for assignment in &existing_assignments {
             used_topics.insert(assignment.topic_id);
@@ -128,34 +127,40 @@ pub async fn timeslot_assignment_update(
         let end_time = start_time + chrono::Duration::minutes(timeslot.duration as i64);
 
         // Get timeslot ID
-        let new_timeslot_id: i32 = sqlx::query_scalar(
-            "SELECT id FROM time_slots WHERE start_time = $1 AND end_time = $2"
-        )
-            .bind(start_time)
-            .bind(end_time)
-            .fetch_one(db_pool)
-            .await?;
+        let new_timeslot_id: i32 =
+            sqlx::query_scalar("SELECT id FROM time_slots WHERE start_time = $1 AND end_time = $2")
+                .bind(start_time)
+                .bind(end_time)
+                .fetch_one(db_pool)
+                .await?;
 
         trace!("Timeslot ID: {:?}", timeslot_id);
 
         for assignment in timeslot.assignments {
-            trace!("Updating from room: {:?} to new room {:?}\n", assignment.old_room_id, assignment.room_id);
-            trace!("Updating from timeslot: {:?} to new timeslot {:?}\n", timeslot_id, new_timeslot_id);
-            let (assignment_id, ) =
-                sqlx::query_as(
-                    "UPDATE timeslot_assignments
+            trace!(
+                "Updating from room: {:?} to new room {:?}\n",
+                assignment.old_room_id,
+                assignment.room_id
+            );
+            trace!(
+                "Updating from timeslot: {:?} to new timeslot {:?}\n",
+                timeslot_id,
+                new_timeslot_id
+            );
+            let (assignment_id, ) = sqlx::query_as(
+                "UPDATE timeslot_assignments
                      SET time_slot_id = $1, speaker_id = $2, topic_id = $3, room_id = $4
                      WHERE time_slot_id = $5 AND room_id = $6
-                     RETURNING id"
-                )
-                    .bind(new_timeslot_id)
-                    .bind(assignment.speaker_id)
-                    .bind(assignment.topic_id)
-                    .bind(assignment.room_id)
-                    .bind(timeslot_id)
-                    .bind(assignment.old_room_id)
-                    .fetch_one(db_pool)
-                    .await?;
+                     RETURNING id",
+            )
+                .bind(new_timeslot_id)
+                .bind(assignment.speaker_id)
+                .bind(assignment.topic_id)
+                .bind(assignment.room_id)
+                .bind(timeslot_id)
+                .bind(assignment.old_room_id)
+                .fetch_one(db_pool)
+                .await?;
 
             assignment_ids.push(assignment_id);
         }
@@ -182,7 +187,7 @@ pub async fn timeslot_assignment_swap(
             WHERE (time_slot_id, room_id) IN (($1, $2), ($3, $4))
         ) t2
         WHERE t1.id != t2.id
-        AND (t1.time_slot_id, t1.room_id) IN (($1, $2), ($3, $4))"
+        AND (t1.time_slot_id, t1.room_id) IN (($1, $2), ($3, $4))",
     )
         .bind(request.timeslot_id_1)
         .bind(request.room_id_1)

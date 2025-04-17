@@ -245,40 +245,57 @@ pub async fn schedule_add(
     db_pool: &Pool<Postgres>,
     Json(schedule_form): Json<CreateScheduleForm>,
 ) -> Result<Schedule, Box<dyn Error>> {
-    let (schedule_id, ) = sqlx::query_as(
-        "INSERT INTO schedules (num_of_timeslots) VALUES ($1) RETURNING id"
+    let (schedule_id, ) =
+        sqlx::query_as("INSERT INTO schedules (num_of_timeslots) VALUES ($1) RETURNING id")
+            .bind(schedule_form.num_of_timeslots)
+            .fetch_one(db_pool)
+            .await?;
+
+    let timeslot_forms: Vec<TimeslotForm> = schedule_form
+        .start_time
+        .iter()
+        .zip(schedule_form.end_time.iter())
+        .map(|(start, end)| {
+            let start_time = NaiveTime::parse_from_str(start, "%H:%M")?;
+            let end_time = NaiveTime::parse_from_str(end, "%H:%M")?;
+
+            Ok(TimeslotForm {
+                start_time: start.clone(),
+                duration: (end_time - start_time).num_minutes() as i32,
+                assignments: vec![],
+            })
+        })
+        .collect::<Result<_, Box<dyn Error>>>()?;
+
+    let timeslot_ids = timeslots_add(
+        db_pool,
+        TimeslotRequest {
+            timeslots: timeslot_forms,
+        },
     )
-        .bind(schedule_form.num_of_timeslots)
-        .fetch_one(db_pool)
         .await?;
 
-    let timeslot_forms: Vec<TimeslotForm> = schedule_form.start_time.iter()
-                                                         .zip(schedule_form.end_time.iter())
-                                                         .map(|(start, end)| {
-                                                             let start_time = NaiveTime::parse_from_str(start, "%H:%M")?;
-                                                             let end_time = NaiveTime::parse_from_str(end, "%H:%M")?;
-
-                                                             Ok(TimeslotForm {
-                                                                 start_time: start.clone(),
-                                                                 duration: (end_time - start_time).num_minutes() as i32,
-                                                                 assignments: vec![],
-                                                             })
-                                                         })
-                                                         .collect::<Result<_, Box<dyn Error>>>()?;
-
-    let timeslot_ids = timeslots_add(db_pool, TimeslotRequest { timeslots: timeslot_forms }).await?;
-
-    let timeslots = timeslot_ids.into_iter()
-                                .zip(schedule_form.start_time.iter().zip(schedule_form.end_time.iter()))
-        .map(|(id, (start, end))| -> Result<ExistingTimeslot, Box<dyn Error>> {
-            Ok(ExistingTimeslot {
-                id,
-                                        start_time: NaiveTime::parse_from_str(start, "%H:%M")?,
-                                        end_time: NaiveTime::parse_from_str(end, "%H:%M")?,
-                duration: (NaiveTime::parse_from_str(end, "%H:%M")? - NaiveTime::parse_from_str(start, "%H:%M")?).num_minutes() as i32,
-                                    })
-                                })
-                                .collect::<Result<Vec<_>, _>>()?;
+    let timeslots = timeslot_ids
+        .into_iter()
+        .zip(
+            schedule_form
+                .start_time
+                .iter()
+                .zip(schedule_form.end_time.iter()),
+        )
+        .map(
+            |(id, (start, end))| -> Result<ExistingTimeslot, Box<dyn Error>> {
+                Ok(ExistingTimeslot {
+                    id,
+                    start_time: NaiveTime::parse_from_str(start, "%H:%M")?,
+                    end_time: NaiveTime::parse_from_str(end, "%H:%M")?,
+                    duration: (NaiveTime::parse_from_str(end, "%H:%M")?
+                        - NaiveTime::parse_from_str(start, "%H:%M")?)
+                        .num_minutes() as i32,
+                })
+            },
+        )
+        .collect::<Result<Vec<_>, _>>()?;
 
     Ok(Schedule::new(
         Some(schedule_id),
@@ -286,7 +303,6 @@ pub async fn schedule_add(
         timeslots,
     ))
 }
-
 
 /// Generates a schedule.
 ///
@@ -301,12 +317,15 @@ pub async fn schedule_add(
 /// # Errors
 /// If an error occurs while generating the schedule, a `ScheduleErr` error is returned.
 pub async fn schedule_generate(db_pool: &Pool<Postgres>) -> Result<Schedule, ScheduleErr> {
-    let topics = get_all_topics(db_pool).await
+    let topics = get_all_topics(db_pool)
+        .await
         .map_err(|e| ScheduleErr::IoError(e.to_string()))?;
-    let rooms = rooms_get(db_pool).await
+    let rooms = rooms_get(db_pool)
+        .await
         .map_err(|e| ScheduleErr::IoError(e.to_string()))?
         .ok_or_else(|| ScheduleErr::DoesNotExist("No rooms found".to_string()))?;
-    let mut schedule = schedules_get(db_pool).await
+    let mut schedule = schedules_get(db_pool)
+        .await
         .map_err(|e| ScheduleErr::IoError(e.to_string()))?
         .ok_or_else(|| ScheduleErr::DoesNotExist("No schedule found".to_string()))?;
 
@@ -321,7 +340,7 @@ pub async fn schedule_generate(db_pool: &Pool<Postgres>) -> Result<Schedule, Sch
                 .map_err(|e| ScheduleErr::IoError(e.to_string()))?;
 
             Ok(schedule)
-        },
+        }
         Err(e) => Err(ScheduleErr::IoError(e.to_string())),
     }
 }
@@ -339,7 +358,9 @@ pub async fn schedule_generate(db_pool: &Pool<Postgres>) -> Result<Schedule, Sch
 /// # Errors
 /// If an error occurs while clearing the schedule, a `Box<dyn Error>` error is returned.
 pub async fn schedule_clear(db_pool: &Pool<Postgres>) -> Result<(), Box<dyn Error>> {
-    sqlx::query(r#"DELETE FROM timeslot_assignments"#).execute(db_pool).await?;
+    sqlx::query(r#"DELETE FROM timeslot_assignments"#)
+        .execute(db_pool)
+        .await?;
 
     Ok(())
 }
