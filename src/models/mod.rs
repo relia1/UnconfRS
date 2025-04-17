@@ -1,4 +1,4 @@
-pub mod admin_model;
+pub mod auth_model;
 pub mod room_model;
 pub mod schedule_model;
 pub mod speakers_model;

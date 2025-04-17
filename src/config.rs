@@ -1,4 +1,5 @@
 use crate::db_config::*;
+use crate::models::auth_model::Backend;
 use sqlx::{Pool, Postgres};
 use std::error::Error;
 use std::sync::Arc;
@@ -13,38 +14,27 @@ use tokio::sync::RwLock;
 /// - `jwt_secret`: Thread-safe storage for the JWT secret
 pub struct AppState {
     pub unconf_data: Arc<RwLock<UnconfData>>,
-    pub jwt_secret: Arc<RwLock<String>>,
+    pub auth_backend: Backend,
 }
 
 impl AppState {
     /// Creates a new `AppState` instance.
     ///
-    /// # Environment Variables
-    /// - `JWT_SECRETFILE`: The path to the file that contains the JWT secret
-    ///
     /// # Returns
-    /// `Ok(AppState)` if the JWT secret is set up properly, or an error if not.
+    /// `Ok(AppState)`, or an error if unable to initialize UnconfData
     ///
     /// # Errors
     /// This function will return an error if:
-    /// - `JWT_SECRETFILE` is not set
-    /// - The file specified by `JWT_SECRETFILE` does not exist
     /// - UnconfData cannot be initialized
     pub async fn new() -> Result<Self, Box<dyn Error>> {
-        let get_secret = || -> Result<String, Box<dyn Error>> {
-            let secret_file = std::env::var("JWT_SECRETFILE")?;
-            let secret = std::fs::read_to_string(secret_file)?.trim().to_owned();
-            Ok(secret)
-        };
-        match get_secret() {
-            Ok(jwt_secret) => Ok(Self {
-                unconf_data: Arc::new(RwLock::new(UnconfData::new().await?)),
-                jwt_secret: Arc::new(RwLock::new(jwt_secret)),
-            }),
-            Err(e) => {
-                Err(format!("JWT_SECRET not set up properly. See the README\n({})", e).into())
-            }
-        }
+        let unconf_data = UnconfData::new().await?;
+        let db_pool = unconf_data.unconf_db.clone();
+        let auth_backend = Backend::new(db_pool);
+
+        Ok(Self {
+            unconf_data: Arc::new(RwLock::new(UnconfData::new().await?)),
+            auth_backend,
+        })
     }
 }
 

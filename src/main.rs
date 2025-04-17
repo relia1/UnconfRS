@@ -91,9 +91,9 @@ async fn configure_app_router(app_state: Arc<RwLock<AppState>>) -> Router {
         .merge(site_routes)
         .nest("/api/v1", api_routes)
         .merge(docs_routes)
-        .with_state(app_state)
+        .with_state(app_state.clone())
         .fallback(handler_404);
 
     // Add middleware
-    configure_middleware(app)
+    configure_middleware(app, app_state).await
 }
