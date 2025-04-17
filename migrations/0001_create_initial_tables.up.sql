@@ -42,3 +42,40 @@ CREATE TABLE users (
     username TEXT UNIQUE NOT NULL,
     password TEXT NOT NULL
 );
+
+CREATE TABLE groups
+(
+    id   INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    name TEXT UNIQUE NOT NULL
+);
+
+CREATE TABLE permissions
+(
+    id   INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    name TEXT UNIQUE NOT NULL
+);
+
+CREATE TABLE users_groups
+(
+    user_id  INTEGER REFERENCES users (id),
+    group_id INTEGER REFERENCES groups (id),
+    PRIMARY KEY (user_id, group_id)
+);
+
+CREATE TABLE groups_permissions
+(
+    group_id      INTEGER REFERENCES groups (id),
+    permission_id INTEGER REFERENCES permissions (id),
+    PRIMARY KEY (group_id, permission_id)
+);
+
+CREATE SCHEMA tower_sessions;
+
+CREATE TABLE tower_sessions.session
+(
+    id          TEXT PRIMARY KEY,
+    data        BYTEA       NOT NULL,
+    expiry_date TIMESTAMPTZ NOT NULL
+);
+
+CREATE INDEX session_expiry_idx ON tower_sessions.session (expiry_date);
