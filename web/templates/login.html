@@ -1,25 +1,28 @@
 {% extends "base.html" %}
 
-{% block title %}Admin Login{% endblock %}
+{% block title %}Login{% endblock %}
 
 {% block content %}
-    <form id="adminLogin" style="margin-top: 10px">
+    <form id="login" style="margin-top: 10px">
         <div class="form-field">
+            <label for="username">Username</label>
+            <input type="text" id="username" name="username" required/>
             <label for="password">Password</label>
             <input type="text" id="password" name="password" required/>
         </div>
         <button type="submit">Submit</button>
     </form>
 <script>
-    document.getElementById('adminLogin').addEventListener('submit', (e) => {
+    document.getElementById('login').addEventListener('submit', (e) => {
         e.preventDefault();
         const password = document.getElementById('password').value;
-        fetch('/api/v1/admin_login', {
+        const username = document.getElementById('username').value;
+        fetch('/api/v1/login', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ password })
+            body: JSON.stringify({ username, password })
         })
         .then(response => response)
         .then(data => {
