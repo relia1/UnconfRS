@@ -1,6 +1,6 @@
 use crate::types::ApiStatusCode;
-use askama_axum::IntoResponse;
 use axum::http::StatusCode;
+use axum::response::IntoResponse;
 use axum::{response::Response, Json};
 use serde::{ser::SerializeStruct, Deserialize, Serialize, Serializer};
 use sqlx::{FromRow, Pool, Postgres};

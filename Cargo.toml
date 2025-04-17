@@ -4,26 +4,26 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-askama = { version = "0.12.1", features = ["with-axum", "serde-json"] }
-askama_axum = "0.4.0"
-axum = { version = "0.7.9", features = ["macros", "form"] }
-axum-macros = "0.4.2"
-axum-login = "0.16.0"
-bcrypt = "0.16.0"
-chrono = { version = "0.4.38", features = ["serde"] }
-serde = {version = "1.0.215", features = ["derive", "serde_derive"] }
-serde_json = "1.0.133"
-serde_with = "3.11.0"
-sqlx = { version = "0.8.2", features = ["runtime-tokio-rustls", "postgres", "macros", "migrate", "time", "json", "chrono"] }
-thiserror = "2.0.4"
-tokio = { version = "1.42.0", features = ["full"] }
+askama = "0.13.1"
+axum = { version = "0.8.3", features = ["macros", "form"] }
+axum-macros = "0.5.0"
+axum-login = "0.17.0"
+bcrypt = "0.17.0"
+chrono = { version = "0.4.40", features = ["serde"] }
+serde = { version = "1.0.219", features = ["derive", "serde_derive"] }
+serde_json = "1.0.140"
+serde_with = "3.12.0"
+sqlx = { version = "0.8.5", features = ["runtime-tokio-rustls", "postgres", "macros", "migrate", "time", "json", "chrono"] }
+thiserror = "2.0.12"
+tokio = { version = "1.44.2", features = ["full"] }
 tower = "0.5.2"
-tower-cookies = { version = "0.10.0", features = ["private"] }
+tower-cookies = { version = "0.11.0", features = ["private"] }
 tower-http = { version = "0.6.2", features = ["trace", "full", "cors"] }
-tower-sessions-sqlx-store = { version = "0.14.2", features = ["postgres"] }
+tower-sessions-sqlx-store = { version = "0.15.0", features = ["postgres"] }
 tracing = { version = "0.1.41", features = ["async-await"] }
 tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
-utoipa = { version = "5.2.0", features = ["axum_extras", "chrono"] }
-utoipa-rapidoc = { version = "5.0.0", features = ["axum"] }
-utoipa-redoc = { version = "5.0.0", features = ["axum"] }
-utoipa-swagger-ui = { version = "8.0.3", features = ["axum"] }
+utoipa = { version = "5.3.1", features = ["axum_extras", "chrono"] }
+utoipa-rapidoc = { version = "6.0.0", features = ["axum"] }
+utoipa-redoc = { version = "6.0.0", features = ["axum"] }
+utoipa-swagger-ui = { version = "9.0.1", features = ["axum"] }
+async-trait = "0.1.88"

@@ -5,7 +5,7 @@ use crate::{
     controllers::site_handler::CreateScheduleForm,
     models::{room_model::rooms_get, timeslot_model::*, topics_model::*},
 };
-use askama_axum::IntoResponse;
+use axum::response::IntoResponse;
 use axum::{http::StatusCode, response::Response, Json};
 use chrono::NaiveTime;
 use serde::{ser::SerializeStruct, Deserialize, Serialize, Serializer};

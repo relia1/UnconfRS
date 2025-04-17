@@ -8,9 +8,8 @@ use crate::models::room_model::{
 };
 use crate::types::ApiStatusCode;
 use crate::StatusCode;
-use askama_axum::IntoResponse;
 use axum::extract::State;
-use axum::response::Response;
+use axum::response::{IntoResponse, Response};
 use axum::Json;
 use axum_macros::debug_handler;
 use tracing::trace;

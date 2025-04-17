@@ -1,8 +1,8 @@
 use crate::middleware::auth::AuthSessionLayer;
 use crate::models::auth_model::{Credentials, LoginRequest, LoginResponse};
 use askama::Template;
-use askama_axum::{IntoResponse, Response};
-use axum::{http::StatusCode, response::Html, Json};
+use axum::response::IntoResponse;
+use axum::{http::StatusCode, response::Html, response::Response, Json};
 use axum_macros::debug_handler;
 
 #[derive(Template, Debug)]

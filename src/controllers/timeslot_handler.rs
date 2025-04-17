@@ -11,11 +11,10 @@ use crate::models::{
         TimeslotRequest, TimeslotRequestWrapper, TimeslotUpdateRequest,
     },
 };
-use askama_axum::IntoResponse;
 use axum::debug_handler;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
-use axum::response::Response;
+use axum::response::{IntoResponse, Response};
 use axum::Json;
 use chrono::NaiveTime;
 use tracing::trace;

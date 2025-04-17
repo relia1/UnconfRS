@@ -1,5 +1,5 @@
 use crate::types::ApiStatusCode;
-use askama_axum::IntoResponse;
+use axum::response::IntoResponse;
 use axum::{response::Response, Json};
 use chrono::NaiveTime;
 use serde::{ser::SerializeStruct, Deserialize, Serialize, Serializer};

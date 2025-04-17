@@ -7,12 +7,11 @@ use crate::models::topics_model::{
     TopicError,
 };
 use crate::types::ApiStatusCode;
-use askama_axum::IntoResponse;
 use axum::debug_handler;
 use axum::extract::Path;
 use axum::extract::State;
 use axum::http::StatusCode;
-use axum::response::Response;
+use axum::response::{IntoResponse, Response};
 use axum::Json;
 
 #[utoipa::path(

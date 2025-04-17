@@ -1,4 +1,4 @@
-use axum::async_trait;
+use async_trait::async_trait;
 use axum_login::{AuthUser, AuthnBackend, AuthzBackend, UserId};
 use axum_macros::FromRef;
 use serde::{Deserialize, Serialize};
@@ -36,6 +36,7 @@ impl std::fmt::Debug for User {
     }
 }
 
+#[async_trait]
 impl AuthUser for User {
     type Id = i32;
 
@@ -48,7 +49,7 @@ impl AuthUser for User {
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Clone, Deserialize)]
 pub struct Credentials {
     pub username: String,
     pub password: String,

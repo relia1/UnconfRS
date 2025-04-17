@@ -5,10 +5,9 @@ use crate::models::speakers_model::Speaker;
 use crate::models::timeslot_model::{timeslot_get, ExistingTimeslot, TimeslotAssignment};
 use crate::models::topics_model::{get_all_topics, Topic};
 use askama::Template;
-use askama_axum::{IntoResponse, Response};
 use axum::extract::State;
 use axum::http::StatusCode;
-use axum::response::Html;
+use axum::response::{Html, IntoResponse, Response};
 use axum_macros::debug_handler;
 use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, Pool, Postgres};
@@ -43,7 +42,11 @@ struct IndexTemplate;
 /// # Errors
 /// If the template fails to render, an internal server error status code is returned.
 pub async fn index_handler() -> Response {
-    IndexTemplate.into_response()
+    let template = IndexTemplate;
+    match template.render() {
+        Ok(html) => Html(html).into_response(),
+        Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, "Internal Server Error").into_response(),
+    }
 }
 
 #[derive(Debug, Serialize)]
