@@ -76,7 +76,7 @@ impl AuthnBackend for Backend {
         &self,
         creds: Self::Credentials,
     ) -> Result<Option<Self::User>, Self::Error> {
-        let user: Option<Self::User> = sqlx::query_as(r#"SELECT * FROM users WHERE username = $1"#)
+        let user: Option<Self::User> = sqlx::query_as(r"SELECT * FROM users WHERE username = $1")
             .bind(creds.username)
             .fetch_optional(&self.db_pool)
             .await?;
@@ -92,7 +92,7 @@ impl AuthnBackend for Backend {
     }
 
     async fn get_user(&self, user_id: &UserId<Self>) -> Result<Option<Self::User>, Self::Error> {
-        let user = sqlx::query_as(r#"SELECT * FROM users WHERE id = $1"#)
+        let user = sqlx::query_as(r"SELECT * FROM users WHERE id = $1")
             .bind(user_id)
             .fetch_optional(&self.db_pool)
             .await?;
@@ -123,13 +123,13 @@ impl AuthzBackend for Backend {
         user: &Self::User,
     ) -> Result<HashSet<Self::Permission>, Self::Error> {
         let permissions: Vec<Self::Permission> = sqlx::query_as(
-            r#"
+            r"
             select distinct permissions.name
             from users
             join users_groups on users.id = users_groups.user_id
             join groups_permissions on groups_permissions.permission_id = permissions.id
             where users.id = $1
-            "#,
+            ",
         )
             .bind(user.id)
             .fetch_all(&self.db_pool)

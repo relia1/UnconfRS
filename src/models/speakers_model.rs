@@ -147,8 +147,8 @@ impl IntoResponse for &Speaker {
 /// If the query fails, a boxed error is returned.
 pub async fn speakers_get(db_pool: &Pool<Postgres>) -> Result<Vec<Speaker>, Box<dyn Error>> {
     let speakers: Vec<Speaker> = sqlx::query_as(
-        r#"
-        SELECT * FROM speakers;"#,
+        r"
+        SELECT * FROM speakers;",
     )
         .fetch_all(db_pool)
         .await?;

@@ -3,7 +3,7 @@ use crate::models::timeslot_assignment_model::assign_topics_to_timeslots;
 use crate::types::ApiStatusCode;
 use crate::{
     controllers::site_handler::CreateScheduleForm,
-    models::{room_model::rooms_get, timeslot_model::*, topics_model::*},
+    models::{room_model::rooms_get, timeslot_model::{timeslot_get, timeslots_add, ExistingTimeslot, TimeslotForm, TimeslotRequest}, topics_model::{get_all_topics, TopicErr}},
 };
 use axum::response::IntoResponse;
 use axum::{http::StatusCode, response::Response, Json};
@@ -194,7 +194,7 @@ pub async fn schedules_get(db_pool: &Pool<Postgres>) -> Result<Option<Schedule>,
     } else {
         Ok(Some(Schedule::new(
             Some(1),
-            timeslots.len() as i32,
+            i32::try_from(timeslots.len())?,
             timeslots,
         )))
     }
@@ -221,7 +221,7 @@ pub async fn schedule_get(db_pool: &Pool<Postgres>) -> Result<Option<Schedule>, 
     } else {
         Ok(Some(Schedule::new(
             Some(1),
-            timeslots.len() as i32,
+            i32::try_from(timeslots.len())?,
             timeslots,
         )))
     }
@@ -261,7 +261,7 @@ pub async fn schedule_add(
 
             Ok(TimeslotForm {
                 start_time: start.clone(),
-                duration: (end_time - start_time).num_minutes() as i32,
+                duration: i32::try_from((end_time - start_time).num_minutes())?,
                 assignments: vec![],
             })
         })
@@ -289,9 +289,9 @@ pub async fn schedule_add(
                     id,
                     start_time: NaiveTime::parse_from_str(start, "%H:%M")?,
                     end_time: NaiveTime::parse_from_str(end, "%H:%M")?,
-                    duration: (NaiveTime::parse_from_str(end, "%H:%M")?
+                    duration: i32::try_from((NaiveTime::parse_from_str(end, "%H:%M")?
                         - NaiveTime::parse_from_str(start, "%H:%M")?)
-                        .num_minutes() as i32,
+                        .num_minutes())?,
                 })
             },
         )
@@ -358,7 +358,7 @@ pub async fn schedule_generate(db_pool: &Pool<Postgres>) -> Result<Schedule, Sch
 /// # Errors
 /// If an error occurs while clearing the schedule, a `Box<dyn Error>` error is returned.
 pub async fn schedule_clear(db_pool: &Pool<Postgres>) -> Result<(), Box<dyn Error>> {
-    sqlx::query(r#"DELETE FROM timeslot_assignments"#)
+    sqlx::query(r"DELETE FROM timeslot_assignments")
         .execute(db_pool)
         .await?;
 

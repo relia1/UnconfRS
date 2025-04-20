@@ -131,7 +131,7 @@ pub async fn post_speaker(
     let write_lock = &app_state_lock.unconf_data.read().await.unconf_db;
     match speaker_add(write_lock, speaker).await {
         Ok(id) => {
-            let id_res = Json(format!("{{ \"id\": {} }}", id));
+            let id_res = Json(format!("{{ \"id\": {id} }}"));
             id_res.into_response()
         }
         Err(e) => SpeakerError::response(ApiStatusCode::from(StatusCode::BAD_REQUEST), e),

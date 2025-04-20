@@ -13,7 +13,7 @@ impl ApiStatusCode {
         Self(status.as_u16())
     }
 
-    pub fn as_status_code(&self) -> StatusCode {
+    pub fn as_status_code(self) -> StatusCode {
         StatusCode::from_u16(self.0).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR)
     }
 }

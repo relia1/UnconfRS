@@ -10,13 +10,13 @@ use utoipa_swagger_ui::SwaggerUi;
 
 /// Creates a new router with the documentation routes
 ///
-/// This function configures routes for the Swagger UI, ReDoc, and RapiDoc:
+/// This function configures routes for the Swagger UI, `ReDoc`, and `RapiDoc`:
 /// - Swagger UI is served at `/swagger-ui`
-/// - ReDoc is served at `/redoc`
-/// - RapiDoc is served at `/rapidoc`
+/// - `ReDoc` is served at `/redoc`
+/// - `RapiDoc` is served at `/rapidoc`
 ///
 /// # Parameters
-/// - `app_state` - Thread-safe shared state wrapped in an Arc and RwLock
+/// - `app_state` - Thread-safe shared state wrapped in an `Arc` and `RwLock`
 ///
 /// # Returns
 /// A Router with the documentation routes

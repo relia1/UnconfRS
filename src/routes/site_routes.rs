@@ -18,7 +18,7 @@ use tower_http::services::ServeDir;
 /// - Static assets served from `/scripts` and `/styles`
 ///
 /// # Parameters
-/// - `app_state` - Thread-safe shared state wrapped in an Arc and RwLock
+/// - `app_state` - Thread-safe shared state wrapped in an `Arc` and `RwLock`
 ///
 /// # Returns
 /// A Router with the site routes

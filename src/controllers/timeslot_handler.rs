@@ -126,31 +126,41 @@ pub async fn update_timeslot(
         Err(e) => return TimeSlotError::response(StatusCode::BAD_REQUEST.into(), Box::new(e)),
     };
 
-    let duration = (end_time - start_time).num_minutes() as i32;
+    let duration = i32::try_from((end_time - start_time).num_minutes());
+    match duration {
+        Ok(duration) => {
+            let timeslot = TimeslotForm {
+                start_time: request.start_time,
+                duration,
+                assignments: vec![TimeslotAssignmentForm {
+                    speaker_id: request.speaker_id,
+                    topic_id: request.topic_id,
+                    room_id: request.room_id,
+                    old_room_id: request.old_room_id,
+                }],
+            };
 
-    let timeslot = TimeslotForm {
-        start_time: request.start_time,
-        duration,
-        assignments: vec![TimeslotAssignmentForm {
-            speaker_id: request.speaker_id,
-            topic_id: request.topic_id,
-            room_id: request.room_id,
-            old_room_id: request.old_room_id,
-        }],
-    };
-
-    match timeslot_assignment_update(
-        write_lock,
-        timeslot_id,
-        TimeslotRequest {
-            timeslots: vec![timeslot],
+            match timeslot_assignment_update(
+                write_lock,
+                timeslot_id,
+                TimeslotRequest {
+                    timeslots: vec![timeslot],
+                },
+            )
+                .await
+            {
+                Ok(assignment_ids) => Json(assignment_ids).into_response(),
+                Err(e) => TimeSlotError::response(StatusCode::INTERNAL_SERVER_ERROR.into(), e),
+            }
         },
-    )
-        .await
-    {
-        Ok(assignment_ids) => Json(assignment_ids).into_response(),
-        Err(e) => TimeSlotError::response(StatusCode::INTERNAL_SERVER_ERROR.into(), e),
+        Err(e) => {
+            TimeSlotError::response(StatusCode::BAD_REQUEST.into(), Box::new(e))
+        }
     }
+        
+    
+
+    
 }
 
 #[utoipa::path(

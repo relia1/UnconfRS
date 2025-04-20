@@ -25,11 +25,11 @@ use tokio::sync::RwLock;
 /// rooms, speakers, schedules, and authentication.
 ///
 /// # Parameters
-/// - `app_state` - The shared application state wrapped in an Arc and RwLock
+/// - `app_state` - The shared application state wrapped in an `Arc` and `RwLock`
 ///
 /// # Returns
 /// A router with all the routes for the API
-pub fn get_routes(app_state: Arc<RwLock<AppState>>) -> Router<Arc<RwLock<AppState>>> {
+pub fn get_routes(app_state: &Arc<RwLock<AppState>>) -> Router<Arc<RwLock<AppState>>> {
     let public_routes = Router::new()
         .route("/login", post(login_handler))
         .route("/topics", get(topics))

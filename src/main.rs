@@ -11,7 +11,7 @@ mod routes;
 mod types;
 
 use axum::{http::StatusCode, Router};
-use config::*;
+use config::AppState;
 use tracing_subscriber::{fmt, EnvFilter};
 
 use crate::controllers::site_handler::handler_404;
@@ -44,7 +44,7 @@ async fn main() {
 ///
 /// This functions sets up a tracing subscriber with two layers:
 /// - A formatting layer that includes the file and line number
-/// - A filter layer that uses the RUST_LOG environment variable
+/// - A filter layer that uses the `RUST_LOG` environment variable
 ///
 /// # Environment Variables
 /// - `RUST_LOG` - The log level for the application. If not set, defaults to `info`
@@ -69,14 +69,14 @@ fn setup_tracing() {
 /// routes module and adding middleware to the application.
 ///
 /// # Parameters
-/// - `app_state` - Thread-safe shared state wrapped in an Arc and RwLock
+/// - `app_state` - Thread-safe shared state wrapped in an `Arc` and `RwLock`
 ///
 /// # Returns
 /// A configured Router with all routes and middleware
 async fn configure_app_router(app_state: Arc<RwLock<AppState>>) -> Router {
     // Get route modules
     let site_routes = site_routes::get_routes(app_state.clone());
-    let api_routes = api_routes::get_routes(app_state.clone());
+    let api_routes = api_routes::get_routes(&app_state.clone());
     let docs_routes = docs_routes::get_routes(app_state.clone());
 
     // Combine routes

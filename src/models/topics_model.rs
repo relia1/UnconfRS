@@ -140,8 +140,8 @@ impl IntoResponse for &Topic {
 /// If the query fails, a Box error is returned.
 pub async fn get_all_topics(db_pool: &Pool<Postgres>) -> Result<Vec<Topic>, Box<dyn Error>> {
     let topics: Vec<Topic> = sqlx::query_as(
-        r#"
-        SELECT * FROM topics"#,
+        r"
+        SELECT * FROM topics",
     )
         .fetch_all(db_pool)
         .await?;

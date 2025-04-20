@@ -1,4 +1,4 @@
-use crate::db_config::*;
+use crate::db_config::db_setup;
 use crate::models::auth_model::Backend;
 use sqlx::{Pool, Postgres};
 use std::error::Error;
@@ -7,11 +7,11 @@ use tokio::sync::RwLock;
 
 /// The application state
 ///
-/// This struct holds the application state and JWT secret both wrapped in an Arc and RwLock
+/// This struct holds the application state and JWT secret both wrapped in an `Arc` and `RwLock`
 ///
 /// # Fields
 /// - `unconf_data`: Thread-safe storage for the application data
-/// - `jwt_secret`: Thread-safe storage for the JWT secret
+/// - `auth_backend`: Thread-safe storage for the JWT secret
 pub struct AppState {
     pub unconf_data: Arc<RwLock<UnconfData>>,
     pub auth_backend: Backend,
@@ -21,11 +21,11 @@ impl AppState {
     /// Creates a new `AppState` instance.
     ///
     /// # Returns
-    /// `Ok(AppState)`, or an error if unable to initialize UnconfData
+    /// `Ok(AppState)`, or an error if unable to initialize `UnconfData`
     ///
     /// # Errors
     /// This function will return an error if:
-    /// - UnconfData cannot be initialized
+    /// - `UnconfData` cannot be initialized
     pub async fn new() -> Result<Self, Box<dyn Error>> {
         let unconf_data = UnconfData::new().await?;
         let db_pool = unconf_data.unconf_db.clone();

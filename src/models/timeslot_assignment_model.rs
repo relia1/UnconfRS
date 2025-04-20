@@ -124,7 +124,7 @@ pub async fn timeslot_assignment_update(
 
     for timeslot in request.timeslots {
         let start_time = NaiveTime::parse_from_str(&timeslot.start_time, "%H:%M")?;
-        let end_time = start_time + chrono::Duration::minutes(timeslot.duration as i64);
+        let end_time = start_time + chrono::Duration::minutes(i64::from(timeslot.duration));
 
         // Get timeslot ID
         let new_timeslot_id: i32 =

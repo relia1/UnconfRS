@@ -182,7 +182,7 @@ async fn insert_timeslot(
     duration: i64,
 ) -> Result<i32, Box<dyn Error>> {
     let end_time = start_time + chrono::Duration::minutes(duration);
-    let duration_interval = format!("{} minutes", duration);
+    let duration_interval = format!("{duration} minutes");
     let (id, ) = sqlx::query_as(
         "INSERT INTO time_slots (start_time, end_time, duration) VALUES ($1, $2, $3::interval) RETURNING id"
     )
@@ -215,7 +215,7 @@ pub async fn timeslots_add(
     let mut timeslot_ids = Vec::new();
     for timeslot in timeslots.timeslots {
         let start_time = NaiveTime::parse_from_str(&timeslot.start_time, "%H:%M")?;
-        let id = insert_timeslot(db_pool, start_time, timeslot.duration as i64).await?;
+        let id = insert_timeslot(db_pool, start_time, i64::from(timeslot.duration)).await?;
         if !timeslot.assignments.is_empty() {
             tracing::debug!("Adding assignments: {:?}", timeslot.assignments);
             //insert_assignments(db_pool, id, timeslot.assignments).await?;

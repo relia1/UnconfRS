@@ -188,9 +188,9 @@ pub(crate) struct CreateRoomsForm {
 pub(crate) async fn rooms_get(db_pool: &Pool<Postgres>) -> Result<Option<Vec<Room>>, BoxedError> {
     let rooms = Some(
         sqlx::query_as::<Postgres, Room>(
-            r#"
+            r"
             SELECT * FROM rooms
-            ORDER BY id"#,
+            ORDER BY id",
         )
             .fetch_all(db_pool)
             .await?,
@@ -220,11 +220,11 @@ pub async fn rooms_add(
     let tx = db_pool.begin().await?;
     for room in &rooms_form.rooms {
         sqlx::query_as::<Postgres, Room>(
-            r#"INSERT INTO rooms (name,
+            r"INSERT INTO rooms (name,
         available_spots, 
         location) 
         VALUES 
-        ($1, $2, $3) RETURNING id, available_spots, name, location"#,
+        ($1, $2, $3) RETURNING id, available_spots, name, location",
         )
             .bind(room.name.clone())
             .bind(room.available_spots)
@@ -253,20 +253,20 @@ pub async fn rooms_add(
 /// If an error occurs while removing the room from the database, a `BoxedError` is returned.
 pub async fn room_delete(db_pool: &Pool<Postgres>, index: i32) -> Result<(), BoxedError> {
     sqlx::query(
-        r#"
+        r"
         DELETE FROM timeslot_assignments
         WHERE room_id = $1
-        "#,
+        ",
     )
         .bind(index)
         .execute(db_pool)
         .await?;
 
     sqlx::query(
-        r#"
+        r"
         DELETE FROM rooms
         WHERE id = $1
-        "#,
+        ",
     )
         .bind(index)
         .execute(db_pool)
