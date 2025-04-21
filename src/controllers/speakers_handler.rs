@@ -2,9 +2,10 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 
 use crate::config::AppState;
-use crate::models::speakers_model::{
-    speaker_add, speaker_delete, speaker_get, speaker_update, speakers_get, Speaker, SpeakerErr,
-    SpeakerError,
+use crate::middleware::auth::AuthSessionLayer;
+use crate::models::user_info_model::{
+    user_info_add, user_info_delete, user_info_get, user_info_update, users_info_get, UserInfo, UserInfoErr,
+    UserInfoError,
 };
 use crate::types::ApiStatusCode;
 use crate::StatusCode;
@@ -23,7 +24,7 @@ use tracing::trace;
         ("limit" = i32, Query, description = "Limit", minimum = 1)
     ),
     responses(
-        (status = 200, description = "List speakers", body = Vec<Speaker>),
+        (status = 200, description = "List speakers", body = Vec<UserInfo>),
         (status = 404, description = "No speakers in that range")
     )
 )]
@@ -46,13 +47,13 @@ use tracing::trace;
 pub async fn speakers(State(app_state): State<Arc<RwLock<AppState>>>) -> Response {
     let app_state_lock = app_state.read().await;
     let read_lock = &app_state_lock.unconf_data.read().await.unconf_db;
-    match speakers_get(read_lock).await {
+    match users_info_get(read_lock).await {
         Ok(res) => Json(res).into_response(),
         Err(e) => {
             trace!("Paginated get error");
-            SpeakerError::response(
+            UserInfoError::response(
                 ApiStatusCode::from(StatusCode::NOT_FOUND),
-                Box::new(SpeakerErr::DoesNotExist(e.to_string())),
+                Box::new(UserInfoErr::DoesNotExist(e.to_string())),
             )
         }
     }
@@ -62,8 +63,8 @@ pub async fn speakers(State(app_state): State<Arc<RwLock<AppState>>>) -> Respons
     get,
     path = "/api/v1/speakers/{id}",
     responses(
-        (status = 200, description = "Return specified speaker", body = Speaker),
-        (status = 404, description = "No speaker with this id", body = SpeakerError),
+        (status = 200, description = "Return specified speaker", body = UserInfo),
+        (status = 404, description = "No speaker with this id", body = UserInfoError),
     )
 )]
 #[debug_handler]
@@ -89,9 +90,9 @@ pub async fn get_speaker(
 ) -> Response {
     let app_state_lock = app_state.read().await;
     let read_lock = &app_state_lock.unconf_data.read().await.unconf_db;
-    match speaker_get(read_lock, speaker_id).await {
+    match user_info_get(read_lock, speaker_id).await {
         Ok(speaker) => Json(speaker).into_response(),
-        Err(e) => SpeakerError::response(ApiStatusCode::from(StatusCode::NOT_FOUND), e),
+        Err(e) => UserInfoError::response(ApiStatusCode::from(StatusCode::NOT_FOUND), e),
     }
 }
 
@@ -99,12 +100,12 @@ pub async fn get_speaker(
     post,
     path = "/api/v1/speakers/add",
     request_body(
-        content = inline(Speaker),
-        description = "Speaker to add"
+        content = inline(UserInfo),
+        description = "UserInfo to add"
     ),
     responses(
         (status = 201, description = "Added speaker", body = ()),
-        (status = 400, description = "Bad request", body = SpeakerError)
+        (status = 400, description = "Bad request", body = UserInfoError)
     )
 )]
 #[debug_handler]
@@ -125,16 +126,18 @@ pub async fn get_speaker(
 /// If an error occurs while adding the speaker, a speaker error response with a status code of 400
 pub async fn post_speaker(
     State(app_state): State<Arc<RwLock<AppState>>>,
-    Json(speaker): Json<Speaker>,
+    auth_session: AuthSessionLayer,
+    Json(speaker): Json<UserInfo>,
 ) -> Response {
+    tracing::trace!("\n\nauth_session: {:?}\n\n", auth_session.user);
     let app_state_lock = app_state.read().await;
     let write_lock = &app_state_lock.unconf_data.read().await.unconf_db;
-    match speaker_add(write_lock, speaker).await {
+    match user_info_add(write_lock, speaker, auth_session).await {
         Ok(id) => {
             let id_res = Json(format!("{{ \"id\": {id} }}"));
             id_res.into_response()
         }
-        Err(e) => SpeakerError::response(ApiStatusCode::from(StatusCode::BAD_REQUEST), e),
+        Err(e) => UserInfoError::response(ApiStatusCode::from(StatusCode::BAD_REQUEST), e),
     }
 }
 
@@ -143,7 +146,7 @@ pub async fn post_speaker(
     path = "/api/v1/speakers/{id}",
     responses(
         (status = 200, description = "Deleted speaker", body = ()),
-        (status = 400, description = "Bad request", body = SpeakerError),
+        (status = 400, description = "Bad request", body = UserInfoError),
     )
 )]
 #[debug_handler]
@@ -169,9 +172,9 @@ pub async fn delete_speaker(
 ) -> Response {
     let app_state_lock = app_state.read().await;
     let write_lock = &app_state_lock.unconf_data.read().await.unconf_db;
-    match speaker_delete(write_lock, speaker_id).await {
+    match user_info_delete(write_lock, speaker_id).await {
         Ok(()) => StatusCode::OK.into_response(),
-        Err(e) => SpeakerError::response(ApiStatusCode::from(StatusCode::BAD_REQUEST), e),
+        Err(e) => UserInfoError::response(ApiStatusCode::from(StatusCode::BAD_REQUEST), e),
     }
 }
 
@@ -179,14 +182,14 @@ pub async fn delete_speaker(
     put,
     path = "/api/v1/speakers/{id}",
     request_body(
-        content = inline(Speaker),
-        description = "Speaker to update"
+        content = inline(UserInfo),
+        description = "UserInfo to update"
     ),
     responses(
         (status = 200, description = "Updated speaker", body = ()),
-        (status = 400, description = "Bad request", body = SpeakerError),
-        (status = 404, description = "Speaker not found", body = SpeakerError),
-        (status = 422, description = "Unprocessable entity", body = SpeakerError),
+        (status = 400, description = "Bad request", body = UserInfoError),
+        (status = 404, description = "Speaker not found", body = UserInfoError),
+        (status = 422, description = "Unprocessable entity", body = UserInfoError),
     )
 )]
 #[debug_handler]
@@ -210,12 +213,12 @@ pub async fn delete_speaker(
 pub async fn update_speaker(
     State(app_state): State<Arc<RwLock<AppState>>>,
     Path(speaker_id): Path<i32>,
-    Json(speaker): Json<Speaker>,
+    Json(speaker): Json<UserInfo>,
 ) -> Response {
     let app_state_lock = app_state.read().await;
     let write_lock = &app_state_lock.unconf_data.read().await.unconf_db;
-    match speaker_update(write_lock, speaker_id, speaker).await {
+    match user_info_update(write_lock, speaker_id, speaker).await {
         Ok(_) => StatusCode::OK.into_response(),
-        Err(e) => SpeakerError::response(ApiStatusCode::from(StatusCode::BAD_REQUEST), e),
+        Err(e) => UserInfoError::response(ApiStatusCode::from(StatusCode::BAD_REQUEST), e),
     }
 }

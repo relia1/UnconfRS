@@ -1,9 +1,9 @@
 use crate::config::AppState;
 use crate::models::room_model::{rooms_get, Room};
 use crate::models::schedule_model::{schedules_get, Schedule};
-use crate::models::speakers_model::Speaker;
 use crate::models::timeslot_model::{timeslot_get, ExistingTimeslot, TimeslotAssignment};
 use crate::models::topics_model::{get_all_topics, Topic};
+use crate::models::user_info_model::UserInfo;
 use askama::Template;
 use axum::extract::State;
 use axum::http::StatusCode;
@@ -191,22 +191,22 @@ pub async fn schedule_handler(State(app_state): State<Arc<RwLock<AppState>>>) ->
 /// # Fields
 /// - `topics` - A vector containing the topics and speakers
 struct TopicsTemplate {
-    topics: Vec<TopicAndSpeaker>,
+    topics: Vec<TopicAndUserInfo>,
 }
 
 #[derive(Debug, Deserialize, FromRow)]
-/// Topic and speaker struct
+/// `Topic` and `UserInfo` struct
 ///
-/// This struct represents the pairing of a topic and a speaker.
+/// This struct represents the pairing of a `Topic` and `UserInfo`.
 ///
 /// # Fields
-/// - `topic` - The session topic
-/// - `speaker` - The speaker for the topic
-pub struct TopicAndSpeaker {
+/// - `topic` - The session `Topic`
+/// - `user_info` - The `UserInfo` for the `Topic`
+pub struct TopicAndUserInfo {
     #[sqlx(flatten)]
     topic: Topic,
     #[sqlx(flatten)]
-    speaker: Speaker,
+    user_info: UserInfo,
 }
 
 /// Combined topic and speaker query
@@ -223,13 +223,13 @@ pub struct TopicAndSpeaker {
 /// An error is returned if the query fails.
 pub async fn combine_topic_and_speaker(
     db_pool: &Pool<Postgres>,
-) -> Result<Vec<TopicAndSpeaker>, Box<dyn Error>> {
-    let topic_with_speaker: Vec<TopicAndSpeaker> = sqlx::query_as::<Postgres, TopicAndSpeaker>(
-        "SELECT t.id, t.speaker_id, t.title, t.content, t.votes, \
-        s.id, s.name, s.email, s.phone_number \
-        FROM topics t \
-        JOIN speakers s ON s.id = t.speaker_id \
-        GROUP BY t.id, s.id",
+) -> Result<Vec<TopicAndUserInfo>, Box<dyn Error>> {
+    let topic_with_speaker: Vec<TopicAndUserInfo> = sqlx::query_as::<Postgres, TopicAndUserInfo>(
+        "SELECT topics.id, topics.user_id, topics.title, topics.content, topics.votes, \
+        user_info.id, user_info.name, user_info.email, user_info.phone_number \
+        FROM topics \
+        JOIN user_info ON user_info.user_id = topics.user_id \
+        GROUP BY topics.id, user_info.id",
     )
         .fetch_all(db_pool)
         .await?;

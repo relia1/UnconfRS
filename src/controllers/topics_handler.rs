@@ -2,6 +2,7 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 
 use crate::config::AppState;
+use crate::middleware::auth::AuthSessionLayer;
 use crate::models::topics_model::{
     add, decrement_vote, delete, get, get_all_topics, increment_vote, update, Topic, TopicErr,
     TopicError,
@@ -13,6 +14,7 @@ use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::Json;
+use serde_json::json;
 
 #[utoipa::path(
     get,
@@ -122,11 +124,12 @@ pub async fn get_topic(
 /// Bad Request is returned.
 pub async fn post_topic(
     State(app_state): State<Arc<RwLock<AppState>>>,
+    auth_session: AuthSessionLayer,
     Json(topic): Json<Topic>,
 ) -> Response {
     let app_state_lock = app_state.read().await;
     let write_lock = &app_state_lock.unconf_data.read().await.unconf_db;
-    match add(write_lock, topic).await {
+    match add(write_lock, topic, auth_session).await {
         Ok(_) => StatusCode::CREATED.into_response(),
         Err(e) => TopicError::response(ApiStatusCode::from(StatusCode::BAD_REQUEST), e),
     }
@@ -160,11 +163,19 @@ pub async fn post_topic(
 pub async fn delete_topic(
     State(app_state): State<Arc<RwLock<AppState>>>,
     Path(topic_id): Path<i32>,
+    auth_session: AuthSessionLayer
 ) -> Response {
+    tracing::trace!("\n\nauth session {:?}\n\n", auth_session.user);
     let app_state_lock = app_state.read().await;
     let write_lock = &app_state_lock.unconf_data.read().await.unconf_db;
-    match delete(write_lock, topic_id).await {
-        Ok(()) => StatusCode::OK.into_response(),
+    match delete(write_lock, topic_id, auth_session).await {
+        Ok(()) => {
+            let success_response = json!({
+                "status": "success",
+                "message": format!("Topic {} successfully deleted", topic_id)
+            });
+            (StatusCode::OK, Json(success_response)).into_response()
+        },
         Err(e) => TopicError::response(ApiStatusCode::from(StatusCode::BAD_REQUEST), e),
     }
 }

@@ -94,38 +94,38 @@
                         <th></th>
                         <th>Topic ID</th>
                         <th>Title</th>
-                        <th>Speaker Name</th>
-                        <th>Speaker Email</th>
-                        <th>Speaker Phone Number</th>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Phone Number</th>
                         <th>Delete Topic</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for topic_and_speaker in topics %}
-                        <tr data-topic-id={{ topic_and_speaker.topic.id.unwrap() }}>
+                    {% for topic_and_user_info in topics %}
+                        <tr data-topic-id={{ topic_and_user_info.topic.id.unwrap() }}>
                             <td>
                             </td>
                             <td>
-                                {{ topic_and_speaker.topic.id.unwrap() }}
+                                {{ topic_and_user_info.topic.id.unwrap() }}
                             </td>
                             <td>
-                                {{ topic_and_speaker.topic.title }}
+                                {{ topic_and_user_info.topic.title }}
                             </td>
                             <td>
-                                {{ topic_and_speaker.speaker.name }}
+                                {{ topic_and_user_info.user_info.name }}
                             </td>
                             <td>
-                                {{ topic_and_speaker.speaker.email }}
+                                {{ topic_and_user_info.user_info.email }}
                             <td>
-                                {{ topic_and_speaker.speaker.phone_number }}
+                                {{ topic_and_user_info.user_info.phone_number }}
                             </td>
                             <td>
                             </td>
                             <td>
-                                {{ topic_and_speaker.topic.content }}
+                                {{ topic_and_user_info.topic.content }}
                             </td>
                             <td>
-                                {{ topic_and_speaker.speaker.speaker_id.unwrap() }}
+                                {{ topic_and_user_info.user_info.user_id.unwrap() }}
                             </td>
                         </tr>
                     {% endfor %}

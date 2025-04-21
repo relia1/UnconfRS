@@ -1,4 +1,4 @@
-let currentSpeakerId = null;
+let currentUserId = null;
 let currentTopicId = null;
 
 document.addEventListener('DOMContentLoaded', function () {
@@ -24,7 +24,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 orderable: false
             },
             {data: 'content', visible: false},
-            {data: 'speaker_id', visible: false},
+            {data: 'user_id', visible: false},
         ],
         searching: true,
         ordering: true,
@@ -74,6 +74,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 if(error.message.match(/foreign key constraint/)) {
                     alert('This topic cannot be deleted because it is associated with a' +
                         ' schedule session.');
+                } else if (error.message.match(/Topic does not belong to user/)) {
+                    alert('Users can only delete topics they have submitted');
                 } else {
                     alert('There was an error deleting the topic. Please try again.');
                 }
@@ -84,7 +86,7 @@ document.addEventListener('DOMContentLoaded', function () {
     table.on('click', '.edit-btn', async function(e) {
         var data = table.row($(this).closest('tr')).data();
         currentTopicId = data.topic_id;
-        currentSpeakerId = data.speaker_id;
+        currentUserId = data.user_id;
         console.log("Editing topic with id: " + data.topic_id);
         showPopup(true, data);
     });
@@ -92,7 +94,7 @@ document.addEventListener('DOMContentLoaded', function () {
     table.on('click', '.upvote-btn', async function(e) {
         var data = table.row($(this).closest('tr')).data();
         currentTopicId = data.topic_id;
-        currentSpeakerId = data.speaker_id;
+        currentUserId = data.user_id;
 
         if(!await hasVoted(data.topic_id)) {
             try {
@@ -122,20 +124,20 @@ document.addEventListener('DOMContentLoaded', function () {
         const name = document.getElementById('name').value;
         const phone_number = document.getElementById('phone').value;
         const email = document.getElementById('email').value;
-        const speaker_id = Number(currentSpeakerId);
+        const user_id = Number(currentUserId);
         const isEdit = currentTopicId !== null;
 
         let response;
         try {
             if (isEdit) {
-                const response = await fetch(`/api/v1/speakers/${currentSpeakerId}`, {
+                const response = await fetch(`/api/v1/speakers/${currentUserId}`, {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
                         title,
-                        id: Number(currentSpeakerId),
+                        id: Number(currentUserId),
                         content,
                         name,
                         email,
@@ -153,7 +155,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         headers: {
                             'Content-Type': 'application/json'
                         },
-                        body: JSON.stringify({speaker_id, title, content})
+                        body: JSON.stringify({user_id, title, content}),
                     })
                         .then(() => alert('Topic updated successfully!'))
                         .catch(error => console.error('Error:', error));
@@ -170,7 +172,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     body: JSON.stringify({content, name, email, phone_number})
                 })
                     .then(response => response.json());
-                const speaker_id = await JSON.parse(add_speaker).id;
+                const user_id = await JSON.parse(add_speaker).id;
 
                 try {
                     response = await fetch('/api/v1/topics/add', {
@@ -178,7 +180,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         headers: {
                             'Content-Type': 'application/json'
                         },
-                        body: JSON.stringify({speaker_id, title, content})
+                        body: JSON.stringify({user_id, title, content}),
                     });
 
                     if (!response.ok) {
@@ -225,11 +227,11 @@ async function showPopup(isEdit, data=null) {
         document.getElementById('phone').value = data.phone_number;
         document.getElementById('email').value = data.email;
         currentTopicId = data.topic_id;
-        currentSpeakerId = data.speaker_id;
+        currentUserId = data.user_id;
     } else {
         document.getElementById('topicForm').reset();
         currentTopicId = null;
-        currentSpeakerId = null;
+        currentUserId = null;
     }
 
     document.querySelector('#cancelButton').addEventListener('click', closePopup);

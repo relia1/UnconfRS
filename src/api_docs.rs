@@ -3,8 +3,8 @@ use crate::{
         room_handler, schedule_handler, speakers_handler, timeslot_handler, topics_handler,
     },
     models::{
-        room_model::Room, schedule_model::Schedule, speakers_model::Speaker,
-        timeslot_model::TimeSlot, topics_model::Topic,
+        room_model::Room, schedule_model::Schedule, timeslot_model::TimeSlot,
+        topics_model::Topic, user_info_model::UserInfo,
     },
 };
 use utoipa::OpenApi;
@@ -40,7 +40,7 @@ use utoipa::OpenApi;
         timeslot_handler::update_timeslot,
     ),
     components(
-        schemas(Topic, Room, Schedule, Speaker, TimeSlot)
+        schemas(Topic, Room, Schedule, UserInfo, TimeSlot)
     ),
     tags(
         (name = "Topics", description = "Topic management endpoints"),

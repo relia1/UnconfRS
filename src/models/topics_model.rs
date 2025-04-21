@@ -1,3 +1,4 @@
+use crate::middleware::auth::AuthSessionLayer;
 use crate::types::ApiStatusCode;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
@@ -15,6 +16,8 @@ use utoipa::ToSchema;
 pub enum TopicErr {
     #[error("Topic {0} doesn't exist")]
     DoesNotExist(String),
+    #[error("Topic does not belong to user")]
+    UnAuthorizedMutableAccess(String),
 }
 
 /// Struct representing an error that occurred when working with topics.
@@ -64,7 +67,11 @@ impl TopicError {
             status,
             error: error.to_string(),
         };
-        (status, Json(error)).into_response()
+
+        let http_status = StatusCode::from_u16(status.0)
+            .unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
+
+        (http_status, Json(error)).into_response()
     }
 }
 
@@ -79,7 +86,8 @@ impl TopicError {
 /// - `votes` - The number of votes the topic has
 pub struct Topic {
     pub id: Option<i32>,
-    pub speaker_id: i32,
+    #[serde(skip_deserializing)]
+    pub user_id: i32,
     pub title: String,
     pub content: String,
     #[serde(skip_deserializing)]
@@ -98,12 +106,12 @@ impl Topic {
     ///
     /// # Returns
     /// A new `Topic` instance
-    pub fn new(id: Option<i32>, speaker_id: i32, title: &str, content: &str) -> Self {
+    pub fn new(id: Option<i32>, user_id: i32, title: &str, content: &str) -> Self {
         let title = title.into();
         let content = content.into();
         Self {
             id,
-            speaker_id,
+            user_id,
             title,
             content,
             votes: 0,
@@ -181,11 +189,12 @@ pub async fn get(db_pool: &Pool<Postgres>, index: i32) -> Result<Topic, Box<dyn 
 ///
 /// # Errors
 /// If the query fails, a Box error is returned.
-pub async fn add(db_pool: &Pool<Postgres>, topic: Topic) -> Result<i32, Box<dyn Error>> {
+pub async fn add(db_pool: &Pool<Postgres>, topic: Topic, auth_session: AuthSessionLayer) -> Result<i32, Box<dyn Error>> {
+    tracing::trace!("\n\nauth_session: {:?}\n\n", auth_session.user);
     let (topic_id,) = sqlx::query_as(
-        "INSERT INTO topics (speaker_id, title, content, votes) VALUES ($1, $2, $3, $4) RETURNING id",
+        "INSERT INTO topics (user_id, title, content, votes) VALUES ($1, $2, $3, $4) RETURNING id",
         )
-            .bind(topic.speaker_id)
+        .bind(auth_session.user.unwrap().id)
             .bind(topic.title)
             .bind(topic.content)
             .bind(topic.votes)
@@ -193,6 +202,14 @@ pub async fn add(db_pool: &Pool<Postgres>, topic: Topic) -> Result<i32, Box<dyn 
             .await?;
 
     Ok(topic_id)
+}
+
+async fn is_users_resource(topic: &Topic, auth_session: &AuthSessionLayer) -> Result<bool, Box<dyn Error>> {
+    if topic.user_id != auth_session.user.clone().unwrap().id {
+        Err(Box::new(TopicErr::UnAuthorizedMutableAccess("User does not own this resource to delete it".to_string())))
+    } else {
+        Ok(true)
+    }
 }
 
 /// Removes a topic by its ID.
@@ -206,14 +223,45 @@ pub async fn add(db_pool: &Pool<Postgres>, topic: Topic) -> Result<i32, Box<dyn 
 ///
 /// # Errors
 /// If the query fails, a Box error is returned.
-pub async fn delete(db_pool: &Pool<Postgres>, index: i32) -> Result<(), Box<dyn Error>> {
-    sqlx::query_as::<Postgres, Topic>(
-        "DELETE FROM topics
-        WHERE id = $1;",
+pub async fn delete(db_pool: &Pool<Postgres>, index: i32, auth_session: AuthSessionLayer) -> Result<(), Box<dyn Error>> {
+    let topic = sqlx::query_as::<Postgres, Topic>(
+        "SELECT * FROM topics where id = $1",
     )
         .bind(index)
-        .fetch_all(db_pool)
+        .fetch_optional(db_pool)
         .await?;
+
+    // The unwrap() here should be fine since by this point they have already been verified valid users
+    let is_staff_or_admin = auth_session.backend.has_superuser_or_staff_perms(&auth_session.user.clone().unwrap()).await?;
+
+    match topic {
+        Some(topic) => {
+            if is_staff_or_admin {
+                sqlx::query_as::<Postgres, Topic>(
+                    "DELETE FROM topics
+                    WHERE id = $1;",
+                )
+                    .bind(index)
+                    .bind(auth_session.user.clone().unwrap().id)
+                    .fetch_all(db_pool)
+                    .await?;
+            } else {
+                is_users_resource(&topic, &auth_session).await?;
+                sqlx::query_as::<Postgres, Topic>(
+                    "DELETE FROM topics
+                    WHERE id = $1 AND user_id = $2;",
+                )
+                    .bind(index)
+                    .bind(auth_session.user.clone().unwrap().id)
+                    .fetch_all(db_pool)
+                    .await?;
+            }
+        }
+        None => {
+            // In theory this shouldn't happen
+            return Err(Box::new(TopicErr::DoesNotExist("Cannot find topic to delete".to_string())));
+        }
+    }
 
     Ok(())
 }

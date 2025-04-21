@@ -73,7 +73,7 @@ pub async fn assign_topics_to_timeslots(
 
                     if !used_topics.contains(&topic_id) {
                         assignments.push(TimeslotAssignmentForm {
-                            speaker_id: topic.speaker_id,
+                            speaker_id: topic.user_id,
                             topic_id,
                             room_id,
                             old_room_id: 0,

@@ -2,7 +2,7 @@ use crate::config::AppState;
 use crate::controllers::{
     login_handler::{login_handler, logout_handler},
     room_handler::{delete_room, post_rooms, rooms},
-    schedule_handler::{clear, generate, get_schedule, post_schedule, schedules},
+    schedule_handler::{clear, generate, get_schedule, schedules},
     speakers_handler::{delete_speaker, get_speaker, post_speaker, speakers, update_speaker},
     timeslot_handler::{add_timeslots, swap_timeslots, update_timeslot},
     topics_handler::{
@@ -11,11 +11,13 @@ use crate::controllers::{
     },
 };
 use crate::middleware::auth::{auth_middleware, current_user_handler};
+use crate::models::auth_model::Backend;
 use axum::{
     middleware::from_fn_with_state,
     routing::{delete, get, post, put},
     Router,
 };
+use axum_login::permission_required;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -48,18 +50,24 @@ pub fn get_routes(app_state: &Arc<RwLock<AppState>>) -> Router<Arc<RwLock<AppSta
         .route("/topics/{id}", put(update_topic))
         .route("/topics/{id}/increment", put(add_vote_for_topic))
         .route("/topics/{id}/decrement", put(subtract_vote_for_topic))
-        .route("/rooms/add", post(post_rooms))
-        .route("/rooms/{id}", delete(delete_room))
         .route("/speakers/add", post(post_speaker))
         .route("/speakers/{id}", delete(delete_speaker))
         .route("/speakers/{id}", put(update_speaker))
-        .route("/schedules/add", post(post_schedule))
+        .route_layer(from_fn_with_state(app_state.clone(), auth_middleware));
+
+    let admin_routes = Router::new()
+        .route("/rooms/add", post(post_rooms))
+        .route("/rooms/{id}", delete(delete_room))
         .route("/schedules/generate", post(generate))
         .route("/schedules/clear", post(clear))
         .route("/timeslots/{id}", put(update_timeslot))
         .route("/timeslots/add", post(add_timeslots))
         .route("/timeslots/swap", put(swap_timeslots))
-        .route_layer(from_fn_with_state(app_state.clone(), auth_middleware));
+        .route_layer(from_fn_with_state(app_state.clone(), auth_middleware))
+        .route_layer(permission_required!(
+            Backend,
+            "superuser"
+        ));
 
-    public_routes.merge(auth_routes)
+    public_routes.merge(auth_routes.merge(admin_routes))
 }

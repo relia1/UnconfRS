@@ -55,6 +55,19 @@ pub struct Credentials {
     pub password: String,
 }
 
+#[derive(Debug, Clone, Eq, PartialEq, Hash, FromRow)]
+pub struct Permission {
+    pub name: String,
+}
+
+impl From<&str> for Permission {
+    fn from(name: &str) -> Self {
+        Self {
+            name: name.to_string(),
+        }
+    }
+}
+
 #[derive(Clone, FromRef)]
 pub struct Backend {
     pub db_pool: sqlx::Pool<sqlx::Postgres>,
@@ -63,6 +76,11 @@ pub struct Backend {
 impl Backend {
     pub fn new(db_pool: sqlx::Pool<sqlx::Postgres>) -> Self {
         Self { db_pool }
+    }
+
+    pub async fn has_superuser_or_staff_perms(&self, user: &User) -> Result<bool, sqlx::Error> {
+        let permissions = self.get_group_permissions(user).await?;
+        Ok(permissions.contains(&Permission { name: "superuser".to_string() }) || permissions.contains(&Permission { name: "staff".to_string() }))
     }
 }
 
@@ -101,18 +119,6 @@ impl AuthnBackend for Backend {
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash, FromRow)]
-pub struct Permission {
-    pub name: String,
-}
-
-impl From<&str> for Permission {
-    fn from(name: &str) -> Self {
-        Self {
-            name: name.to_string(),
-        }
-    }
-}
 
 #[async_trait]
 impl AuthzBackend for Backend {
@@ -127,7 +133,8 @@ impl AuthzBackend for Backend {
             select distinct permissions.name
             from users
             join users_groups on users.id = users_groups.user_id
-            join groups_permissions on groups_permissions.permission_id = permissions.id
+            join groups_permissions on users_groups.group_id = groups_permissions.group_id
+            join permissions on groups_permissions.permission_id = permissions.id
             where users.id = $1
             ",
         )
