@@ -9,7 +9,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Cache downloaded+built dependencies
-COPY *.toml Cargo.lock /app/
+COPY *.toml /app/
 RUN if [ "$BUILD_TYPE" = "release" ]; then \
     mkdir /app/src && \
     mkdir /app/web && \
