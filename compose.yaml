@@ -22,11 +22,9 @@ services:
       - DB_HOST=db
       - PG_USER=postgres
       - PG_PASSWORDFILE=/run/secrets/db-password
-      - JWT_SECRETFILE=/run/secrets/jwt-secret
       - RUST_LOG=info
     secrets:
       - db-password
-      - jwt-secret
     depends_on:
       db:
         condition: service_healthy
@@ -38,7 +36,7 @@ services:
 # to set the database password. You must create `db/password.txt` and add
 # a password of your choosing to it before running `docker compose up`.
   db:
-    image: postgres
+    image: docker.io/postgres
     restart: always
     user: postgres
     secrets:
@@ -53,7 +51,7 @@ services:
       - POSTGRES_LOG_STATEMENT=all
 
     expose:
-      - 5432:5432
+      - 5432
     ports:
       - 5432:5432
     healthcheck:
@@ -68,5 +66,3 @@ volumes:
 secrets:
   db-password:
     file: secrets/db-password.txt
-  jwt-secret:
-    file: secrets/jwt-secret.txt
