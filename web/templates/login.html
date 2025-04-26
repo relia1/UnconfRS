@@ -5,24 +5,30 @@
 {% block content %}
     <form id="login" style="margin-top: 10px">
         <div class="form-field">
-            <label for="username">Username</label>
-            <input type="text" id="username" name="username" required/>
-            <label for="password">Password</label>
-            <input type="text" id="password" name="password" required/>
+            <div>
+                <label for="email">Email</label>
+                <input type="text" id="email" name="email" required/>
+            </div>
+
+            <div>
+                <label for="password">Password (8 characters minimum):</label>
+                <input type="password" id="password" name="password" minlength="8" required/>
+            </div>
         </div>
         <button type="submit">Submit</button>
     </form>
+    <a href="/registration" id="registration"><button type="button">Register New User</button></a><br/>
 <script>
     document.getElementById('login').addEventListener('submit', (e) => {
         e.preventDefault();
         const password = document.getElementById('password').value;
-        const username = document.getElementById('username').value;
+        const email = document.getElementById('email').value;
         fetch('/api/v1/login', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ username, password })
+            body: JSON.stringify({ email, password })
         })
         .then(response => response)
         .then(data => {

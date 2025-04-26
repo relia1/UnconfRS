@@ -4,3 +4,4 @@ pub mod schedule_handler;
 pub mod site_handler;
 pub mod timeslot_handler;
 pub mod topics_handler;
+pub mod registration_handler;

@@ -14,7 +14,6 @@ document.addEventListener('DOMContentLoaded', function () {
             {data: 'title'},
             {data: 'name'},
             {data: 'email'},
-            {data: 'phone_number'},
             {
                 data: null,
                 defaultContent: '<button class="del-btn btn-action"' +
@@ -121,78 +120,41 @@ document.addEventListener('DOMContentLoaded', function () {
         event.preventDefault();
         const title = document.getElementById('title').value;
         const content = document.getElementById('topicContent').value;
-        const name = document.getElementById('name').value;
-        const phone_number = document.getElementById('phone').value;
-        const email = document.getElementById('email').value;
-        const user_id = Number(currentUserId);
         const isEdit = currentTopicId !== null;
 
         let response;
-        try {
-            if (isEdit) {
-                const response = await fetch(`/api/v1/speakers/${currentUserId}`, {
-                    method: 'PUT',
+        if (isEdit) {
+            try {
+                await fetch(`/api/v1/topics/${currentTopicId}`, {
+                    method:  'PUT',
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({
-                        title,
-                        id: Number(currentUserId),
-                        content,
-                        name,
-                        email,
-                        phone_number
-                    })
+                    body:    JSON.stringify({user_id, title, content}),
+                })
+                .then(() => alert('Topic updated successfully!'))
+                .catch(error => console.error('Error:', error));
+            } catch (error) {
+                console.log('Error updating topic: ', error);
+            }
+            location.reload();
+        } else {
+            try {
+                response = await fetch('/api/v1/topics/add', {
+                    method:  'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body:    JSON.stringify({title, content}),
                 });
 
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
-
-                try {
-                    await fetch(`/api/v1/topics/${currentTopicId}`, {
-                        method: 'PUT',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({user_id, title, content}),
-                    })
-                        .then(() => alert('Topic updated successfully!'))
-                        .catch(error => console.error('Error:', error));
-                } catch (error) {
-                    console.log('Error updating topic: ', error);
-                }
-                location.reload();
-            } else {
-                const add_speaker = await fetch('/api/v1/speakers/add', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({content, name, email, phone_number})
-                })
-                    .then(response => response.json());
-                const user_id = await JSON.parse(add_speaker).id;
-
-                try {
-                    response = await fetch('/api/v1/topics/add', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({user_id, title, content}),
-                    });
-
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
-                    }
-                } catch (error) {
-                    console.log('Error submitting topic: ', error);
-                }
-                location.reload();
+            } catch (error) {
+                console.log('Error submitting topic: ', error);
             }
-        } catch (error) {
-            console.log('Error updating speaker: ', error);
+            location.reload();
         }
     });
 
@@ -223,9 +185,6 @@ async function showPopup(isEdit, data=null) {
     if(isEdit && data) {
         document.getElementById('title').value = data.title;
         document.getElementById('topicContent').value = data.content;
-        document.getElementById('name').value = data.name;
-        document.getElementById('phone').value = data.phone_number;
-        document.getElementById('email').value = data.email;
         currentTopicId = data.topic_id;
         currentUserId = data.user_id;
     } else {

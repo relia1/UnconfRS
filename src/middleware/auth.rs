@@ -30,7 +30,9 @@ pub async fn current_user_handler(auth_session: AuthSessionLayer) -> Response {
         Some(user) => {
             let user_info = User {
                 id: user.id,
-                username: user.username,
+                fname: user.fname,
+                lname: user.lname,
+                email: user.email,
                 password: String::new(),
             };
             (StatusCode::OK, Json(user_info)).into_response()

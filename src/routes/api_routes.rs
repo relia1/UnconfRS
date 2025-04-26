@@ -34,6 +34,7 @@ use tokio::sync::RwLock;
 pub fn get_routes(app_state: &Arc<RwLock<AppState>>) -> Router<Arc<RwLock<AppState>>> {
     let public_routes = Router::new()
         .route("/login", post(login_handler))
+        .route("/registration", post(registration_handler))
         .route("/topics", get(topics))
         .route("/topics/{id}", get(get_topic))
         .route("/rooms", get(rooms));

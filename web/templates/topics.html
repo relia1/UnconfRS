@@ -96,36 +96,32 @@
                         <th>Title</th>
                         <th>Name</th>
                         <th>Email</th>
-                        <th>Phone Number</th>
                         <th>Delete Topic</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for topic_and_user_info in topics %}
-                        <tr data-topic-id={{ topic_and_user_info.topic.id.unwrap() }}>
+                    {% for topic in topics %}
+                        <tr data-topic-id={{ topic.topic_id }}>
                             <td>
                             </td>
                             <td>
-                                {{ topic_and_user_info.topic.id.unwrap() }}
+                                {{ topic.topic_id }}
                             </td>
                             <td>
-                                {{ topic_and_user_info.topic.title }}
+                                {{ topic.title }}
                             </td>
                             <td>
-                                {{ topic_and_user_info.user_info.name }}
+                                {{ topic.fname }} {{ topic.lname }}
                             </td>
                             <td>
-                                {{ topic_and_user_info.user_info.email }}
-                            <td>
-                                {{ topic_and_user_info.user_info.phone_number }}
-                            </td>
+                                {{ topic.email }}
                             <td>
                             </td>
                             <td>
-                                {{ topic_and_user_info.topic.content }}
+                                {{ topic.content }}
                             </td>
                             <td>
-                                {{ topic_and_user_info.user_info.user_id.unwrap() }}
+                                {{ topic.user_id }}
                             </td>
                         </tr>
                     {% endfor %}

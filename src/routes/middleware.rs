@@ -7,7 +7,7 @@ use axum_login::{
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tower::ServiceBuilder;
-use tower_cookies::{cookie::time::Duration, CookieManagerLayer};
+use tower_cookies::cookie::time::Duration;
 use tower_http::{
     compression::CompressionLayer,
     cors::{Any, CorsLayer},
@@ -29,7 +29,7 @@ pub async fn configure_middleware(app: Router, app_state: Arc<RwLock<AppState>>)
     let read_lock = app_state.read().await;
     let session_store = PostgresStore::new(read_lock.unconf_data.read().await.unconf_db.clone());
     let session_layer = SessionManagerLayer::new(session_store)
-        .with_expiry(Expiry::OnInactivity(Duration::days(1)));
+        .with_expiry(Expiry::OnInactivity(Duration::hours(1)));
     let auth_layer =
         AuthManagerLayerBuilder::new(read_lock.auth_backend.clone(), session_layer).build();
 
@@ -48,6 +48,5 @@ pub async fn configure_middleware(app: Router, app_state: Arc<RwLock<AppState>>)
                     .on_response(trace::DefaultOnResponse::new()),
             ),
         )
-        .layer(CookieManagerLayer::new())
         .layer(auth_layer)
 }

@@ -32,9 +32,8 @@ pub async fn login_handler(
     mut auth_session: AuthSessionLayer,
     Json(credentials): Json<LoginRequest>,
 ) -> impl IntoResponse {
-    tracing::trace!("Logging in");
     let creds = Credentials {
-        username: credentials.username,
+        email: credentials.email,
         password: credentials.password,
     };
 

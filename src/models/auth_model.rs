@@ -4,10 +4,25 @@ use axum_macros::FromRef;
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use std::collections::HashSet;
+use std::error::Error;
+
+#[derive(Deserialize)]
+pub struct RegistrationRequest {
+    pub fname: String,
+    pub lname: String,
+    pub email: String,
+    pub password: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct RegistrationResponse {
+    pub success: bool,
+    pub message: String,
+}
 
 #[derive(Debug, Deserialize)]
 pub struct LoginRequest {
-    pub username: String,
+    pub email: String,
     pub password: String,
 }
 
@@ -20,17 +35,20 @@ pub struct LoginResponse {
 #[derive(Clone, Serialize, Deserialize, FromRow)]
 pub struct User {
     pub id: i32,
-    pub username: String,
+    pub fname: String,
+    pub lname: String,
+    pub email: String,
     #[serde(skip_serializing)]
     pub password: String,
 }
+
 
 // Manually implement Debug so we don't accidentally leak the password
 impl std::fmt::Debug for User {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("User")
             .field("id", &self.id)
-            .field("username", &self.username)
+            .field("email", &self.email)
             .field("password", &"[redacted]")
             .finish()
     }
@@ -51,7 +69,7 @@ impl AuthUser for User {
 
 #[derive(Clone, Deserialize)]
 pub struct Credentials {
-    pub username: String,
+    pub email: String,
     pub password: String,
 }
 
@@ -82,6 +100,31 @@ impl Backend {
         let permissions = self.get_group_permissions(user).await?;
         Ok(permissions.contains(&Permission { name: "superuser".to_string() }) || permissions.contains(&Permission { name: "staff".to_string() }))
     }
+
+    pub async fn register(&self, new_user: RegistrationRequest) -> Result<(), Box<dyn Error>> {
+        tracing::trace!("before pw hash");
+        let password_hash = bcrypt::hash(&new_user.password, bcrypt::DEFAULT_COST)?;
+        let user: User = sqlx::query_as(
+            "INSERT INTO users (fname, lname, email, password) VALUES ($1, $2, $3, $4) RETURNING *"
+        )
+            .bind(&new_user.fname)
+            .bind(&new_user.lname)
+            .bind(&new_user.email)
+            .bind(&password_hash)
+            .fetch_one(&self.db_pool)
+            .await?;
+
+        tracing::trace!("user: {:?}", &user);
+
+        sqlx::query(
+            "INSERT INTO users_groups (user_id, group_id) VALUES ($1, (SELECT id FROM groups WHERE name = 'user'))"
+        )
+            .bind(user.id)
+            .execute(&self.db_pool)
+            .await?;
+
+        Ok(())
+    }
 }
 
 #[async_trait]
@@ -94,8 +137,8 @@ impl AuthnBackend for Backend {
         &self,
         creds: Self::Credentials,
     ) -> Result<Option<Self::User>, Self::Error> {
-        let user: Option<Self::User> = sqlx::query_as(r"SELECT * FROM users WHERE username = $1")
-            .bind(creds.username)
+        let user: Option<Self::User> = sqlx::query_as(r"SELECT * FROM users WHERE email = $1")
+            .bind(creds.email)
             .fetch_optional(&self.db_pool)
             .await?;
 
