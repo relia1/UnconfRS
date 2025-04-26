@@ -26,7 +26,6 @@ class EventElement {
             roomId:     'data-room-id',
             timeslotId: 'data-timeslot-id',
             topicId:    'data-topic-id',
-            speakerId:  'data-speaker-id',
             scheduleId: 'data-schedule-id',
         };
 
@@ -48,11 +47,10 @@ class EventElement {
 }
 
 class EventData {
-    constructor({roomId, timeslotId, topicId, speakerId, scheduleId, startTime, endTime, title}) {
+    constructor({roomId, timeslotId, topicId, scheduleId, startTime, endTime, title}) {
         this.roomId     = Number(roomId);
         this.timeslotId = Number(timeslotId);
         this.topicId    = Number(topicId);
-        this.speakerId  = Number(speakerId);
         this.scheduleId = Number(scheduleId);
         this.startTime = startTime + ':00';
         this.endTime   = endTime + ':00';
@@ -96,7 +94,6 @@ document.addEventListener('DOMContentLoaded', function () {
             roomId:     event.roomId,
             timeslotId: event.timeslotId,
             title:      event.title,
-            speakerId:  event.speakerId,
             topicId:    event.topicId,
             scheduleId: event.scheduleId,
         });
@@ -191,7 +188,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 startTime:  timeslots[timeslotIndex].start.substring(0, 5),
                 endTime:    timeslots[timeslotIndex].end.substring(0, 5),
                 title:      draggedEventData.title,
-                speakerId:  draggedEventData.speakerId,
                 topicId:    draggedEventData.topicId,
                 scheduleId: draggedEventData.scheduleId,
             };
@@ -265,7 +261,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 id:          newData.timeslotId,
                 start_time:  newData.startTime,
                 end_time:    newData.endTime,
-                speaker_id:  originalData.speakerId,
                 topic_id:    originalData.topicId,
                 room_id:     Number(newData.roomId),
                 old_room_id: originalData.roomId,
@@ -320,13 +315,13 @@ document.addEventListener('DOMContentLoaded', function () {
             const swapToDraggedEvent = {
                 ...Object.fromEntries(
                     Object.entries(events[targetEventIndex])
-                          .filter(([key]) => ['title', 'speakerId', 'topicId'].includes(key)),
+                          .filter(([key]) => ['title', 'topicId'].includes(key)),
                 ),
             };
             const swapToTargetEvent  = {
                 ...Object.fromEntries(
                     Object.entries(events[draggedEventIndex])
-                          .filter(([key]) => ['title', 'speakerId', 'topicId'].includes(key)),
+                          .filter(([key]) => ['title', 'topicId'].includes(key)),
                 ),
             };
 

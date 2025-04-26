@@ -1,9 +1,9 @@
 use crate::config::AppState;
+use crate::controllers::registration_handler::registration_handler;
 use crate::controllers::{
     login_handler::{login_handler, logout_handler},
     room_handler::{delete_room, post_rooms, rooms},
-    schedule_handler::{clear, generate, get_schedule, schedules},
-    speakers_handler::{delete_speaker, get_speaker, post_speaker, speakers, update_speaker},
+    schedule_handler::{clear, generate},
     timeslot_handler::{add_timeslots, swap_timeslots, update_timeslot},
     topics_handler::{
         add_vote_for_topic, delete_topic, get_topic, post_topic, subtract_vote_for_topic, topics,
@@ -24,7 +24,7 @@ use tokio::sync::RwLock;
 /// Returns a router with all the routes for the API
 ///
 /// This function returns a router with all the routes for the API. It includes routes for topics,
-/// rooms, speakers, schedules, and authentication.
+/// rooms, schedules, timeslots, and authentication.
 ///
 /// # Parameters
 /// - `app_state` - The shared application state wrapped in an `Arc` and `RwLock`
@@ -36,11 +36,7 @@ pub fn get_routes(app_state: &Arc<RwLock<AppState>>) -> Router<Arc<RwLock<AppSta
         .route("/login", post(login_handler))
         .route("/topics", get(topics))
         .route("/topics/{id}", get(get_topic))
-        .route("/rooms", get(rooms))
-        .route("/speakers", get(speakers))
-        .route("/speakers/{id}", get(get_speaker))
-        .route("/schedules", get(schedules))
-        .route("/schedules/{id}", get(get_schedule));
+        .route("/rooms", get(rooms));
 
     let auth_routes = Router::new()
         .route("/logout", post(logout_handler))
@@ -50,9 +46,6 @@ pub fn get_routes(app_state: &Arc<RwLock<AppState>>) -> Router<Arc<RwLock<AppSta
         .route("/topics/{id}", put(update_topic))
         .route("/topics/{id}/increment", put(add_vote_for_topic))
         .route("/topics/{id}/decrement", put(subtract_vote_for_topic))
-        .route("/speakers/add", post(post_speaker))
-        .route("/speakers/{id}", delete(delete_speaker))
-        .route("/speakers/{id}", put(update_speaker))
         .route_layer(from_fn_with_state(app_state.clone(), auth_middleware));
 
     let admin_routes = Router::new()

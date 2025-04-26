@@ -1,13 +1,9 @@
 use crate::models::room_model::RoomErr;
 use crate::models::timeslot_assignment_model::assign_topics_to_timeslots;
 use crate::types::ApiStatusCode;
-use crate::{
-    controllers::site_handler::CreateScheduleForm,
-    models::{room_model::rooms_get, timeslot_model::{timeslot_get, timeslots_add, ExistingTimeslot, TimeslotForm, TimeslotRequest}, topics_model::{get_all_topics, TopicErr}},
-};
+use crate::models::{room_model::rooms_get, timeslot_model::{timeslot_get, ExistingTimeslot}, topics_model::{get_all_topics, TopicErr}};
 use axum::response::IntoResponse;
 use axum::{http::StatusCode, response::Response, Json};
-use chrono::NaiveTime;
 use serde::{ser::SerializeStruct, Deserialize, Serialize, Serializer};
 use sqlx::{FromRow, Pool, Postgres};
 use std::error::Error;
@@ -200,109 +196,6 @@ pub async fn schedules_get(db_pool: &Pool<Postgres>) -> Result<Option<Schedule>,
     }
 }
 
-/// Retrieves a schedule by its index.
-///
-/// This function retrieves a schedule by its index.
-///
-/// # Parameters
-/// - `db_pool` - The database connection pool
-/// - `index` - The index of the schedule to retrieve
-///
-/// # Returns
-/// A `Result` containing the `Schedule` or a `ScheduleErr` error.
-///
-/// # Errors
-/// If an error occurs while fetching the schedule from the database, a `ScheduleErr` error is
-/// returned.
-pub async fn schedule_get(db_pool: &Pool<Postgres>) -> Result<Option<Schedule>, Box<dyn Error>> {
-    let timeslots = timeslot_get(db_pool).await?;
-    if timeslots.is_empty() {
-        Ok(None)
-    } else {
-        Ok(Some(Schedule::new(
-            Some(1),
-            i32::try_from(timeslots.len())?,
-            timeslots,
-        )))
-    }
-}
-
-/// Adds a new schedule.
-///
-/// This function adds a new schedule to the database.
-///
-/// # Parameters
-/// - `db_pool` - The database connection pool
-/// - `schedule_form` - The JSON body containing the schedule data
-///
-/// # Returns
-/// A `Result` containing the `Schedule` or a `Box<dyn Error>` error.
-///
-/// # Errors
-/// If an error occurs while adding the schedule to the database, a `Box<dyn Error>` error is
-/// returned.
-pub async fn schedule_add(
-    db_pool: &Pool<Postgres>,
-    Json(schedule_form): Json<CreateScheduleForm>,
-) -> Result<Schedule, Box<dyn Error>> {
-    let (schedule_id, ) =
-        sqlx::query_as("INSERT INTO schedules (num_of_timeslots) VALUES ($1) RETURNING id")
-            .bind(schedule_form.num_of_timeslots)
-            .fetch_one(db_pool)
-            .await?;
-
-    let timeslot_forms: Vec<TimeslotForm> = schedule_form
-        .start_time
-        .iter()
-        .zip(schedule_form.end_time.iter())
-        .map(|(start, end)| {
-            let start_time = NaiveTime::parse_from_str(start, "%H:%M")?;
-            let end_time = NaiveTime::parse_from_str(end, "%H:%M")?;
-
-            Ok(TimeslotForm {
-                start_time: start.clone(),
-                duration: i32::try_from((end_time - start_time).num_minutes())?,
-                assignments: vec![],
-            })
-        })
-        .collect::<Result<_, Box<dyn Error>>>()?;
-
-    let timeslot_ids = timeslots_add(
-        db_pool,
-        TimeslotRequest {
-            timeslots: timeslot_forms,
-        },
-    )
-        .await?;
-
-    let timeslots = timeslot_ids
-        .into_iter()
-        .zip(
-            schedule_form
-                .start_time
-                .iter()
-                .zip(schedule_form.end_time.iter()),
-        )
-        .map(
-            |(id, (start, end))| -> Result<ExistingTimeslot, Box<dyn Error>> {
-                Ok(ExistingTimeslot {
-                    id,
-                    start_time: NaiveTime::parse_from_str(start, "%H:%M")?,
-                    end_time: NaiveTime::parse_from_str(end, "%H:%M")?,
-                    duration: i32::try_from((NaiveTime::parse_from_str(end, "%H:%M")?
-                        - NaiveTime::parse_from_str(start, "%H:%M")?)
-                        .num_minutes())?,
-                })
-            },
-        )
-        .collect::<Result<Vec<_>, _>>()?;
-
-    Ok(Schedule::new(
-        Some(schedule_id),
-        schedule_form.num_of_timeslots,
-        timeslots,
-    ))
-}
 
 /// Generates a schedule.
 ///

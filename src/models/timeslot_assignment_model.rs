@@ -73,7 +73,6 @@ pub async fn assign_topics_to_timeslots(
 
                     if !used_topics.contains(&topic_id) {
                         assignments.push(TimeslotAssignmentForm {
-                            speaker_id: topic.user_id,
                             topic_id,
                             room_id,
                             old_room_id: 0,
@@ -102,10 +101,9 @@ async fn insert_assignments(
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
     for assignment in assignments {
         sqlx::query(
-            "INSERT INTO timeslot_assignments (time_slot_id, speaker_id, topic_id, room_id) VALUES ($1, $2, $3, $4)"
+            "INSERT INTO timeslot_assignments (time_slot_id, topic_id, room_id) VALUES ($1, $2, $3)"
         )
             .bind(timeslot_id)
-            .bind(assignment.speaker_id)
             .bind(assignment.topic_id)
             .bind(assignment.room_id)
             .execute(db_pool)
@@ -134,8 +132,6 @@ pub async fn timeslot_assignment_update(
                 .fetch_one(db_pool)
                 .await?;
 
-        trace!("Timeslot ID: {:?}", timeslot_id);
-
         for assignment in timeslot.assignments {
             trace!(
                 "Updating from room: {:?} to new room {:?}\n",
@@ -149,12 +145,11 @@ pub async fn timeslot_assignment_update(
             );
             let (assignment_id, ) = sqlx::query_as(
                 "UPDATE timeslot_assignments
-                     SET time_slot_id = $1, speaker_id = $2, topic_id = $3, room_id = $4
-                     WHERE time_slot_id = $5 AND room_id = $6
+                     SET time_slot_id = $1, topic_id = $2, room_id = $3
+                     WHERE time_slot_id = $4 AND room_id = $5
                      RETURNING id",
             )
                 .bind(new_timeslot_id)
-                .bind(assignment.speaker_id)
                 .bind(assignment.topic_id)
                 .bind(assignment.room_id)
                 .bind(timeslot_id)
@@ -165,7 +160,6 @@ pub async fn timeslot_assignment_update(
             assignment_ids.push(assignment_id);
         }
     }
-    trace!("\n\n\n");
 
     Ok(assignment_ids)
 }
@@ -179,10 +173,9 @@ pub async fn timeslot_assignment_swap(
     sqlx::query(
         "UPDATE timeslot_assignments t1
         SET
-            speaker_id = t2.speaker_id,
             topic_id = t2.topic_id
         FROM (
-            SELECT id, speaker_id, topic_id
+            SELECT id, topic_id
             FROM timeslot_assignments
             WHERE (time_slot_id, room_id) IN (($1, $2), ($3, $4))
         ) t2

@@ -80,7 +80,6 @@ impl TopicError {
 ///
 /// # Fields
 /// - `Option<id>` - The ID of the topic (optional)
-/// - `speaker_id` - The ID of the speaker who created the topic
 /// - `title` - The title of the topic
 /// - `content` - The content of the topic
 /// - `votes` - The number of votes the topic has
@@ -99,7 +98,6 @@ impl Topic {
     ///
     /// # Parameters
     /// - `id`: The ID of the topic (optional)
-    /// - `speaker_id`: The ID of the speaker who created the topic
     /// - `title`: The title of the topic
     /// - `content`: The content of the topic
     /// - `votes`: The number of votes the topic has
@@ -205,10 +203,11 @@ pub async fn add(db_pool: &Pool<Postgres>, topic: Topic, auth_session: AuthSessi
 }
 
 async fn is_users_resource(topic: &Topic, auth_session: &AuthSessionLayer) -> Result<bool, Box<dyn Error>> {
-    if topic.user_id != auth_session.user.clone().unwrap().id {
-        Err(Box::new(TopicErr::UnAuthorizedMutableAccess("User does not own this resource to delete it".to_string())))
-    } else {
+    if topic.user_id == auth_session.user.clone().unwrap().id {
         Ok(true)
+    } else {
+        tracing::trace!("cannot delete other users resource");
+        Err(Box::new(TopicErr::UnAuthorizedMutableAccess("User does not own this resource to delete it".to_string())))
     }
 }
 
@@ -233,6 +232,7 @@ pub async fn delete(db_pool: &Pool<Postgres>, index: i32, auth_session: AuthSess
 
     // The unwrap() here should be fine since by this point they have already been verified valid users
     let is_staff_or_admin = auth_session.backend.has_superuser_or_staff_perms(&auth_session.user.clone().unwrap()).await?;
+    tracing::trace!("topic: {:?}, is_staff_or_admin: {:?}", topic, is_staff_or_admin);
 
     match topic {
         Some(topic) => {

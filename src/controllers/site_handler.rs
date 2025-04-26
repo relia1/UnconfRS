@@ -2,8 +2,7 @@ use crate::config::AppState;
 use crate::models::room_model::{rooms_get, Room};
 use crate::models::schedule_model::{schedules_get, Schedule};
 use crate::models::timeslot_model::{timeslot_get, ExistingTimeslot, TimeslotAssignment};
-use crate::models::topics_model::{get_all_topics, Topic};
-use crate::models::user_info_model::UserInfo;
+use crate::models::topics_model::get_all_topics;
 use askama::Template;
 use axum::extract::State;
 use axum::http::StatusCode;
@@ -61,7 +60,6 @@ pub async fn index_handler() -> Response {
 /// - `end_time` - The end time of the event
 /// - `room_id` - The ID of the room
 /// - `topic_id` - The ID of the topic
-/// - `speaker_id` - The ID of the speaker
 /// - `schedule_id` - The ID of the schedule
 pub struct Event {
     pub timeslot_id: i32,
@@ -70,7 +68,6 @@ pub struct Event {
     pub end_time: String,
     pub room_id: i32,
     pub topic_id: i32,
-    pub speaker_id: i32,
     pub schedule_id: i32,
 }
 
@@ -80,21 +77,6 @@ pub(crate) struct ScheduleTemplate {
     pub(crate) schedule: Option<Schedule>,
     pub(crate) rooms: Option<Vec<Room>>,
     pub(crate) events: Vec<Event>,
-}
-
-#[derive(Debug, Deserialize)]
-/// Create schedule form
-///
-/// This struct represents the parameters of the create schedule form.
-///
-/// # Fields
-/// - `num_of_timeslots` - The number of timeslots
-/// - `start_time` - The start time
-/// - `end_time` - The end time
-pub(crate) struct CreateScheduleForm {
-    pub(crate) num_of_timeslots: i32,
-    pub(crate) start_time: Vec<String>,
-    pub(crate) end_time: Vec<String>,
 }
 
 #[debug_handler]
@@ -154,7 +136,6 @@ pub async fn schedule_handler(State(app_state): State<Arc<RwLock<AppState>>>) ->
                                 end_time: timeslot.end_time.to_string(),
                                 room_id: filtered_assignment.room_id,
                                 topic_id: filtered_assignment.topic_id,
-                                speaker_id: filtered_assignment.speaker_id,
                                 schedule_id,
                             })
                         })
@@ -189,52 +170,55 @@ pub async fn schedule_handler(State(app_state): State<Arc<RwLock<AppState>>>) ->
 /// This struct represents the parameters passed to the client for rendering the topics page.
 ///
 /// # Fields
-/// - `topics` - A vector containing the topics and speakers
+/// - `topics` - A vector containing the topics and users
 struct TopicsTemplate {
-    topics: Vec<TopicAndUserInfo>,
+    topics: Vec<TopicAndUser>,
 }
 
 #[derive(Debug, Deserialize, FromRow)]
-/// `Topic` and `UserInfo` struct
+/// `Topic` and `User` struct
 ///
-/// This struct represents the pairing of a `Topic` and `UserInfo`.
+/// This struct represents the pairing of a `Topic` and `User`.
 ///
 /// # Fields
 /// - `topic` - The session `Topic`
-/// - `user_info` - The `UserInfo` for the `Topic`
-pub struct TopicAndUserInfo {
-    #[sqlx(flatten)]
-    topic: Topic,
-    #[sqlx(flatten)]
-    user_info: UserInfo,
+/// - `user_info` - The `User` for the `Topic`
+pub struct TopicAndUser {
+    pub topic_id: i32,
+    pub title: String,
+    pub content: String,
+    pub user_id: i32,
+    pub fname: String,
+    pub lname: String,
+    pub email: String,
 }
 
-/// Combined topic and speaker query
+
+/// Combined topic and user query
 ///
-/// This function queries the database for a combination of topics and speakers.
+/// This function queries the database for a combination of topics and users.
 ///
 /// # Parameters
 /// - `db_pool` - The database connection pool
 ///
 /// # Returns
-/// A vector containing the topics and speakers or an error if the query fails.
+/// A vector containing the topics and users or an error if the query fails.
 ///
 /// # Errors
 /// An error is returned if the query fails.
-pub async fn combine_topic_and_speaker(
+pub async fn combine_topic_and_user(
     db_pool: &Pool<Postgres>,
-) -> Result<Vec<TopicAndUserInfo>, Box<dyn Error>> {
-    let topic_with_speaker: Vec<TopicAndUserInfo> = sqlx::query_as::<Postgres, TopicAndUserInfo>(
-        "SELECT topics.id, topics.user_id, topics.title, topics.content, topics.votes, \
-        user_info.id, user_info.name, user_info.email, user_info.phone_number \
-        FROM topics \
-        JOIN user_info ON user_info.user_id = topics.user_id \
-        GROUP BY topics.id, user_info.id",
+) -> Result<Vec<TopicAndUser>, Box<dyn Error>> {
+    let topic_with_user: Vec<TopicAndUser> = sqlx::query_as::<Postgres, TopicAndUser>(
+        "SELECT t.id as \"topic_id\", t.title, t.content, \
+        u.id as \"user_id\", u.fname, u.lname, u.email \
+        FROM topics t \
+        JOIN users u ON u.id = t.user_id",
     )
         .fetch_all(db_pool)
         .await?;
 
-    Ok(topic_with_speaker)
+    Ok(topic_with_user)
 }
 
 #[debug_handler]
@@ -253,12 +237,12 @@ pub async fn combine_topic_and_speaker(
 pub async fn topic_handler(State(app_state): State<Arc<RwLock<AppState>>>) -> Response {
     let app_state_lock = app_state.read().await;
     let write_lock = &app_state_lock.unconf_data.read().await.unconf_db;
-    let topic_speakers = combine_topic_and_speaker(write_lock).await;
+    let topics_with_user_info = combine_topic_and_user(write_lock).await;
 
-    match topic_speakers {
-        Ok(topic_speakers) => {
+    match topics_with_user_info {
+        Ok(topics_and_users) => {
             let template = TopicsTemplate {
-                topics: topic_speakers,
+                topics: topics_and_users,
             };
 
             match template.render() {
