@@ -89,7 +89,7 @@ impl TimeSlotError {
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct TimeslotAssignmentForm {
-    pub topic_id: i32,
+    pub session_id: i32,
     pub room_id: i32,
     pub old_room_id: i32,
 }
@@ -116,7 +116,7 @@ pub struct TimeslotRequestWrapper {
 pub struct TimeslotUpdateRequest {
     pub start_time: String,
     pub end_time: String,
-    pub topic_id: i32,
+    pub session_id: i32,
     pub room_id: i32,
     pub old_room_id: i32,
 }
@@ -140,7 +140,7 @@ pub struct ExistingTimeslot {
 #[derive(Debug, Deserialize, FromRow)]
 pub struct TimeslotAssignment {
     pub time_slot_id: i32,
-    pub topic_id: i32,
+    pub session_id: i32,
     pub room_id: i32,
 }
 

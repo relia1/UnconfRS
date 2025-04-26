@@ -1,8 +1,8 @@
 use crate::models::room_model::Room;
+use crate::models::sessions_model::Session;
 use crate::models::timeslot_model::{
     ExistingTimeslot, TimeslotAssignment, TimeslotAssignmentForm, TimeslotRequest,
 };
-use crate::models::topics_model::Topic;
 use chrono::NaiveTime;
 use serde::{Deserialize, Serialize};
 use sqlx::{Pool, Postgres};
@@ -19,32 +19,32 @@ pub struct TimeslotSwapRequest {
     pub room_id_2: i32,
 }
 
-/// Assigns topics to timeslots.
+/// Assigns sessions to timeslots.
 ///
-/// This function assigns topics to timeslots based on the provided topics, rooms, and existing
-/// timeslots. The topics are assigned to the timeslots in the order they are provided, starting
-/// with the first topic and moving to the next topic for each room.
+/// This function assigns sessions to timeslots based on the provided sessions, rooms, and existing
+/// timeslots. The sessions are assigned to the timeslots in the order they are provided, starting
+/// with the first session and moving to the next session for each room.
 ///
 /// # Parameters
-/// - `topics`: A slice of `Topic` instances representing the topics to assign
-/// - `rooms`: A slice of `Room` instances representing the rooms to assign the topics to
+/// - `sessions`: A slice of `Session` instances representing the sessions to assign
+/// - `rooms`: A slice of `Room` instances representing the rooms to assign the sessions to
 /// - `existing_timeslots`: A slice of `TimeSlot` instances representing the existing timeslots
 /// - `schedule_id`: The ID of the schedule to assign the timeslots to
 ///
 /// # Returns
-/// A `Result` containing a vector of `TimeSlot` instances with the topics assigned if successful,
+/// A `Result` containing a vector of `TimeSlot` instances with the sessions assigned if successful,
 /// otherwise a `ScheduleErr` error.
 ///
 /// # Errors
 /// If an I/O error occurs, a `ScheduleErr` error is returned.
-pub async fn assign_topics_to_timeslots(
-    topics: &[Topic],
+pub async fn assign_sessions_to_timeslots(
+    sessions: &[Session],
     rooms: &[Room],
     existing_timeslots: &[ExistingTimeslot],
     db_pool: &Pool<Postgres>,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
-    let mut topic_index = 0;
-    let mut used_topics = HashSet::new();
+    let mut session_index = 0;
+    let mut used_sessions = HashSet::new();
 
     for slot in existing_timeslots {
         let mut assignments = Vec::new();
@@ -60,28 +60,28 @@ pub async fn assign_topics_to_timeslots(
         let used_rooms: HashSet<i32> = existing_assignments.iter().map(|a| a.room_id).collect();
 
         for assignment in &existing_assignments {
-            used_topics.insert(assignment.topic_id);
+            used_sessions.insert(assignment.session_id);
         }
 
         // Only assign to available rooms
         for room in rooms {
             let room_id = room.id.ok_or("Room missing ID")?;
-            if !used_rooms.contains(&room_id) && topic_index < topics.len() {
-                while topic_index < topics.len() {
-                    let topic = &topics[topic_index];
-                    let topic_id = topic.id.ok_or("Topic missing ID")?;
+            if !used_rooms.contains(&room_id) && session_index < sessions.len() {
+                while session_index < sessions.len() {
+                    let session = &sessions[session_index];
+                    let session_id = session.id.ok_or("Session missing ID")?;
 
-                    if !used_topics.contains(&topic_id) {
+                    if !used_sessions.contains(&session_id) {
                         assignments.push(TimeslotAssignmentForm {
-                            topic_id,
+                            session_id,
                             room_id,
                             old_room_id: 0,
                         });
-                        used_topics.insert(topic_id);
-                        topic_index += 1;
+                        used_sessions.insert(session_id);
+                        session_index += 1;
                         break;
                     }
-                    topic_index += 1;
+                    session_index += 1;
                 }
             }
         }
@@ -101,10 +101,10 @@ async fn insert_assignments(
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
     for assignment in assignments {
         sqlx::query(
-            "INSERT INTO timeslot_assignments (time_slot_id, topic_id, room_id) VALUES ($1, $2, $3)"
+            "INSERT INTO timeslot_assignments (time_slot_id, session_id, room_id) VALUES ($1, $2, $3)"
         )
             .bind(timeslot_id)
-            .bind(assignment.topic_id)
+            .bind(assignment.session_id)
             .bind(assignment.room_id)
             .execute(db_pool)
             .await?;
@@ -145,12 +145,12 @@ pub async fn timeslot_assignment_update(
             );
             let (assignment_id, ) = sqlx::query_as(
                 "UPDATE timeslot_assignments
-                     SET time_slot_id = $1, topic_id = $2, room_id = $3
+                     SET time_slot_id = $1, session_id = $2, room_id = $3
                      WHERE time_slot_id = $4 AND room_id = $5
                      RETURNING id",
             )
                 .bind(new_timeslot_id)
-                .bind(assignment.topic_id)
+                .bind(assignment.session_id)
                 .bind(assignment.room_id)
                 .bind(timeslot_id)
                 .bind(assignment.old_room_id)
@@ -173,9 +173,9 @@ pub async fn timeslot_assignment_swap(
     sqlx::query(
         "UPDATE timeslot_assignments t1
         SET
-            topic_id = t2.topic_id
+            session_id = t2.session_id
         FROM (
-            SELECT id, topic_id
+            SELECT id, session_id
             FROM timeslot_assignments
             WHERE (time_slot_id, room_id) IN (($1, $2), ($3, $4))
         ) t2

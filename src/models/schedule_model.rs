@@ -1,7 +1,7 @@
 use crate::models::room_model::RoomErr;
-use crate::models::timeslot_assignment_model::assign_topics_to_timeslots;
+use crate::models::timeslot_assignment_model::assign_sessions_to_timeslots;
+use crate::models::{room_model::rooms_get, sessions_model::{get_all_sessions, SessionErr}, timeslot_model::{timeslot_get, ExistingTimeslot}};
 use crate::types::ApiStatusCode;
-use crate::models::{room_model::rooms_get, timeslot_model::{timeslot_get, ExistingTimeslot}, topics_model::{get_all_topics, TopicErr}};
 use axum::response::IntoResponse;
 use axum::{http::StatusCode, response::Response, Json};
 use serde::{ser::SerializeStruct, Deserialize, Serialize, Serializer};
@@ -24,8 +24,8 @@ pub enum ScheduleErr {
     IoError(String),
     #[error("Schedule {0} doesn't exist")]
     DoesNotExist(String),
-    #[error("Topic error: {0}")]
-    TopicError(TopicErr),
+    #[error("Session error: {0}")]
+    SessionError(SessionErr),
     #[error("Room error: {0}")]
     RoomError(RoomErr),
 }
@@ -50,9 +50,9 @@ impl From<std::io::Error> for ScheduleErr {
     }
 }
 
-impl From<TopicErr> for ScheduleErr {
-    fn from(err: TopicErr) -> Self {
-        ScheduleErr::TopicError(err)
+impl From<SessionErr> for ScheduleErr {
+    fn from(err: SessionErr) -> Self {
+        ScheduleErr::SessionError(err)
     }
 }
 
@@ -199,7 +199,7 @@ pub async fn schedules_get(db_pool: &Pool<Postgres>) -> Result<Option<Schedule>,
 
 /// Generates a schedule.
 ///
-/// This function generates a schedule by assigning topics to timeslots.
+/// This function generates a schedule by assigning sessions to timeslots.
 ///
 /// # Parameters
 /// - `db_pool` - The database connection pool
@@ -210,7 +210,7 @@ pub async fn schedules_get(db_pool: &Pool<Postgres>) -> Result<Option<Schedule>,
 /// # Errors
 /// If an error occurs while generating the schedule, a `ScheduleErr` error is returned.
 pub async fn schedule_generate(db_pool: &Pool<Postgres>) -> Result<Schedule, ScheduleErr> {
-    let topics = get_all_topics(db_pool)
+    let sessions = get_all_sessions(db_pool)
         .await
         .map_err(|e| ScheduleErr::IoError(e.to_string()))?;
     let rooms = rooms_get(db_pool)
@@ -226,7 +226,7 @@ pub async fn schedule_generate(db_pool: &Pool<Postgres>) -> Result<Schedule, Sch
         .await
         .map_err(|e| ScheduleErr::IoError(e.to_string()))?;
 
-    match assign_topics_to_timeslots(&topics, &rooms, &existing_timeslots, db_pool).await {
+    match assign_sessions_to_timeslots(&sessions, &rooms, &existing_timeslots, db_pool).await {
         Ok(_) => {
             schedule.timeslots = timeslot_get(db_pool)
                 .await
@@ -238,9 +238,9 @@ pub async fn schedule_generate(db_pool: &Pool<Postgres>) -> Result<Schedule, Sch
     }
 }
 
-/// Clears the schedule by removing topic associations with timeslots.
+/// Clears the schedule by removing session associations with timeslots.
 ///
-/// This function clears the schedule by removing topic associations with timeslots.
+/// This function clears the schedule by removing session associations with timeslots.
 ///
 /// # Parameters
 /// - `db_pool` - The database connection pool

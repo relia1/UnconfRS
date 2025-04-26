@@ -20,15 +20,15 @@
             ];
 
             window.APP.events = [
-            {% for topic_event in events %}
+            {% for session_event in events %}
                 {
-                    roomId: Number({{ topic_event.room_id }}),
-                    startTime: "{{ topic_event.start_time }}",
-                    endTime: "{{ topic_event.end_time }}",
-                    timeslotId: Number({{ topic_event.timeslot_id }}),
-                    title: "{{ topic_event.title }}",
-                    topicId: Number({{ topic_event.topic_id }}),
-                    scheduleId: Number({{ topic_event.schedule_id }})
+                    roomId: Number({{ session_event.room_id }}),
+                    startTime: "{{ session_event.start_time }}",
+                    endTime: "{{ session_event.end_time }}",
+                    timeslotId: Number({{ session_event.timeslot_id }}),
+                    title: "{{ session_event.title }}",
+                    sessionId: Number({{ session_event.session_id }}),
+                    scheduleId: Number({{ session_event.schedule_id }})
                 },
                 {% endfor %}
             ];

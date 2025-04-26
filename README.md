@@ -55,8 +55,9 @@ and create/update a schedule based on the submitted topics.
 - `migrations/`: Contains the SQL migration files
 
 ## Usage
-- **Submit a Topic**: Fill out the form on the topics page and click "Submit".
-- **View Topics**: The topics table will display all submitted topics with options to delete, 
+
+- **Submit a Session**: Fill out the form on the topics page and click "Submit".
+- **View Sessions**: The topics table will display all submitted topics with options to delete,
   search, sort, and paginate.
 - **Create Empty Schedule**: Navigate to the schedules page and fill in and submit the rooms form.
 - **Populate Schedule**: Click the "Populate Schedule" button to automatically assign topics to rooms.

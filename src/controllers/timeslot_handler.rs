@@ -133,7 +133,7 @@ pub async fn update_timeslot(
                 start_time: request.start_time,
                 duration,
                 assignments: vec![TimeslotAssignmentForm {
-                    topic_id: request.topic_id,
+                    session_id: request.session_id,
                     room_id: request.room_id,
                     old_room_id: request.old_room_id,
                 }],

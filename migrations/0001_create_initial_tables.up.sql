@@ -61,7 +61,7 @@ CREATE TABLE tower_sessions.session (
 
 CREATE INDEX session_expiry_idx ON tower_sessions.session (expiry_date);
 
-CREATE TABLE topics (
+CREATE TABLE sessions (
 	id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     user_id INTEGER REFERENCES users (id) NOT NULL,
 	title TEXT NOT NULL,
@@ -87,7 +87,7 @@ CREATE TABLE timeslot_assignments (
     id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     time_slot_id INTEGER REFERENCES time_slots (id),
     creator INTEGER REFERENCES users (id),
-    topic_id INTEGER REFERENCES topics(id),
+    session_id INTEGER REFERENCES sessions(id),
     room_id INTEGER REFERENCES rooms (id),
     UNIQUE (time_slot_id, room_id)
 );

@@ -3,4 +3,4 @@ pub mod room_model;
 pub mod schedule_model;
 pub mod timeslot_assignment_model;
 pub mod timeslot_model;
-pub mod topics_model;
+pub mod sessions_model;

@@ -77,51 +77,51 @@
     </style>
     <script src="https://cdn.datatables.net/v/dt/jq-3.7.0/dt-2.1.5/r-3.0.3/sl-2.0.5/datatables.min.js"></script>
     <script>
-    {% include "scripts/topics.js" %}
+    {% include "scripts/sessions.js" %}
     </script>
 
     {% endblock %}
 
     {% block content %}
-    <h1>Submit a Topic</h1>
-    <button id="add-topic">Submit a Topic</button>
-    <h1>Topics</h1>
+    <h1>Submit a Session</h1>
+    <button id="add-session">Submit a Session</button>
+    <h1>Sessions</h1>
     <div class="grid-container-element" style="width:95vw">
         <div class="grid-child-element">
-            <table class="topicsTable cell-border">
+            <table class="sessionsTable cell-border">
                 <thead>
                     <tr>
                         <th></th>
-                        <th>Topic ID</th>
+                        <th>Session ID</th>
                         <th>Title</th>
                         <th>Name</th>
                         <th>Email</th>
-                        <th>Delete Topic</th>
+                        <th>Delete Session</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for topic in topics %}
-                        <tr data-topic-id={{ topic.topic_id }}>
+                    {% for session in sessions %}
+                        <tr data-session-id={{ session.session_id }}>
                             <td>
                             </td>
                             <td>
-                                {{ topic.topic_id }}
+                                {{ session.session_id }}
                             </td>
                             <td>
-                                {{ topic.title }}
+                                {{ session.title }}
                             </td>
                             <td>
-                                {{ topic.fname }} {{ topic.lname }}
+                                {{ session.fname }} {{ session.lname }}
                             </td>
                             <td>
-                                {{ topic.email }}
+                                {{ session.email }}
                             <td>
                             </td>
                             <td>
-                                {{ topic.content }}
+                                {{ session.content }}
                             </td>
                             <td>
-                                {{ topic.user_id }}
+                                {{ session.user_id }}
                             </td>
                         </tr>
                     {% endfor %}
@@ -131,9 +131,9 @@
     </div>
     <div id="overlay" class="overlay"></div>
     <div id="popup" class="popup">
-        <h2>Topic</h2>
-        <form id="topicForm">
-            {% include "snippets/topic_form_fields.html" %}
+        <h2>Session</h2>
+        <form id="sessionForm">
+            {% include "snippets/session_form_fields.html" %}
             <button type="submit">Save</button>
             <button type="button" id="cancelButton">Cancel</button>
         </form>

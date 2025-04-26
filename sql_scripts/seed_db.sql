@@ -21,7 +21,7 @@ $$
                                                                                      format('email%s%s@gmail.com', room_num, timeslot),
                                                                                      format('%s%s', room_num, REPEAT(format('%s', timeslot), 9))) RETURNING id)
                         INSERT
-                        INTO topics (speaker_id, title, content, votes)
+                        INTO sessions (speaker_id, title, content, votes)
                         SELECT id,
                                format('title %s %s', room_num, timeslot),
                                format('content %s %s', room_num, timeslot),

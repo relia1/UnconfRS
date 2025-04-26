@@ -9,34 +9,34 @@ use std::error::Error;
 use utoipa::ToSchema;
 
 #[derive(Debug, thiserror::Error, ToSchema, Serialize)]
-/// An enumeration of possible errors that can occur when working with topics.
+/// An enumeration of possible errors that can occur when working with sessions.
 ///
 /// # Variants
-/// - `DoesNotExist` - The topic does not exist
-pub enum TopicErr {
-    #[error("Topic {0} doesn't exist")]
+/// - `DoesNotExist` - The session does not exist
+pub enum SessionErr {
+    #[error("Session {0} doesn't exist")]
     DoesNotExist(String),
-    #[error("Topic does not belong to user")]
+    #[error("Session does not belong to user")]
     UnAuthorizedMutableAccess(String),
 }
 
-/// Struct representing an error that occurred when working with topics.
+/// Struct representing an error that occurred when working with sessions.
 ///
 /// # Fields
 /// - `status` - The HTTP status code associated with the error
 /// - `error` - A string describing the specific error that occurred
 #[derive(Debug, ToSchema)]
-pub struct TopicError {
+pub struct SessionError {
     pub status: ApiStatusCode,
     pub error: String,
 }
 
-/// Implements the `Serialize` trait for `TopicError`
+/// Implements the `Serialize` trait for `SessionError`
 ///
-/// This implementation serializes a `TopicError` into a JSON object with two properties:
+/// This implementation serializes a `SessionError` into a JSON object with two properties:
 /// `status` and `error`.
-impl Serialize for TopicError {
-    /// Serializes a `TopicError`
+impl Serialize for SessionError {
+    /// Serializes a `SessionError`
     ///
     /// The serialized JSON object will have two properties:
     /// - `status`: A string for the HTTP status code
@@ -46,24 +46,24 @@ impl Serialize for TopicError {
         S: Serializer,
     {
         let status: String = self.status.to_string();
-        let mut state = serializer.serialize_struct("TopicError", 2)?;
+        let mut state = serializer.serialize_struct("SessionError", 2)?;
         state.serialize_field("status", &status)?;
         state.serialize_field("error", &self.error)?;
         state.end()
     }
 }
 
-impl TopicError {
-    /// Creates a `Response` instance from a `StatusCode` and `TopicErr`.
+impl SessionError {
+    /// Creates a `Response` instance from a `StatusCode` and `SessionErr`.
     ///
     /// # Parameters
     /// - `status`: The HTTP status code.
-    /// - `error`: The `TopicErr` instance.
+    /// - `error`: The `SessionErr` instance.
     ///
     /// # Returns
     /// `Response` instance with the status code and JSON body containing the error.
     pub fn response(status: ApiStatusCode, error: Box<dyn Error>) -> Response {
-        let error = TopicError {
+        let error = SessionError {
             status,
             error: error.to_string(),
         };
@@ -76,14 +76,14 @@ impl TopicError {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, FromRow)]
-/// Struct representing a topic.
+/// Struct representing a session.
 ///
 /// # Fields
-/// - `Option<id>` - The ID of the topic (optional)
-/// - `title` - The title of the topic
-/// - `content` - The content of the topic
-/// - `votes` - The number of votes the topic has
-pub struct Topic {
+/// - `Option<id>` - The ID of the session (optional)
+/// - `title` - The title of the session
+/// - `content` - The content of the session
+/// - `votes` - The number of votes the session has
+pub struct Session {
     pub id: Option<i32>,
     #[serde(skip_deserializing)]
     pub user_id: i32,
@@ -93,17 +93,17 @@ pub struct Topic {
     pub votes: i32,
 }
 
-impl Topic {
-    /// Creates a new `Topic` instance.
+impl Session {
+    /// Creates a new `Session` instance.
     ///
     /// # Parameters
-    /// - `id`: The ID of the topic (optional)
-    /// - `title`: The title of the topic
-    /// - `content`: The content of the topic
-    /// - `votes`: The number of votes the topic has
+    /// - `id`: The ID of the session (optional)
+    /// - `title`: The title of the session
+    /// - `content`: The content of the session
+    /// - `votes`: The number of votes the session has
     ///
     /// # Returns
-    /// A new `Topic` instance
+    /// A new `Session` instance
     pub fn new(id: Option<i32>, user_id: i32, title: &str, content: &str) -> Self {
         let title = title.into();
         let content = content.into();
@@ -117,114 +117,114 @@ impl Topic {
     }
 }
 
-/// Implements the `IntoResponse` trait for `&Topic` struct.
+/// Implements the `IntoResponse` trait for `&Session` struct.
 ///
-/// This implementation converts a `&Topic` into an HTTP response. The response has a status code
-/// of 200 OK and a JSON body containing the topic data.
-impl IntoResponse for &Topic {
-    /// Converts a `&Topic` into an HTTP response.
+/// This implementation converts a `&Session` into an HTTP response. The response has a status code
+/// of 200 OK and a JSON body containing the session data.
+impl IntoResponse for &Session {
+    /// Converts a `&Session` into an HTTP response.
     ///
     /// # Returns
-    /// A `Response` object with a status code of 200 OK and a JSON body containing the topic data.
+    /// A `Response` object with a status code of 200 OK and a JSON body containing the session data.
     fn into_response(self) -> Response {
         (StatusCode::OK, Json(&self)).into_response()
     }
 }
 
-/// Retrieves a list of topics from the database.
+/// Retrieves a list of sessions from the database.
 ///
-/// This function retrieves a list of topics from the database and returns them as a vector.
+/// This function retrieves a list of sessions from the database and returns them as a vector.
 ///
 /// # Parameters
 /// - `db_pool`: The database connection pool
 ///
 /// # Returns
-/// A vector of `Topic` instances representing the topics in the database or an error if the query
+/// A vector of `Session` instances representing the sessions in the database or an error if the query
 /// fails.
 ///
 /// # Errors
 /// If the query fails, a Box error is returned.
-pub async fn get_all_topics(db_pool: &Pool<Postgres>) -> Result<Vec<Topic>, Box<dyn Error>> {
-    let topics: Vec<Topic> = sqlx::query_as(
+pub async fn get_all_sessions(db_pool: &Pool<Postgres>) -> Result<Vec<Session>, Box<dyn Error>> {
+    let sessions: Vec<Session> = sqlx::query_as(
         r"
-        SELECT * FROM topics",
+        SELECT * FROM sessions",
     )
         .fetch_all(db_pool)
         .await?;
 
-    Ok(topics)
+    Ok(sessions)
 }
 
-/// Retrieves a topic by its ID.
+/// Retrieves a session by its ID.
 ///
 /// # Parameters
 /// - `db_pool`: The database connection pool
-/// - `index`: The ID of the topic
+/// - `index`: The ID of the session
 ///
 /// # Returns
-/// The `Topic` instance representing the topic with the provided ID or an error
+/// The `Session` instance representing the session with the provided ID or an error
 /// if the query fails.
 ///
 /// # Errors
 /// If the query fails, a Box error is returned.
-pub async fn get(db_pool: &Pool<Postgres>, index: i32) -> Result<Topic, Box<dyn Error>> {
-    let topic = sqlx::query_as::<Postgres, Topic>("SELECT * FROM topics where id = $1")
+pub async fn get(db_pool: &Pool<Postgres>, index: i32) -> Result<Session, Box<dyn Error>> {
+    let session = sqlx::query_as::<Postgres, Session>("SELECT * FROM sessions where id = $1")
         .bind(index)
         .fetch_one(db_pool)
         .await?;
 
-    Ok(topic)
+    Ok(session)
 }
 
-/// Adds a new topic.
+/// Adds a new session.
 ///
 /// # Parameters
 /// - `db_pool`: The database connection pool
-/// - `topic`: The `Topic` instance to add
+/// - `session`: The `Session` instance to add
 ///
 /// # Returns
-/// The ID of the newly added topic or an error if the query fails.
+/// The ID of the newly added session or an error if the query fails.
 ///
 /// # Errors
 /// If the query fails, a Box error is returned.
-pub async fn add(db_pool: &Pool<Postgres>, topic: Topic, auth_session: AuthSessionLayer) -> Result<i32, Box<dyn Error>> {
+pub async fn add(db_pool: &Pool<Postgres>, session: Session, auth_session: AuthSessionLayer) -> Result<i32, Box<dyn Error>> {
     tracing::trace!("\n\nauth_session: {:?}\n\n", auth_session.user);
-    let (topic_id,) = sqlx::query_as(
-        "INSERT INTO topics (user_id, title, content, votes) VALUES ($1, $2, $3, $4) RETURNING id",
+    let (session_id, ) = sqlx::query_as(
+        "INSERT INTO sessions (user_id, title, content, votes) VALUES ($1, $2, $3, $4) RETURNING id",
         )
         .bind(auth_session.user.unwrap().id)
-            .bind(topic.title)
-            .bind(topic.content)
-            .bind(topic.votes)
+        .bind(session.title)
+        .bind(session.content)
+        .bind(session.votes)
             .fetch_one(db_pool)
             .await?;
 
-    Ok(topic_id)
+    Ok(session_id)
 }
 
-async fn is_users_resource(topic: &Topic, auth_session: &AuthSessionLayer) -> Result<bool, Box<dyn Error>> {
-    if topic.user_id == auth_session.user.clone().unwrap().id {
+async fn is_users_resource(session: &Session, auth_session: &AuthSessionLayer) -> Result<bool, Box<dyn Error>> {
+    if session.user_id == auth_session.user.clone().unwrap().id {
         Ok(true)
     } else {
         tracing::trace!("cannot delete other users resource");
-        Err(Box::new(TopicErr::UnAuthorizedMutableAccess("User does not own this resource to delete it".to_string())))
+        Err(Box::new(SessionErr::UnAuthorizedMutableAccess("User does not own this resource to delete it".to_string())))
     }
 }
 
-/// Removes a topic by its ID.
+/// Removes a session by its ID.
 ///
 /// # Parameters
 /// - `db_pool`: The database connection pool
-/// - `index`: The ID of the topic to remove
+/// - `index`: The ID of the session to remove
 ///
 /// # Returns
-/// A `Result` indicating whether the topic was removed successfully or an error if the query fails.
+/// A `Result` indicating whether the session was removed successfully or an error if the query fails.
 ///
 /// # Errors
 /// If the query fails, a Box error is returned.
 pub async fn delete(db_pool: &Pool<Postgres>, index: i32, auth_session: AuthSessionLayer) -> Result<(), Box<dyn Error>> {
-    let topic = sqlx::query_as::<Postgres, Topic>(
-        "SELECT * FROM topics where id = $1",
+    let session = sqlx::query_as::<Postgres, Session>(
+        "SELECT * FROM sessions where id = $1",
     )
         .bind(index)
         .fetch_optional(db_pool)
@@ -232,13 +232,13 @@ pub async fn delete(db_pool: &Pool<Postgres>, index: i32, auth_session: AuthSess
 
     // The unwrap() here should be fine since by this point they have already been verified valid users
     let is_staff_or_admin = auth_session.backend.has_superuser_or_staff_perms(&auth_session.user.clone().unwrap()).await?;
-    tracing::trace!("topic: {:?}, is_staff_or_admin: {:?}", topic, is_staff_or_admin);
+    tracing::trace!("session: {:?}, is_staff_or_admin: {:?}", session, is_staff_or_admin);
 
-    match topic {
-        Some(topic) => {
+    match session {
+        Some(session) => {
             if is_staff_or_admin {
-                sqlx::query_as::<Postgres, Topic>(
-                    "DELETE FROM topics
+                sqlx::query_as::<Postgres, Session>(
+                    "DELETE FROM sessions
                     WHERE id = $1;",
                 )
                     .bind(index)
@@ -246,9 +246,9 @@ pub async fn delete(db_pool: &Pool<Postgres>, index: i32, auth_session: AuthSess
                     .fetch_all(db_pool)
                     .await?;
             } else {
-                is_users_resource(&topic, &auth_session).await?;
-                sqlx::query_as::<Postgres, Topic>(
-                    "DELETE FROM topics
+                is_users_resource(&session, &auth_session).await?;
+                sqlx::query_as::<Postgres, Session>(
+                    "DELETE FROM sessions
                     WHERE id = $1 AND user_id = $2;",
                 )
                     .bind(index)
@@ -259,38 +259,38 @@ pub async fn delete(db_pool: &Pool<Postgres>, index: i32, auth_session: AuthSess
         }
         None => {
             // In theory this shouldn't happen
-            return Err(Box::new(TopicErr::DoesNotExist("Cannot find topic to delete".to_string())));
+            return Err(Box::new(SessionErr::DoesNotExist("Cannot find session to delete".to_string())));
         }
     }
 
     Ok(())
 }
 
-/// Updates a topic by its ID.
+/// Updates a session by its ID.
 ///
 /// # Parameters
-/// - `index`: The ID of the topic to update.
-/// - `topic`: The updated `Topic` instance.
+/// - `index`: The ID of the session to update.
+/// - `session`: The updated `Session` instance.
 ///
 /// # Returns
-/// The updated `Topic` instance or an error if the query fails.
+/// The updated `Session` instance or an error if the query fails.
 ///
 /// # Errors
 /// If the query fails, a Box error is returned.
 pub async fn update(
     db_pool: &Pool<Postgres>,
     index: i32,
-    topic: Topic,
-) -> Result<Topic, Box<dyn Error>> {
-    let title = topic.title;
-    let content = topic.content;
+    session: Session,
+) -> Result<Session, Box<dyn Error>> {
+    let title = session.title;
+    let content = session.content;
 
-    let mut topic_to_update = get(db_pool, index).await?;
-    topic_to_update.title.clone_from(&title);
-    topic_to_update.content.clone_from(&content);
+    let mut session_to_update = get(db_pool, index).await?;
+    session_to_update.title.clone_from(&title);
+    session_to_update.content.clone_from(&content);
 
-    sqlx::query_as::<Postgres, Topic>(
-        "UPDATE topics
+    sqlx::query_as::<Postgres, Session>(
+        "UPDATE sessions
         SET title = $1, content = $2
         WHERE id = $3;",
     )
@@ -300,13 +300,13 @@ pub async fn update(
         .fetch_all(db_pool)
         .await?;
 
-    Ok(topic_to_update)
+    Ok(session_to_update)
 }
 
-/// Adds a vote to a topic
+/// Adds a vote to a session
 ///
 /// # Parameters
-/// - `index`: The ID of the topic to update.
+/// - `index`: The ID of the session to update.
 ///
 /// # Returns
 /// An empty `Result` if the vote was incremented successfully or an error if the query fails.
@@ -315,7 +315,7 @@ pub async fn update(
 /// If the query fails, a boxed error is returned.
 pub async fn increment_vote(db_pool: &Pool<Postgres>, index: i32) -> Result<(), Box<dyn Error>> {
     sqlx::query(
-        "UPDATE topics
+        "UPDATE sessions
         SET votes = votes + 1
         WHERE id = $1;",
     )
@@ -326,10 +326,10 @@ pub async fn increment_vote(db_pool: &Pool<Postgres>, index: i32) -> Result<(), 
     Ok(())
 }
 
-/// Removes a vote to a topic
+/// Removes a vote to a session
 ///
 /// # Parameters
-/// - `index`: The ID of the topic to update.
+/// - `index`: The ID of the session to update.
 ///
 /// # Returns
 /// An empty `Result` if the vote was decremented successfully or an error if the query fails.
@@ -338,7 +338,7 @@ pub async fn increment_vote(db_pool: &Pool<Postgres>, index: i32) -> Result<(), 
 /// If the query fails, a boxed error is returned.
 pub async fn decrement_vote(db_pool: &Pool<Postgres>, index: i32) -> Result<(), Box<dyn Error>> {
     sqlx::query(
-        "UPDATE topics
+        "UPDATE sessions
         SET votes = votes - 1
         WHERE id = $1;",
     )

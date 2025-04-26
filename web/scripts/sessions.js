@@ -1,8 +1,8 @@
 let currentUserId = null;
-let currentTopicId = null;
+let currentSessionId = null;
 
 document.addEventListener('DOMContentLoaded', function () {
-    let table = new DataTable('.topicsTable', {
+    let table = new DataTable('.sessionsTable', {
         columns: [
             {
                 data: null,
@@ -10,16 +10,16 @@ document.addEventListener('DOMContentLoaded', function () {
                 defaultContent: '',
                 orderable: false
             },
-            {data: 'topic_id', visible: false},
+            {data: 'session_id', visible: false},
             {data: 'title'},
             {data: 'name'},
             {data: 'email'},
             {
                 data: null,
                 defaultContent: '<button class="del-btn btn-action"' +
-                    ' id="deleteTopicButton">Delete</button><button class="edit-btn btn-action"' +
-                    ' id="editTopicButton">Edit</button><button class="upvote-btn btn-action"' +
-                    ' id="upvoteTopicButton">Upvote</button>',
+                                    ' id="deleteSessionButton">Delete</button><button class="edit-btn btn-action"' +
+                                    ' id="editSessionButton">Edit</button><button class="upvote-btn btn-action"' +
+                                    ' id="upvoteSessionButton">Upvote</button>',
                 orderable: false
             },
             {data: 'content', visible: false},
@@ -48,12 +48,12 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     table.on('click', '.del-btn', async function(e) {
-        if(confirm('Are you sure you want to delete this topic?')) {
+        if (confirm('Are you sure you want to delete this session?')) {
             let row = table.row($(this).closest('tr'));
             let data = row.data();
-            console.log("Deleting topic with id: " + data.topic_id);
+            console.log('Deleting session with id: ' + data.session_id);
             try {
-                const response = await fetch(`/api/v1/topics/${data.topic_id}`, {
+                const response = await fetch(`/api/v1/sessions/${data.session_id}`, {
                     method: 'DELETE',
                     headers: {
                         'Content-Type': 'application/json'
@@ -65,18 +65,18 @@ document.addEventListener('DOMContentLoaded', function () {
                     throw new Error(error.error);
                 }
 
-                /* Topic was deleted successfully from the database so now also remove
+                /* Session was deleted successfully from the database so now also remove
                  it from the table */
                 row.remove().draw(false);
             } catch (error) {
-                console.error('Error deleting topic:', error);
+                console.error('Error deleting session:', error);
                 if(error.message.match(/foreign key constraint/)) {
-                    alert('This topic cannot be deleted because it is associated with a' +
+                    alert('This session cannot be deleted because it is associated with a' +
                         ' schedule session.');
-                } else if (error.message.match(/Topic does not belong to user/)) {
-                    alert('Users can only delete topics they have submitted');
+                } else if (error.message.match(/Session does not belong to user/)) {
+                    alert('Users can only delete sessions they have submitted');
                 } else {
-                    alert('There was an error deleting the topic. Please try again.');
+                    alert('There was an error deleting the session. Please try again.');
                 }
             }
         }
@@ -84,63 +84,63 @@ document.addEventListener('DOMContentLoaded', function () {
 
     table.on('click', '.edit-btn', async function(e) {
         var data = table.row($(this).closest('tr')).data();
-        currentTopicId = data.topic_id;
+        currentSessionId = data.session_id;
         currentUserId = data.user_id;
-        console.log("Editing topic with id: " + data.topic_id);
+        console.log('Editing session with id: ' + data.session_id);
         showPopup(true, data);
     });
 
     table.on('click', '.upvote-btn', async function(e) {
         var data = table.row($(this).closest('tr')).data();
-        currentTopicId = data.topic_id;
+        currentSessionId = data.session_id;
         currentUserId = data.user_id;
 
-        if(!await hasVoted(data.topic_id)) {
+        if (!await hasVoted(data.session_id)) {
             try {
-                const response = await fetch(`/api/v1/topics/${data.topic_id}/increment`, {
+                const response = await fetch(`/api/v1/sessions/${data.session_id}/increment`, {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json'
                     },
                 })
-                    .then(() => alert('Topic upvoted successfully!'))
+                .then(() => alert('Session upvoted successfully!'))
                     .catch(error => console.error('Error:', error));
 
-                await setVotesCookie(data.topic_id);
+                await setVotesCookie(data.session_id);
             } catch (error) {
-                console.error('Error upvoting topic:', error);
-                alert('There was an error upvoting the topic. Please try again.');
+                console.error('Error upvoting session:', error);
+                alert('There was an error upvoting the session. Please try again.');
             }
         } else {
-            alert('You have already upvoted this topic!');
+            alert('You have already upvoted this session!');
         }
     });
 
-    document.getElementById( 'topicForm').addEventListener('submit', async function(event) {
+    document.getElementById('sessionForm').addEventListener('submit', async function(event) {
         event.preventDefault();
         const title = document.getElementById('title').value;
-        const content = document.getElementById('topicContent').value;
-        const isEdit = currentTopicId !== null;
+        const content = document.getElementById('sessionContent').value;
+        const isEdit  = currentSessionId !== null;
 
         let response;
         if (isEdit) {
             try {
-                await fetch(`/api/v1/topics/${currentTopicId}`, {
+                await fetch(`/api/v1/sessions/${currentSessionId}`, {
                     method:  'PUT',
                     headers: {
                         'Content-Type': 'application/json',
                     },
                     body:    JSON.stringify({user_id, title, content}),
                 })
-                .then(() => alert('Topic updated successfully!'))
+                .then(() => alert('Session updated successfully!'))
                 .catch(error => console.error('Error:', error));
             } catch (error) {
-                console.log('Error updating topic: ', error);
+                console.log('Error updating session: ', error);
             }
             location.reload();
         } else {
             try {
-                response = await fetch('/api/v1/topics/add', {
+                response = await fetch('/api/v1/sessions/add', {
                     method:  'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -152,7 +152,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
             } catch (error) {
-                console.log('Error submitting topic: ', error);
+                console.log('Error submitting session: ', error);
             }
             location.reload();
         }
@@ -160,10 +160,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
     table.on('click', '.upvote-btn', async function(e) {
         var data = table.row($(this).closest('tr')).data();
-        console.log("Upvoting topic with id: " + data.topic_id);
+        console.log('Upvoting session with id: ' + data.session_id);
     });
 
-    document.querySelector('#add-topic').addEventListener('click', async function (data) {
+    document.querySelector('#add-session').addEventListener('click', async function(data) {
         await showPopup(false);
     });
 });
@@ -171,7 +171,7 @@ document.addEventListener('DOMContentLoaded', function () {
 function format(data) {
     // data is the original data object for the row
     return (
-        '<dl>' + '<dt><b>Topic Description</b></dt>' + '<dd>' + data.content + '</dd>' + '</dl>'
+        '<dl>' + '<dt><b>Session Description</b></dt>' + '<dd>' + data.content + '</dd>' + '</dl>'
     );
 }
 
@@ -184,12 +184,12 @@ async function showPopup(isEdit, data=null) {
 
     if(isEdit && data) {
         document.getElementById('title').value = data.title;
-        document.getElementById('topicContent').value = data.content;
-        currentTopicId = data.topic_id;
+        document.getElementById('sessionContent').value = data.content;
+        currentSessionId                                = data.session_id;
         currentUserId = data.user_id;
     } else {
-        document.getElementById('topicForm').reset();
-        currentTopicId = null;
+        document.getElementById('sessionForm').reset();
+        currentSessionId = null;
         currentUserId = null;
     }
 
@@ -216,16 +216,16 @@ function closePopup() {
 }
 
 /* Voting functions */
-async function hasVoted(topicId) {
+async function hasVoted(sessionId) {
     votesCookie = await cookieStore.get('votes');
-    return votesCookie?.value.split(',').includes(String(topicId));
+    return votesCookie?.value.split(',').includes(String(sessionId));
 }
 
-async function setVotesCookie(topicId) {
+async function setVotesCookie(sessionId) {
     votesCookie = await cookieStore.get('votes');
     if(!votesCookie) {
-        cookieStore.set('votes', String(topicId));
+        cookieStore.set('votes', String(sessionId));
     } else {
-        cookieStore.set('votes', votesCookie.value.concat(',' + String(topicId)));
+        cookieStore.set('votes', votesCookie.value.concat(',' + String(sessionId)));
     }
 }

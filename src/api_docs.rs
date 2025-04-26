@@ -1,10 +1,10 @@
 use crate::{
     controllers::{
-        room_handler, schedule_handler, timeslot_handler, topics_handler,
+        room_handler, schedule_handler, sessions_handler, timeslot_handler,
     },
     models::{
-        room_model::Room, schedule_model::Schedule, timeslot_model::TimeSlot,
-        topics_model::Topic,
+        room_model::Room, schedule_model::Schedule, sessions_model::Session,
+        timeslot_model::TimeSlot,
     },
 };
 use utoipa::OpenApi;
@@ -12,14 +12,14 @@ use utoipa::OpenApi;
 #[derive(OpenApi)]
 #[openapi(
     paths(
-        // Topics
-        topics_handler::topics,
-        topics_handler::get_topic,
-        topics_handler::post_topic,
-        topics_handler::delete_topic,
-        topics_handler::update_topic,
-        topics_handler::add_vote_for_topic,
-        topics_handler::subtract_vote_for_topic,
+        // Sessions
+        sessions_handler::sessions,
+        sessions_handler::get_session,
+        sessions_handler::post_session,
+        sessions_handler::delete_session,
+        sessions_handler::update_session,
+        sessions_handler::add_vote_for_session,
+        sessions_handler::subtract_vote_for_session,
         // Rooms
         room_handler::rooms,
         room_handler::post_rooms,
@@ -31,10 +31,10 @@ use utoipa::OpenApi;
         timeslot_handler::update_timeslot,
     ),
     components(
-        schemas(Topic, Room, Schedule, TimeSlot)
+        schemas(Session, Room, Schedule, TimeSlot)
     ),
     tags(
-        (name = "Topics", description = "Topic management endpoints"),
+        (name = "Sessions", description = "Session management endpoints"),
         (name = "Rooms", description = "Room management endpoints"),
         (name = "Schedules", description = "Schedule management endpoints"),
         (name = "Timeslots", description = "Timeslot management endpoints")

@@ -1,8 +1,8 @@
 use crate::config::AppState;
 use crate::models::room_model::{rooms_get, Room};
 use crate::models::schedule_model::{schedules_get, Schedule};
+use crate::models::sessions_model::get_all_sessions;
 use crate::models::timeslot_model::{timeslot_get, ExistingTimeslot, TimeslotAssignment};
-use crate::models::topics_model::get_all_topics;
 use askama::Template;
 use axum::extract::State;
 use axum::http::StatusCode;
@@ -59,7 +59,7 @@ pub async fn index_handler() -> Response {
 /// - `start_time` - The start time of the event
 /// - `end_time` - The end time of the event
 /// - `room_id` - The ID of the room
-/// - `topic_id` - The ID of the topic
+/// - `session_id` - The ID of the session
 /// - `schedule_id` - The ID of the schedule
 pub struct Event {
     pub timeslot_id: i32,
@@ -67,7 +67,7 @@ pub struct Event {
     pub start_time: String,
     pub end_time: String,
     pub room_id: i32,
-    pub topic_id: i32,
+    pub session_id: i32,
     pub schedule_id: i32,
 }
 
@@ -102,7 +102,7 @@ pub async fn schedule_handler(State(app_state): State<Arc<RwLock<AppState>>>) ->
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR.into_response())?;
 
         let rooms = rooms_get(read_lock).await.unwrap_or(None);
-        let topics = get_all_topics(read_lock).await.unwrap_or_default();
+        let sessions = get_all_sessions(read_lock).await.unwrap_or_default();
         let timeslots = timeslot_get(read_lock)
             .await
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR.into_response())?;
@@ -125,17 +125,17 @@ pub async fn schedule_handler(State(app_state): State<Arc<RwLock<AppState>>>) ->
                         .iter()
                         .filter(|assignment| assignment.time_slot_id == timeslot_id)
                         .filter_map(|filtered_assignment| {
-                            let event_topic = topics
+                            let event_session = sessions
                                 .iter()
-                                .find(|&topic| topic.id == Some(filtered_assignment.topic_id))?;
+                                .find(|&session| session.id == Some(filtered_assignment.session_id))?;
 
                             Some(Event {
                                 timeslot_id,
-                                title: event_topic.title.clone(),
+                                title: event_session.title.clone(),
                                 start_time: timeslot.start_time.to_string(),
                                 end_time: timeslot.end_time.to_string(),
                                 room_id: filtered_assignment.room_id,
-                                topic_id: filtered_assignment.topic_id,
+                                session_id: filtered_assignment.session_id,
                                 schedule_id,
                             })
                         })
@@ -164,27 +164,27 @@ pub async fn schedule_handler(State(app_state): State<Arc<RwLock<AppState>>>) ->
     }
 }
 #[derive(Template, Debug)]
-#[template(path = "topics.html")]
-/// Topics template
+#[template(path = "sessions.html")]
+/// Sessions template
 ///
-/// This struct represents the parameters passed to the client for rendering the topics page.
+/// This struct represents the parameters passed to the client for rendering the sessions page.
 ///
 /// # Fields
-/// - `topics` - A vector containing the topics and users
-struct TopicsTemplate {
-    topics: Vec<TopicAndUser>,
+/// - `sessions` - A vector containing the sessions and users
+struct SessionsTemplate {
+    sessions: Vec<SessionAndUser>,
 }
 
 #[derive(Debug, Deserialize, FromRow)]
-/// `Topic` and `User` struct
+/// `Session` and `User` struct
 ///
-/// This struct represents the pairing of a `Topic` and `User`.
+/// This struct represents the pairing of a `Session` and `User`.
 ///
 /// # Fields
-/// - `topic` - The session `Topic`
-/// - `user_info` - The `User` for the `Topic`
-pub struct TopicAndUser {
-    pub topic_id: i32,
+/// - `session` - The session `Session`
+/// - `user_info` - The `User` for the `Session`
+pub struct SessionAndUser {
+    pub session_id: i32,
     pub title: String,
     pub content: String,
     pub user_id: i32,
@@ -194,37 +194,37 @@ pub struct TopicAndUser {
 }
 
 
-/// Combined topic and user query
+/// Combined session and user query
 ///
-/// This function queries the database for a combination of topics and users.
+/// This function queries the database for a combination of sessions and users.
 ///
 /// # Parameters
 /// - `db_pool` - The database connection pool
 ///
 /// # Returns
-/// A vector containing the topics and users or an error if the query fails.
+/// A vector containing the sessions and users or an error if the query fails.
 ///
 /// # Errors
 /// An error is returned if the query fails.
-pub async fn combine_topic_and_user(
+pub async fn combine_session_and_user(
     db_pool: &Pool<Postgres>,
-) -> Result<Vec<TopicAndUser>, Box<dyn Error>> {
-    let topic_with_user: Vec<TopicAndUser> = sqlx::query_as::<Postgres, TopicAndUser>(
-        "SELECT t.id as \"topic_id\", t.title, t.content, \
+) -> Result<Vec<SessionAndUser>, Box<dyn Error>> {
+    let session_with_user: Vec<SessionAndUser> = sqlx::query_as::<Postgres, SessionAndUser>(
+        "SELECT t.id as \"session_id\", t.title, t.content, \
         u.id as \"user_id\", u.fname, u.lname, u.email \
-        FROM topics t \
+        FROM sessions t \
         JOIN users u ON u.id = t.user_id",
     )
         .fetch_all(db_pool)
         .await?;
 
-    Ok(topic_with_user)
+    Ok(session_with_user)
 }
 
 #[debug_handler]
-/// Topic handler
+/// Session handler
 ///
-/// This function renders the topics page.
+/// This function renders the sessions page.
 ///
 /// # Parameters
 /// - `app_state` - Thread-safe shared state wrapped in an Arc and RwLock
@@ -234,15 +234,15 @@ pub async fn combine_topic_and_user(
 ///
 /// # Errors
 /// If the template fails to render, an internal server error status code is returned.
-pub async fn topic_handler(State(app_state): State<Arc<RwLock<AppState>>>) -> Response {
+pub async fn session_handler(State(app_state): State<Arc<RwLock<AppState>>>) -> Response {
     let app_state_lock = app_state.read().await;
     let write_lock = &app_state_lock.unconf_data.read().await.unconf_db;
-    let topics_with_user_info = combine_topic_and_user(write_lock).await;
+    let sessions_with_user_info = combine_session_and_user(write_lock).await;
 
-    match topics_with_user_info {
-        Ok(topics_and_users) => {
-            let template = TopicsTemplate {
-                topics: topics_and_users,
+    match sessions_with_user_info {
+        Ok(sessions_and_users) => {
+            let template = SessionsTemplate {
+                sessions: sessions_and_users,
             };
 
             match template.render() {
@@ -252,7 +252,7 @@ pub async fn topic_handler(State(app_state): State<Arc<RwLock<AppState>>>) -> Re
         }
         Err(e) => {
             tracing::debug!(e);
-            Html("<h1>Error fetching topics</h1>".to_string()).into_response()
+            Html("<h1>Error fetching sessions</h1>".to_string()).into_response()
         }
     }
 }

@@ -5,7 +5,7 @@ FROM timeslot_assignments;
 DELETE
 FROM time_slots;
 DELETE
-FROM topics;
+FROM sessions;
 DELETE
 FROM rooms;
 DELETE
