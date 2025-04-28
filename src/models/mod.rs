@@ -4,3 +4,4 @@ pub mod schedule_model;
 pub mod timeslot_assignment_model;
 pub mod timeslot_model;
 pub mod sessions_model;
+pub mod session_voting_model;

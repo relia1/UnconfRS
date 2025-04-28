@@ -4,7 +4,7 @@ use tokio::sync::RwLock;
 use crate::config::AppState;
 use crate::middleware::auth::AuthSessionLayer;
 use crate::models::sessions_model::{
-    add, decrement_vote, delete, get, get_all_sessions, increment_vote, update, Session, SessionErr,
+    add, delete, get, get_all_sessions, update, Session, SessionErr,
     SessionError,
 };
 use crate::types::ApiStatusCode;
@@ -225,80 +225,4 @@ pub async fn update_session(
     }
 }
 
-#[utoipa::path(
-    put,
-    path = "/api/v1/sessions/{id}/increment",
-    responses(
-        (status = 200, description = "Updated session", body = ()),
-        (status = 400, description = "Bad request", body = SessionError),
-        (status = 404, description = "Session not found", body = SessionError),
-        (status = 422, description = "Unprocessable entity", body = SessionError),
-    )
-)]
-#[debug_handler]
-/// Increments the vote count for a session
-///
-/// This function is a handler for the route `PUT /api/v1/sessions/{id}/increment`. It increments the
-/// vote count for a session in the database.
-///
-/// # Parameters
-/// - `app_state` - Thread-safe shared state wrapped in an Arc and RwLock
-/// - `session_id` - The id of the session to increment the vote count for
-///
-/// # Returns
-/// `Response` with a status code of 200 OK and an empty body if the session was updated or an error
-/// response if the session vote could not be updated.
-///
-/// # Errors
-/// If an error occurs while updating the session vote, a session error response with a status code of
-/// 400 Bad Request is returned.
-pub async fn add_vote_for_session(
-    State(app_state): State<Arc<RwLock<AppState>>>,
-    Path(session_id): Path<i32>,
-) -> Response {
-    let app_state_lock = app_state.read().await;
-    let write_lock = &app_state_lock.unconf_data.read().await.unconf_db;
-    match increment_vote(write_lock, session_id).await {
-        Ok(_) => StatusCode::OK.into_response(),
-        Err(e) => SessionError::response(ApiStatusCode::from(StatusCode::BAD_REQUEST), e),
-    }
-}
 
-#[utoipa::path(
-    put,
-    path = "/api/v1/sessions/{id}/decrement",
-    responses(
-        (status = 200, description = "Updated session", body = ()),
-        (status = 400, description = "Bad request", body = SessionError),
-        (status = 404, description = "Session not found", body = SessionError),
-        (status = 422, description = "Unprocessable entity", body = SessionError),
-    )
-)]
-#[debug_handler]
-/// Decrements the vote count for a session
-///
-/// This function is a handler for the route `PUT /api/v1/sessions/{id}/decrement`. It decrements the
-/// vote count for a session in the database.
-///
-/// # Parameters
-/// - `app_state` - Thread-safe shared state wrapped in an Arc and RwLock
-/// - `session_id` - The id of the session to decrement the vote count for
-///
-/// # Returns
-/// `Response` with a status code of 200 OK and an empty body if the session was updated or an error
-/// response if the session vote could not be updated.
-///
-/// # Errors
-/// If an error occurs while updating the session vote, a session error response with a status code of
-/// 400 Bad Request is returned.
-pub async fn subtract_vote_for_session(
-    State(app_state): State<Arc<RwLock<AppState>>>,
-    Path(session_id): Path<i32>,
-) -> Response {
-    let app_state_lock = app_state.read().await;
-    let write_lock = &app_state_lock.unconf_data.read().await.unconf_db;
-    match decrement_vote(write_lock, session_id).await {
-        Ok(_) => StatusCode::OK.into_response(),
-        Err(e) => SessionError::response(ApiStatusCode::from(StatusCode::BAD_REQUEST), e),
-    }
-}

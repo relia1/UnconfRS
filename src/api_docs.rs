@@ -1,10 +1,10 @@
 use crate::{
     controllers::{
-        room_handler, schedule_handler, sessions_handler, timeslot_handler,
+        room_handler, schedule_handler, session_voting_handler, sessions_handler, timeslot_handler,
     },
     models::{
         room_model::Room, schedule_model::Schedule, sessions_model::Session,
-        timeslot_model::TimeSlot,
+        timeslot_model::TimeSlot
     },
 };
 use utoipa::OpenApi;
@@ -18,8 +18,8 @@ use utoipa::OpenApi;
         sessions_handler::post_session,
         sessions_handler::delete_session,
         sessions_handler::update_session,
-        sessions_handler::add_vote_for_session,
-        sessions_handler::subtract_vote_for_session,
+        session_voting_handler::add_vote_for_session,
+        session_voting_handler::subtract_vote_for_session,
         // Rooms
         room_handler::rooms,
         room_handler::post_rooms,

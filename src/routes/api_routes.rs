@@ -4,9 +4,9 @@ use crate::controllers::{
     login_handler::{login_handler, logout_handler},
     room_handler::{delete_room, post_rooms, rooms},
     schedule_handler::{clear, generate},
+    session_voting_handler::{add_vote_for_session, subtract_vote_for_session},
     sessions_handler::{
-        add_vote_for_session, delete_session, get_session, post_session, sessions, subtract_vote_for_session,
-        update_session,
+        delete_session, get_session, post_session, sessions, update_session,
     },
     timeslot_handler::{add_timeslots, swap_timeslots, update_timeslot},
 };

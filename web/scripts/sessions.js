@@ -1,3 +1,6 @@
+const {get, set, update} = idbKeyval;
+set('sessions_voted_for', current_users_voted_sessions);
+
 let currentUserId = null;
 let currentSessionId = null;
 
@@ -92,12 +95,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
     table.on('click', '.upvote-btn', async function(e) {
         var data = table.row($(this).closest('tr')).data();
-        currentSessionId = data.session_id;
-        currentUserId = data.user_id;
+        currentSessionId = Number(data.session_id);
+        currentUserId    = Number(data.user_id);
 
-        if (!await hasVoted(data.session_id)) {
+        if (!await hasVoted(currentSessionId)) {
             try {
-                const response = await fetch(`/api/v1/sessions/${data.session_id}/increment`, {
+                const response = await fetch(`/api/v1/sessions/${currentSessionId}/increment`, {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json'
@@ -106,13 +109,27 @@ document.addEventListener('DOMContentLoaded', function () {
                 .then(() => alert('Session upvoted successfully!'))
                     .catch(error => console.error('Error:', error));
 
-                await setVotesCookie(data.session_id);
+                await setVotesCookie(currentSessionId);
             } catch (error) {
                 console.error('Error upvoting session:', error);
                 alert('There was an error upvoting the session. Please try again.');
             }
         } else {
-            alert('You have already upvoted this session!');
+            try {
+                const response = await fetch(`/api/v1/sessions/${currentSessionId}/decrement`, {
+                    method:  'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                })
+                .then(() => alert('Session unvoted successfully!'))
+                .catch(error => console.error('Error:', error));
+
+                await setVotesCookie(currentSessionId);
+            } catch (error) {
+                console.error('Error removing vote for session:', error);
+                alert('There was an error removing the vote for the session. Please try again.');
+            }
         }
     });
 
@@ -217,15 +234,32 @@ function closePopup() {
 
 /* Voting functions */
 async function hasVoted(sessionId) {
-    votesCookie = await cookieStore.get('votes');
-    return votesCookie?.value.split(',').includes(String(sessionId));
+    try {
+        const sessionsUserVotedFor = await get('sessions_voted_for');
+        if (!sessionsUserVotedFor) {
+            return false;
+        }
+        return sessionsUserVotedFor.includes(sessionId);
+    } catch (error) {
+        console.error('Unable to read sessions_voted_for', error);
+        return false;
+    }
 }
 
 async function setVotesCookie(sessionId) {
-    votesCookie = await cookieStore.get('votes');
-    if(!votesCookie) {
-        cookieStore.set('votes', String(sessionId));
-    } else {
-        cookieStore.set('votes', votesCookie.value.concat(',' + String(sessionId)));
+    try {
+        let sessionsUserVotedFor = await get('sessions_voted_for') || [];
+        if (!sessionsUserVotedFor || !sessionsUserVotedFor.includes(sessionId)) {
+            sessionsUserVotedFor.push(sessionId);
+            await set('sessions_voted_for', sessionsUserVotedFor);
+            return true;
+        } else {
+            sessionsUserVotedFor = sessionsUserVotedFor.filter(val => val !== sessionId);
+            await set('sessions_voted_for', sessionsUserVotedFor);
+            return true;
+        }
+    } catch (error) {
+        console.error('Unable to set sessions_voted_for', error);
+        return false;
     }
 }

@@ -1,6 +1,8 @@
 use crate::config::AppState;
+use crate::middleware::auth::AuthSessionLayer;
 use crate::models::room_model::{rooms_get, Room};
 use crate::models::schedule_model::{schedules_get, Schedule};
+use crate::models::session_voting_model::get_sessions_user_voted_for;
 use crate::models::sessions_model::get_all_sessions;
 use crate::models::timeslot_model::{timeslot_get, ExistingTimeslot, TimeslotAssignment};
 use askama::Template;
@@ -173,6 +175,7 @@ pub async fn schedule_handler(State(app_state): State<Arc<RwLock<AppState>>>) ->
 /// - `sessions` - A vector containing the sessions and users
 struct SessionsTemplate {
     sessions: Vec<SessionAndUser>,
+    current_users_voted_sessions: Vec<i32>,
 }
 
 #[derive(Debug, Deserialize, FromRow)]
@@ -234,15 +237,25 @@ pub async fn combine_session_and_user(
 ///
 /// # Errors
 /// If the template fails to render, an internal server error status code is returned.
-pub async fn session_handler(State(app_state): State<Arc<RwLock<AppState>>>) -> Response {
+pub async fn session_handler(
+    State(app_state): State<Arc<RwLock<AppState>>>,
+    auth_session: AuthSessionLayer,
+) -> Response {
     let app_state_lock = app_state.read().await;
     let write_lock = &app_state_lock.unconf_data.read().await.unconf_db;
+    let current_users_voted_sessions = if let Some(user) = auth_session.user.clone() {
+        get_sessions_user_voted_for(write_lock, user.id).await.unwrap_or(Vec::<i32>::new())
+    } else {
+        Vec::<i32>::new()
+    };
     let sessions_with_user_info = combine_session_and_user(write_lock).await;
+
 
     match sessions_with_user_info {
         Ok(sessions_and_users) => {
             let template = SessionsTemplate {
                 sessions: sessions_and_users,
+                current_users_voted_sessions,
             };
 
             match template.render() {

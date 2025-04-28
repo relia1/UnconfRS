@@ -75,9 +75,11 @@
         }
 
     </style>
+    <script src="https://cdn.jsdelivr.net/npm/idb-keyval@6/dist/umd.js"></script>
     <script src="https://cdn.datatables.net/v/dt/jq-3.7.0/dt-2.1.5/r-3.0.3/sl-2.0.5/datatables.min.js"></script>
     <script>
-    {% include "scripts/sessions.js" %}
+        let current_users_voted_sessions = {{ current_users_voted_sessions|json }};
+        {% include "scripts/sessions.js" %}
     </script>
 
     {% endblock %}

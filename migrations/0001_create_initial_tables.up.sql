@@ -92,4 +92,9 @@ CREATE TABLE timeslot_assignments (
     UNIQUE (time_slot_id, room_id)
 );
 
+CREATE TABLE user_votes (
+    user_id INTEGER REFERENCES users (id) ON DELETE CASCADE,
+    session_id INTEGER REFERENCES sessions (id) ON DELETE CASCADE,
+    PRIMARY KEY (user_id, session_id)
+);
 

@@ -202,12 +202,12 @@ pub async fn add(db_pool: &Pool<Postgres>, session: Session, auth_session: AuthS
     Ok(session_id)
 }
 
-async fn is_users_resource(session: &Session, auth_session: &AuthSessionLayer) -> Result<bool, Box<dyn Error>> {
+pub(crate) async fn is_users_resource(session: &Session, auth_session: &AuthSessionLayer) -> Result<bool, Box<dyn Error>> {
     if session.user_id == auth_session.user.clone().unwrap().id {
         Ok(true)
     } else {
-        tracing::trace!("cannot delete other users resource");
-        Err(Box::new(SessionErr::UnAuthorizedMutableAccess("User does not own this resource to delete it".to_string())))
+        tracing::trace!("cannot mutate other users resources");
+        Err(Box::new(SessionErr::UnAuthorizedMutableAccess("User does not own this resource to mutate it".to_string())))
     }
 }
 
@@ -303,48 +303,4 @@ pub async fn update(
     Ok(session_to_update)
 }
 
-/// Adds a vote to a session
-///
-/// # Parameters
-/// - `index`: The ID of the session to update.
-///
-/// # Returns
-/// An empty `Result` if the vote was incremented successfully or an error if the query fails.
-///
-/// # Errors
-/// If the query fails, a boxed error is returned.
-pub async fn increment_vote(db_pool: &Pool<Postgres>, index: i32) -> Result<(), Box<dyn Error>> {
-    sqlx::query(
-        "UPDATE sessions
-        SET votes = votes + 1
-        WHERE id = $1;",
-    )
-        .bind(index)
-        .fetch_all(db_pool)
-        .await?;
 
-    Ok(())
-}
-
-/// Removes a vote to a session
-///
-/// # Parameters
-/// - `index`: The ID of the session to update.
-///
-/// # Returns
-/// An empty `Result` if the vote was decremented successfully or an error if the query fails.
-///
-/// # Errors
-/// If the query fails, a boxed error is returned.
-pub async fn decrement_vote(db_pool: &Pool<Postgres>, index: i32) -> Result<(), Box<dyn Error>> {
-    sqlx::query(
-        "UPDATE sessions
-        SET votes = votes - 1
-        WHERE id = $1;",
-    )
-        .bind(index)
-        .fetch_all(db_pool)
-        .await?;
-
-    Ok(())
-}
