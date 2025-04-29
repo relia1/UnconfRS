@@ -7,7 +7,9 @@ use axum_macros::debug_handler;
 
 #[derive(Template, Debug)]
 #[template(path = "login.html")]
-struct LoginTemplate;
+struct LoginTemplate {
+    is_authenticated: bool,
+}
 
 #[debug_handler]
 /// Login page handler
@@ -20,7 +22,7 @@ struct LoginTemplate;
 /// # Errors
 /// If the template fails to render, an internal server error status code is returned.
 pub async fn login_page_handler() -> Response {
-    let template = LoginTemplate {};
+    let template = LoginTemplate { is_authenticated: false };
     match template.render() {
         Ok(html) => Html(html).into_response(),
         Err(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),

@@ -6,13 +6,13 @@
     <form id="login" style="margin-top: 10px">
         <div class="form-field">
             <div>
-                <label for="email">Email</label>
+                <label for="email">Email:</label>
                 <input type="text" id="email" name="email" required/>
             </div>
 
             <div>
-                <label for="password">Password (8 characters minimum):</label>
-                <input type="password" id="password" name="password" minlength="8" required/>
+                <label for="password">Password:</label>
+                <input type="password" id="password" name="password" required/>
             </div>
         </div>
         <button type="submit">Submit</button>
@@ -35,6 +35,7 @@
             if (data.ok) {
                 alert('Login successful');
                 localStorage.setItem('admin', true);
+                location.href = "/sessions";
             } else {
                 alert('Invalid login');
             }

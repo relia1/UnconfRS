@@ -14,7 +14,11 @@
                 <a href="/unconf_schedule">Schedule</a>
             </li>
             <li>
+            {% if is_authenticated %}
+                <a id="logout" href="#">Logout</a>
+            {% else %}
                 <a href="/login">Login</a>
+            {% endif %}
             </li>
         </ul>
         <div class="menu-toggle" id="mobile-menu">

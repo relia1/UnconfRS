@@ -30,7 +30,9 @@ pub async fn handler_404() -> Response {
 #[derive(Template, Debug)]
 #[template(path = "index.html")]
 /// Index template
-struct IndexTemplate;
+struct IndexTemplate {
+    is_authenticated: bool,
+}
 
 #[debug_handler]
 /// Index handler
@@ -42,8 +44,10 @@ struct IndexTemplate;
 ///
 /// # Errors
 /// If the template fails to render, an internal server error status code is returned.
-pub async fn index_handler() -> Response {
-    let template = IndexTemplate;
+pub async fn index_handler(auth_session: AuthSessionLayer) -> Response {
+    let is_authenticated = auth_session.user.is_some();
+    let template = IndexTemplate { is_authenticated };
+
     match template.render() {
         Ok(html) => Html(html).into_response(),
         Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, "Internal Server Error").into_response(),
@@ -79,6 +83,7 @@ pub(crate) struct ScheduleTemplate {
     pub(crate) schedule: Option<Schedule>,
     pub(crate) rooms: Option<Vec<Room>>,
     pub(crate) events: Vec<Event>,
+    is_authenticated: bool,
 }
 
 #[debug_handler]
@@ -94,7 +99,8 @@ pub(crate) struct ScheduleTemplate {
 ///
 /// # Errors
 /// If the template fails to render, an internal server error status code is returned.
-pub async fn schedule_handler(State(app_state): State<Arc<RwLock<AppState>>>) -> Response {
+pub async fn schedule_handler(State(app_state): State<Arc<RwLock<AppState>>>, auth_session: AuthSessionLayer) -> Response {
+    let is_authenticated = auth_session.user.is_some();
     let app_state_lock = app_state.read().await;
     let read_lock = &app_state_lock.unconf_data.read().await.unconf_db;
 
@@ -152,6 +158,7 @@ pub async fn schedule_handler(State(app_state): State<Arc<RwLock<AppState>>>) ->
             schedule,
             rooms,
             events,
+            is_authenticated,
         };
 
         template
@@ -176,6 +183,7 @@ pub async fn schedule_handler(State(app_state): State<Arc<RwLock<AppState>>>) ->
 struct SessionsTemplate {
     sessions: Vec<SessionAndUser>,
     current_users_voted_sessions: Vec<i32>,
+    is_authenticated: bool,
 }
 
 #[derive(Debug, Deserialize, FromRow)]
@@ -241,6 +249,7 @@ pub async fn session_handler(
     State(app_state): State<Arc<RwLock<AppState>>>,
     auth_session: AuthSessionLayer,
 ) -> Response {
+    let is_authenticated = auth_session.user.is_some();
     let app_state_lock = app_state.read().await;
     let write_lock = &app_state_lock.unconf_data.read().await.unconf_db;
     let current_users_voted_sessions = if let Some(user) = auth_session.user.clone() {
@@ -256,6 +265,7 @@ pub async fn session_handler(
             let template = SessionsTemplate {
                 sessions: sessions_and_users,
                 current_users_voted_sessions,
+                is_authenticated,
             };
 
             match template.render() {
@@ -274,10 +284,12 @@ pub async fn session_handler(
 #[template(path = "unconf_timeslots.html")]
 struct UnconfTimeslotsTemplate {
     existing_timeslots: Vec<ExistingTimeslot>,
+    is_authenticated: bool,
 }
 
 #[debug_handler]
-pub async fn unconf_timeslots_handler(State(app_state): State<Arc<RwLock<AppState>>>) -> Response {
+pub async fn unconf_timeslots_handler(State(app_state): State<Arc<RwLock<AppState>>>, auth_session: AuthSessionLayer) -> Response {
+    let is_authenticated = auth_session.user.is_some();
     let app_state_lock = app_state.read().await;
     let read_lock = &app_state_lock.unconf_data.read().await.unconf_db;
 
@@ -293,6 +305,7 @@ pub async fn unconf_timeslots_handler(State(app_state): State<Arc<RwLock<AppStat
 
     let template = UnconfTimeslotsTemplate {
         existing_timeslots: timeslots,
+        is_authenticated,
     };
 
     match template.render() {
