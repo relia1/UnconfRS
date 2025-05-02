@@ -19,13 +19,13 @@ use crate::routes::middleware::configure_middleware;
 use crate::routes::{api_routes, docs_routes, site_routes};
 use std::net::SocketAddr;
 use std::sync::Arc;
-use tokio::{self, sync::RwLock};
+use tokio::{self, signal, sync::RwLock};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[tokio::main]
 async fn main() {
     // Setup formatting and environment for trace
-    setup_tracing();
+    setup_tracing().await;
 
     // Connect to database and setup app state
     let app_state = Arc::new(RwLock::new(AppState::new().await.unwrap()));
@@ -37,7 +37,10 @@ async fn main() {
     let ip = SocketAddr::new([0, 0, 0, 0].into(), 3000);
     let listener = tokio::net::TcpListener::bind(ip).await.unwrap();
     tracing::info!("serving {}", listener.local_addr().unwrap());
-    axum::serve(listener, app).await.unwrap();
+    axum::serve(listener, app)
+        .with_graceful_shutdown(shutdown_signal())
+        .await
+        .unwrap();
 }
 
 /// Set up a tracing subscriber with formatting and filtering
@@ -51,7 +54,7 @@ async fn main() {
 ///
 /// # Panics
 /// This function will panic if the tracing subscriber cannot be initialized
-fn setup_tracing() {
+async fn setup_tracing() {
     let fmt_layer = fmt::layer().with_file(true).with_line_number(true).pretty();
     let filter_layer = EnvFilter::try_from_default_env()
         .or_else(|_| EnvFilter::try_new("info"))
@@ -89,4 +92,28 @@ async fn configure_app_router(app_state: Arc<RwLock<AppState>>) -> Router {
 
     // Add middleware
     configure_middleware(app, app_state).await
+}
+
+async fn shutdown_signal() {
+    let ctrl_c = async {
+        signal::ctrl_c()
+            .await
+            .expect("failed to install Ctrl+C handler");
+    };
+
+    #[cfg(unix)]
+    let terminate = async {
+        signal::unix::signal(signal::unix::SignalKind::terminate())
+            .expect("failed to install signal handler")
+            .recv()
+            .await;
+    };
+
+    #[cfg(not(unix))]
+    let terminate = std::future::pending::<()>();
+
+    tokio::select! {
+        _ = ctrl_c => {},
+        _ = terminate => {},
+    }
 }
