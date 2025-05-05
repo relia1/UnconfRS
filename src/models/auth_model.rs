@@ -8,38 +8,38 @@ use std::error::Error;
 
 #[derive(Deserialize)]
 pub struct RegistrationRequest {
-    pub fname: String,
-    pub lname: String,
-    pub email: String,
-    pub password: String,
+    pub(crate) fname: String,
+    pub(crate) lname: String,
+    pub(crate) email: String,
+    pub(crate) password: String,
 }
 
 #[derive(Debug, Serialize)]
-pub struct RegistrationResponse {
-    pub success: bool,
-    pub message: String,
+pub(crate) struct RegistrationResponse {
+    pub(crate) success: bool,
+    pub(crate) message: String,
 }
 
 #[derive(Debug, Deserialize)]
-pub struct LoginRequest {
-    pub email: String,
-    pub password: String,
+pub(crate) struct LoginRequest {
+    pub(crate) email: String,
+    pub(crate) password: String,
 }
 
 #[derive(Debug, Serialize)]
-pub struct LoginResponse {
-    pub success: bool,
-    pub message: String,
+pub(crate) struct LoginResponse {
+    pub(crate) success: bool,
+    pub(crate) message: String,
 }
 
 #[derive(Clone, Serialize, Deserialize, FromRow)]
 pub struct User {
-    pub id: i32,
-    pub fname: String,
-    pub lname: String,
-    pub email: String,
+    pub(crate) id: i32,
+    pub(crate) fname: String,
+    pub(crate) lname: String,
+    pub(crate) email: String,
     #[serde(skip_serializing)]
-    pub password: String,
+    pub(crate) password: String,
 }
 
 
@@ -69,13 +69,19 @@ impl AuthUser for User {
 
 #[derive(Clone, Deserialize)]
 pub struct Credentials {
-    pub email: String,
-    pub password: String,
+    pub(crate) email: String,
+    pub(crate) password: String,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash, FromRow)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, FromRow, Deserialize, Serialize)]
 pub struct Permission {
-    pub name: String,
+    pub(crate) name: String,
+}
+
+impl From<Permission> for HashSet<Permission> {
+    fn from(permission: Permission) -> Self {
+        HashSet::from([permission])
+    }
 }
 
 impl From<&str> for Permission {
@@ -88,7 +94,7 @@ impl From<&str> for Permission {
 
 #[derive(Clone, FromRef)]
 pub struct Backend {
-    pub db_pool: sqlx::Pool<sqlx::Postgres>,
+    pub(crate) db_pool: sqlx::Pool<sqlx::Postgres>,
 }
 
 impl Backend {
@@ -102,7 +108,6 @@ impl Backend {
     }
 
     pub async fn register(&self, new_user: RegistrationRequest) -> Result<(), Box<dyn Error>> {
-        tracing::trace!("before pw hash");
         let password_hash = bcrypt::hash(&new_user.password, bcrypt::DEFAULT_COST)?;
         let user: User = sqlx::query_as(
             "INSERT INTO users (fname, lname, email, password) VALUES ($1, $2, $3, $4) RETURNING *"
@@ -113,8 +118,6 @@ impl Backend {
             .bind(&password_hash)
             .fetch_one(&self.db_pool)
             .await?;
-
-        tracing::trace!("user: {:?}", &user);
 
         sqlx::query(
             "INSERT INTO users_groups (user_id, group_id) VALUES ($1, (SELECT id FROM groups WHERE name = 'user'))"

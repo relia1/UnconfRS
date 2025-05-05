@@ -11,6 +11,7 @@ use crate::controllers::{
     timeslot_handler::{add_timeslots, swap_timeslots, update_timeslot},
 };
 use crate::middleware::auth::{auth_middleware, current_user_handler};
+use crate::middleware::unauth::unauth_middleware;
 use crate::models::auth_model::Backend;
 use axum::{
     middleware::from_fn_with_state,
@@ -37,7 +38,8 @@ pub fn get_routes(app_state: &Arc<RwLock<AppState>>) -> Router<Arc<RwLock<AppSta
         .route("/registration", post(registration_handler))
         .route("/sessions", get(sessions))
         .route("/sessions/{id}", get(get_session))
-        .route("/rooms", get(rooms));
+        .route("/rooms", get(rooms))
+        .route_layer(from_fn_with_state(app_state.clone(), unauth_middleware));
 
     let auth_routes = Router::new()
         .route("/logout", post(logout_handler))

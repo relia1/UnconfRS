@@ -1,14 +1,16 @@
-use crate::middleware::auth::AuthSessionLayer;
-use crate::models::auth_model::{Credentials, LoginRequest, LoginResponse};
+use crate::middleware::auth::{AuthInfo, AuthSessionLayer};
+use crate::models::auth_model::{Credentials, LoginRequest, LoginResponse, Permission};
 use askama::Template;
 use axum::response::IntoResponse;
-use axum::{http::StatusCode, response::Html, response::Response, Json};
+use axum::{http::StatusCode, response::Html, response::Response, Extension, Json};
 use axum_macros::debug_handler;
+use std::collections::HashSet;
 
 #[derive(Template, Debug)]
 #[template(path = "login.html")]
 struct LoginTemplate {
     is_authenticated: bool,
+    permissions: HashSet<Permission>,
 }
 
 #[debug_handler]
@@ -21,8 +23,8 @@ struct LoginTemplate {
 ///
 /// # Errors
 /// If the template fails to render, an internal server error status code is returned.
-pub async fn login_page_handler() -> Response {
-    let template = LoginTemplate { is_authenticated: false };
+pub async fn login_page_handler(Extension(auth_info): Extension<AuthInfo>) -> Response {
+    let template = LoginTemplate { is_authenticated: auth_info.is_authenticated, permissions: auth_info.permissions };
     match template.render() {
         Ok(html) => Html(html).into_response(),
         Err(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
