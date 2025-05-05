@@ -32,7 +32,7 @@ impl AppState {
         let auth_backend = Backend::new(db_pool);
 
         Ok(Self {
-            unconf_data: Arc::new(RwLock::new(UnconfData::new().await?)),
+            unconf_data: Arc::new(RwLock::new(unconf_data)),
             auth_backend,
         })
     }

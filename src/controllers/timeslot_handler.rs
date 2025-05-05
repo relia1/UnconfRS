@@ -17,7 +17,7 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::Json;
 use chrono::NaiveTime;
-use tracing::trace;
+use tracing::error;
 
 #[utoipa::path(
     post,
@@ -116,7 +116,7 @@ pub async fn update_timeslot(
     let start_time = match NaiveTime::parse_from_str(&request.start_time, "%H:%M") {
         Ok(time) => time,
         Err(e) => {
-            trace!("Error parsing start time: {:?}", e);
+            error!("Error parsing start time: {:?}", e);
             return TimeSlotError::response(StatusCode::BAD_REQUEST.into(), Box::new(e));
         }
     };

@@ -165,7 +165,6 @@ pub async fn delete_session(
     Path(session_id): Path<i32>,
     auth_session: AuthSessionLayer,
 ) -> Response {
-    tracing::trace!("\n\nauth session {:?}\n\n", auth_session.user);
     let app_state_lock = app_state.read().await;
     let write_lock = &app_state_lock.unconf_data.read().await.unconf_db;
     match delete(write_lock, session_id, auth_session).await {

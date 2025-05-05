@@ -1,6 +1,6 @@
 use sqlx::{postgres::PgPoolOptions, Pool, Postgres};
 use std::error::Error;
-use tracing::trace;
+use tracing::info;
 
 /// Sets up the database connection pool
 ///
@@ -63,7 +63,14 @@ async fn db_connect(
         pg_dbname,
     );
 
-    trace!("Attempting Connection to: {}", &url);
+    let url_without_pw = format!(
+        "postgresql://{}:{}@REDACTED:5432/{}",
+        pg_user,
+        pg_host,
+        pg_dbname,
+    );
+
+    info!("Attempting Connection to: {}", url_without_pw);
 
     match PgPoolOptions::new().connect(&url).await {
         Ok(connection) => Ok(connection),

@@ -159,7 +159,6 @@ pub struct TimeslotAssignment {
 pub async fn timeslot_get(
     db_pool: &Pool<Postgres>,
 ) -> Result<Vec<ExistingTimeslot>, Box<dyn Error>> {
-    tracing::trace!("Getting timeslots");
     let timeslots = sqlx::query_as(
         "SELECT id, start_time, end_time,
         (EXTRACT(EPOCH FROM duration) / 60)::integer as duration
@@ -168,7 +167,7 @@ pub async fn timeslot_get(
         .fetch_all(db_pool)
         .await?;
 
-    tracing::trace!("Timeslots: {:?}", timeslots);
+    tracing::debug!("Timeslots: {:?}", timeslots);
 
     Ok(timeslots)
 }

@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::{Pool, Postgres};
 use std::collections::HashSet;
 use std::error::Error;
-use tracing::trace;
+use tracing::{info, trace};
 use utoipa::ToSchema;
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
@@ -118,7 +118,7 @@ pub async fn timeslot_assignment_update(
     request: TimeslotRequest,
 ) -> Result<Vec<i32>, Box<dyn Error>> {
     let mut assignment_ids = Vec::new();
-    trace!("Updating timeslot assignments: {:?}", request);
+    info!("Updating timeslot assignments: {:?}", request);
 
     for timeslot in request.timeslots {
         let start_time = NaiveTime::parse_from_str(&timeslot.start_time, "%H:%M")?;
@@ -133,12 +133,12 @@ pub async fn timeslot_assignment_update(
                 .await?;
 
         for assignment in timeslot.assignments {
-            trace!(
+            info!(
                 "Updating from room: {:?} to new room {:?}\n",
                 assignment.old_room_id,
                 assignment.room_id
             );
-            trace!(
+            info!(
                 "Updating from timeslot: {:?} to new timeslot {:?}\n",
                 timeslot_id,
                 new_timeslot_id

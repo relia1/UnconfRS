@@ -12,7 +12,7 @@ use axum::extract::State;
 use axum::response::{IntoResponse, Response};
 use axum::Json;
 use axum_macros::debug_handler;
-use tracing::trace;
+use tracing::debug;
 
 #[utoipa::path(
     get,
@@ -87,7 +87,7 @@ pub async fn post_rooms(
     let write_lock = &app_state_lock.unconf_data.read().await.unconf_db;
     match rooms_add(write_lock, rooms_form).await {
         Ok(schedule) => {
-            trace!("Schedule created: {:?}", schedule);
+            debug!("Schedule created: {:?}", schedule);
             (StatusCode::CREATED, Json(schedule)).into_response()
         }
         Err(e) => RoomError::response(ApiStatusCode::from(StatusCode::BAD_REQUEST), e),

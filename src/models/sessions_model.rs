@@ -188,7 +188,6 @@ pub async fn get(db_pool: &Pool<Postgres>, index: i32) -> Result<Session, Box<dy
 /// # Errors
 /// If the query fails, a Box error is returned.
 pub async fn add(db_pool: &Pool<Postgres>, session: Session, auth_session: AuthSessionLayer) -> Result<i32, Box<dyn Error>> {
-    tracing::trace!("\n\nauth_session: {:?}\n\n", auth_session.user);
     let (session_id, ) = sqlx::query_as(
         "INSERT INTO sessions (user_id, title, content, votes) VALUES ($1, $2, $3, $4) RETURNING id",
         )
@@ -206,7 +205,7 @@ pub(crate) async fn is_users_resource(session: &Session, auth_session: &AuthSess
     if session.user_id == auth_session.user.clone().unwrap().id {
         Ok(true)
     } else {
-        tracing::trace!("cannot mutate other users resources");
+        tracing::error!("cannot mutate other users resources");
         Err(Box::new(SessionErr::UnAuthorizedMutableAccess("User does not own this resource to mutate it".to_string())))
     }
 }
@@ -232,7 +231,7 @@ pub async fn delete(db_pool: &Pool<Postgres>, index: i32, auth_session: AuthSess
 
     // The unwrap() here should be fine since by this point they have already been verified valid users
     let is_staff_or_admin = auth_session.backend.has_superuser_or_staff_perms(&auth_session.user.clone().unwrap()).await?;
-    tracing::trace!("session: {:?}, is_staff_or_admin: {:?}", session, is_staff_or_admin);
+    tracing::info!("Removing session: {:?}, is_staff_or_admin: {:?}", session, is_staff_or_admin);
 
     match session {
         Some(session) => {
