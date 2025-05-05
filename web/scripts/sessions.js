@@ -97,35 +97,44 @@ document.addEventListener('DOMContentLoaded', function () {
         var data = table.row($(this).closest('tr')).data();
         currentSessionId = Number(data.session_id);
         currentUserId    = Number(data.user_id);
+        let response;
 
         if (!await hasVoted(currentSessionId)) {
             try {
-                const response = await fetch(`/api/v1/sessions/${currentSessionId}/increment`, {
+                response = await fetch(`/api/v1/sessions/${currentSessionId}/increment`, {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                })
-                .then(() => alert('Session upvoted successfully!'))
-                    .catch(error => console.error('Error:', error));
+                });
 
-                await setVotesCookie(currentSessionId);
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error);
+                }
+
+                alert('Session upvoted successfully');
+                await setVotesVal(currentSessionId);
             } catch (error) {
                 console.error('Error upvoting session:', error);
                 alert('There was an error upvoting the session. Please try again.');
             }
         } else {
             try {
-                const response = await fetch(`/api/v1/sessions/${currentSessionId}/decrement`, {
+                response = await fetch(`/api/v1/sessions/${currentSessionId}/decrement`, {
                     method:  'PUT',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                })
-                .then(() => alert('Session unvoted successfully!'))
-                .catch(error => console.error('Error:', error));
+                });
 
-                await setVotesCookie(currentSessionId);
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error);
+                }
+
+                alert('Session unvoted successfully');
+                await setVotesVal(currentSessionId);
             } catch (error) {
                 console.error('Error removing vote for session:', error);
                 alert('There was an error removing the vote for the session. Please try again.');
@@ -142,15 +151,18 @@ document.addEventListener('DOMContentLoaded', function () {
         let response;
         if (isEdit) {
             try {
-                await fetch(`/api/v1/sessions/${currentSessionId}`, {
+                response = await fetch(`/api/v1/sessions/${currentSessionId}`, {
                     method:  'PUT',
                     headers: {
                         'Content-Type': 'application/json',
                     },
                     body:    JSON.stringify({user_id, title, content}),
-                })
-                .then(() => alert('Session updated successfully!'))
-                .catch(error => console.error('Error:', error));
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error);
+                }
             } catch (error) {
                 console.log('Error updating session: ', error);
             }
@@ -246,7 +258,7 @@ async function hasVoted(sessionId) {
     }
 }
 
-async function setVotesCookie(sessionId) {
+async function setVotesVal(sessionId) {
     try {
         let sessionsUserVotedFor = await get('sessions_voted_for') || [];
         if (!sessionsUserVotedFor || !sessionsUserVotedFor.includes(sessionId)) {
