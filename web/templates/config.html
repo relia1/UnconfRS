@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Configuration{% endblock %}
+{% block head %}
+{% endblock %}
+{% block content %}
+<h1>Placeholder Info</h1>
+<h2>Is Authenticated?</h2>
+<p>{{ is_authenticated }}</p>
+<h2>Permissions</h2>
+<ul>
+    {% for perm in permissions %}
+    <li>{{perm.name}}</li></br>
+    {% endfor %}
+</ul>
+
+{% endblock %}
