@@ -62,12 +62,14 @@
 </style>
 <div id="eventSchedule">
     <h1>Event Schedule</h1>
+    {% if permissions.contains(&Permission::from("superuser")) %}
     <div id="schedule-operations">
         <button type="button" id="populate-schedule">Populate Schedule</button><br/>
         <button type="button" id="clear-schedule">Clear Schedule</button><br/>
         <button type="button" id="add-room">Add Room</button><br/>
         <a href="/unconf_timeslots" id="config-timeslots"><button type="button">Timeslot Configuration</button></a><br/>
     </div>
+    {% endif %}
     <div id="controls">
         <div>
             <label for="view-selector" id="view-selector-label">Choose view: </label>

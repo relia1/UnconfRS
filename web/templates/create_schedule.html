@@ -47,7 +47,11 @@
                 {% endfor %}
             {% endif %}
         </script>
-        <script src="../scripts/display_schedule.js"></script>
+        {% if permissions.contains(&Permission::from("superuser")) %}
+            <script src="../scripts/admin/admin_display_schedule.js"></script>
+        {% else %}
+            <script src="../scripts/display_schedule.js"></script>
+        {% endif %}
     {% else %}
         <link rel="stylesheet" href="../styles/rooms_form.css">
     {% endif %}
@@ -56,9 +60,14 @@
 {% block content %}
     {% if schedule.is_some() && rooms.is_some() %}
         {% include "snippets/display_schedule.html" %}
-    {% else if !rooms.is_some() %}
-        {% include "rooms.html" %}
+    {% else if permissions.contains(&Permission::from("superuser")) %}
+        {% if !rooms.is_some() %}
+            {% include "rooms.html" %}
+        {% else %}
+            {% include "timeslots.html" %}
+        {% endif %}
     {% else %}
-        {% include "timeslots.html" %}
+        <h2>Schedule has not been constructed yet!</h2>
+        <p>Please return after the schedule has been constructed.</p>
     {% endif %}
 {% endblock %}
