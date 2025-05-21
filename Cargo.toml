@@ -23,8 +23,28 @@ tower-sessions = "0.14.0"
 tower-sessions-sqlx-store = { version = "0.15.0", features = ["postgres"] }
 tracing = { version = "0.1.41", features = ["async-await"] }
 tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
-utoipa = { version = "5.3.1", features = ["axum_extras", "chrono"] }
-utoipa-rapidoc = { version = "6.0.0", features = ["axum"] }
-utoipa-redoc = { version = "6.0.0", features = ["axum"] }
-utoipa-swagger-ui = { version = "9.0.1", features = ["axum"] }
 async-trait = "0.1.88"
+
+[dependencies.utoipa]
+#version = "5.3.1"
+git = "https://github.com/juhaku/utoipa.git"
+rev = "cecda0531bf7d90800af66b186055932ee730526"
+features = ["axum_extras", "chrono"]
+
+[dependencies.utoipa-rapidoc]
+#version = "6.0.0"
+git = "https://github.com/juhaku/utoipa.git"
+rev = "cecda0531bf7d90800af66b186055932ee730526"
+features = ["axum"]
+
+[dependencies.utoipa-redoc]
+#version = "6.0.0"
+git = "https://github.com/juhaku/utoipa.git"
+rev = "cecda0531bf7d90800af66b186055932ee730526"
+features = ["axum"]
+
+[dependencies.utoipa-swagger-ui]
+#version = "6.0.0"
+git = "https://github.com/juhaku/utoipa.git"
+rev = "cecda0531bf7d90800af66b186055932ee730526"
+features = ["axum"]
