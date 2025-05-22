@@ -20,9 +20,13 @@ services:
       - PG_DBNAME=db
       - PG_HOST=db
       - DB_HOST=db
+      - PG_PORT=5432
       - PG_USER=postgres
       - PG_PASSWORDFILE=/run/secrets/db-password
       - RUST_LOG=info
+      - SCRIPTS_DIR=/scripts
+      - STYLES_DIR=/styles
+      - CONTAINER=true
     secrets:
       - db-password
     depends_on:
@@ -49,11 +53,10 @@ services:
       - POSTGRES_PASSWORD_FILE=/run/secrets/db-password
       - POSTGRES_LOGGING_COLLECTOR=on
       - POSTGRES_LOG_STATEMENT=all
-
     expose:
       - 5432
     ports:
-      - 5432:5432
+      - 5433:5432
     healthcheck:
       test: [ "CMD", "pg_isready" ]
       interval: 10s

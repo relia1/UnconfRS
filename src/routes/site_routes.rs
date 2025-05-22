@@ -8,6 +8,7 @@ use crate::models::auth_model::Backend;
 use axum::middleware::from_fn_with_state;
 use axum::{routing::get, Router};
 use axum_login::permission_required;
+use std::env::var;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tower_http::services::ServeDir;
@@ -27,6 +28,8 @@ use tower_http::services::ServeDir;
 /// # Returns
 /// A Router with the site routes
 pub fn get_routes(app_state: Arc<RwLock<AppState>>) -> Router<Arc<RwLock<AppState>>> {
+    let scripts_dir = var("SCRIPTS_DIR").unwrap();
+    let styles_dir = var("STYLES_DIR").unwrap();
     let site_routes = Router::new()
         .route("/", get(index_handler))
         .route("/unconf_schedule", get(schedule_handler))
@@ -35,8 +38,8 @@ pub fn get_routes(app_state: Arc<RwLock<AppState>>) -> Router<Arc<RwLock<AppStat
         .route("/sessions", get(session_handler))
         .route("/unconf_timeslots", get(unconf_timeslots_handler))
         .route_layer(from_fn_with_state(app_state.clone(), unauth_middleware))
-        .nest_service("/scripts", ServeDir::new("scripts"))
-        .nest_service("/styles", ServeDir::new("styles"))
+        .nest_service("/scripts", ServeDir::new(&scripts_dir))
+        .nest_service("/styles", ServeDir::new(&styles_dir))
         .with_state(app_state.clone());
 
     let admin_site_routes = Router::new()

@@ -12,6 +12,7 @@ use tracing_subscriber::{fmt, EnvFilter};
 use crate::controllers::site_handler::handler_404;
 use crate::routes::middleware::configure_middleware;
 use crate::routes::{api_routes, docs_routes, site_routes};
+use dotenvy::dotenv;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::{self, signal, sync::RwLock};
@@ -19,6 +20,11 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[tokio::main]
 async fn main() {
+    // load .env file if we aren't running from container
+    if var("CONTAINER").is_err() {
+        dotenv().ok();
+    }
+    
     // Setup formatting and environment for trace
     setup_tracing().await;
 

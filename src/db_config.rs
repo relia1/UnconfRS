@@ -24,11 +24,12 @@ pub async fn db_setup() -> Result<Pool<Postgres>, Box<dyn Error>> {
     let password_file = var("PG_PASSWORDFILE")?;
     let password = fs::read_to_string(password_file)?;
     let pg_host = var("PG_HOST")?;
+    let pg_port = var("PG_PORT")?;
     let pg_dbname = var("PG_DBNAME")?;
 
-    let connection = db_connect(&pg_user, &password, &pg_host, &pg_dbname).await?;
-    tracing::info!("Connected to: {:?}", connection);
-    tracing::info!("Running migrations if any are needed");
+    let connection = db_connect(&pg_user, &password, &pg_host, &pg_port, &pg_dbname).await?;
+    info!("Connected to: {:?}", connection);
+    info!("Running migrations if any are needed");
     sqlx::migrate!().run(&connection).await?;
 
     Ok(connection)
@@ -53,13 +54,15 @@ async fn db_connect(
     pg_user: &str,
     password: &str,
     pg_host: &str,
+    pg_port: &str,
     pg_dbname: &str,
 ) -> Result<Pool<Postgres>, sqlx::Error> {
     let url = format!(
-        "postgresql://{}:{}@{}:5432/{}",
+        "postgresql://{}:{}@{}:{}/{}",
         pg_user,
         password.trim(),
         pg_host,
+        pg_port,
         pg_dbname,
     );
 
@@ -67,6 +70,7 @@ async fn db_connect(
         "postgresql://{}:REDACTED@{}:{}/{}",
         pg_user,
         pg_host,
+        pg_port,
         pg_dbname,
     );
 
