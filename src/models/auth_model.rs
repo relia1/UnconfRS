@@ -14,6 +14,17 @@ pub struct RegistrationRequest {
     pub(crate) password: String,
 }
 
+impl RegistrationRequest {
+    pub fn new(fname: String, lname: String, email: String, password: String) -> Self {
+        Self {
+            fname,
+            lname,
+            email,
+            password,
+        }
+    }
+}
+
 #[derive(Debug, Serialize)]
 pub(crate) struct RegistrationResponse {
     pub(crate) success: bool,
