@@ -12,14 +12,18 @@ RUN apt-get update && apt-get install -y \
 COPY *.toml /app/
 RUN if [ "$BUILD_TYPE" = "release" ]; then \
     mkdir /app/src && \
+    mkdir /app/src/bin && \
     mkdir /app/web && \
     echo 'fn main() {}' > /app/src/main.rs && \
+    echo 'fn main() {}' > /app/src/bin/test_unconf.rs && \
     cargo build --release && \
     rm -Rvf /app/src target/${BUILD_TYPE}/deps/unconfrs*; \
 else \
     mkdir /app/src && \
+    mkdir /app/src/bin && \
     mkdir /app/web && \
     echo 'fn main() {}' > /app/src/main.rs && \
+    echo 'fn main() {}' > /app/src/bin/test_unconf.rs && \
     cargo build && \
     rm -Rvf /app/src target/${BUILD_TYPE}/deps/unconfrs*; \
 fi

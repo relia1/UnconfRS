@@ -7,11 +7,7 @@ use crate::models::schedule_model::{
     ScheduleError,
 };
 use crate::types::ApiStatusCode;
-use crate::StatusCode;
-use axum::debug_handler;
-use axum::extract::State;
-use axum::response::{IntoResponse, Response};
-use axum::Json;
+use axum::{debug_handler, extract::State, http::StatusCode, response::{IntoResponse, Response}, Json};
 
 #[utoipa::path(
     post,

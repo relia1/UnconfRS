@@ -23,7 +23,7 @@ struct LoginTemplate {
 ///
 /// # Errors
 /// If the template fails to render, an internal server error status code is returned.
-pub async fn login_page_handler(Extension(auth_info): Extension<AuthInfo>) -> Response {
+pub(crate) async fn login_page_handler(Extension(auth_info): Extension<AuthInfo>) -> Response {
     let template = LoginTemplate { is_authenticated: auth_info.is_authenticated, permissions: auth_info.permissions };
     match template.render() {
         Ok(html) => Html(html).into_response(),
@@ -32,7 +32,7 @@ pub async fn login_page_handler(Extension(auth_info): Extension<AuthInfo>) -> Re
 }
 
 #[debug_handler]
-pub async fn login_handler(
+pub(crate) async fn login_handler(
     mut auth_session: AuthSessionLayer,
     Json(credentials): Json<LoginRequest>,
 ) -> impl IntoResponse {

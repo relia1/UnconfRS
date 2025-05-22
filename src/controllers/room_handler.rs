@@ -7,10 +7,7 @@ use crate::models::room_model::{
     room_delete, rooms_add, rooms_get, CreateRoomsForm, Room, RoomErr, RoomError,
 };
 use crate::types::ApiStatusCode;
-use crate::StatusCode;
-use axum::extract::State;
-use axum::response::{IntoResponse, Response};
-use axum::Json;
+use axum::{extract::State, http::StatusCode, response::{IntoResponse, Response}, Json};
 use axum_macros::debug_handler;
 use tracing::debug;
 
@@ -79,7 +76,7 @@ pub async fn rooms(State(app_state): State<Arc<RwLock<AppState>>>) -> Response {
 /// # Errors
 /// If an error occurs while adding the rooms, a room error response with a status code of 400
 /// Bad Request is returned.
-pub async fn post_rooms(
+pub(crate) async fn post_rooms(
     State(app_state): State<Arc<RwLock<AppState>>>,
     Json(rooms_form): Json<CreateRoomsForm>,
 ) -> impl IntoResponse {

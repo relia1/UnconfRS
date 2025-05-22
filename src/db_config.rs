@@ -64,11 +64,13 @@ async fn db_connect(
     );
 
     let url_without_pw = format!(
-        "postgresql://{}:{}@REDACTED:5432/{}",
+        "postgresql://{}:REDACTED@{}:{}/{}",
         pg_user,
         pg_host,
         pg_dbname,
     );
+
+    println!("Connecting to: {}", url_without_pw);
 
     info!("Attempting Connection to: {}", url_without_pw);
 

@@ -23,7 +23,7 @@ struct RegistrationTemplate {
 ///
 /// # Errors
 /// If the template fails to render, an internal server error status code is returned.
-pub async fn registration_page_handler(Extension(auth_info): Extension<AuthInfo>) -> Response {
+pub(crate) async fn registration_page_handler(Extension(auth_info): Extension<AuthInfo>) -> Response {
     let template = RegistrationTemplate { is_authenticated: auth_info.is_authenticated, permissions: auth_info.permissions };
     match template.render() {
         Ok(html) => Html(html).into_response(),

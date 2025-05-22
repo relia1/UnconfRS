@@ -48,7 +48,7 @@ struct IndexTemplate {
 ///
 /// # Errors
 /// If the template fails to render, an internal server error status code is returned.
-pub async fn index_handler(Extension(auth_info): Extension<AuthInfo>) -> Response {
+pub(crate) async fn index_handler(Extension(auth_info): Extension<AuthInfo>) -> Response {
     let is_authenticated = auth_info.is_authenticated;
     let permissions = auth_info.permissions;
     let template = IndexTemplate { is_authenticated, permissions };
@@ -105,7 +105,8 @@ pub(crate) struct ScheduleTemplate {
 ///
 /// # Errors
 /// If the template fails to render, an internal server error status code is returned.
-pub async fn schedule_handler(State(app_state): State<Arc<RwLock<AppState>>>, Extension(auth_info): Extension<AuthInfo>) -> Response {
+pub(crate) async fn schedule_handler(State(app_state): State<Arc<RwLock<AppState>>>, Extension(auth_info): Extension<AuthInfo>) -> Response {
+    tracing::info!("Schedule handler");
     let is_authenticated = auth_info.is_authenticated;
     let permissions = auth_info.permissions;
     let app_state_lock = app_state.read().await;
@@ -254,7 +255,7 @@ pub async fn combine_session_and_user(
 ///
 /// # Errors
 /// If the template fails to render, an internal server error status code is returned.
-pub async fn session_handler(
+pub(crate) async fn session_handler(
     State(app_state): State<Arc<RwLock<AppState>>>,
     auth_session: AuthSessionLayer,
     Extension(auth_info): Extension<AuthInfo>
@@ -301,7 +302,7 @@ struct UnconfTimeslotsTemplate {
 }
 
 #[debug_handler]
-pub async fn unconf_timeslots_handler(State(app_state): State<Arc<RwLock<AppState>>>, Extension(auth_info): Extension<AuthInfo>) -> Response {
+pub(crate) async fn unconf_timeslots_handler(State(app_state): State<Arc<RwLock<AppState>>>, Extension(auth_info): Extension<AuthInfo>) -> Response {
     let is_authenticated = auth_info.is_authenticated;
     let permissions = auth_info.permissions;
     let app_state_lock = app_state.read().await;
@@ -340,9 +341,9 @@ struct ConfigTemplate {
     is_authenticated: bool,
 }
 #[debug_handler]
-pub async fn config_handler(State(app_state): State<Arc<RwLock<AppState>>>, Extension(auth_info): Extension<AuthInfo>) -> Response {
+pub(crate) async fn config_handler(State(app_state): State<Arc<RwLock<AppState>>>, Extension(auth_info): Extension<AuthInfo>) -> Response {
     let app_state_lock = app_state.read().await;
-    let read_lock = &app_state_lock.unconf_data.read().await.unconf_db;
+    let _read_lock = &app_state_lock.unconf_data.read().await.unconf_db;
 
     let template = ConfigTemplate {
         permissions: auth_info.permissions,

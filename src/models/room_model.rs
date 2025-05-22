@@ -168,8 +168,8 @@ impl IntoResponse for &Room {
 ///
 /// Fields:
 /// - `rooms`: A vector of `Room` instances.
-pub(crate) struct CreateRoomsForm {
-    pub(crate) rooms: Vec<Room>,
+pub struct CreateRoomsForm {
+    pub rooms: Vec<Room>,
 }
 
 /// Gets all rooms.
