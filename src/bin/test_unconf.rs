@@ -147,10 +147,10 @@ impl Params {
         let db_pool = &app_state_lock.unconf_data.read().await.unconf_db;
         let backend = &app_state_lock.auth_backend;
         self.generate_users(backend).await?;
-        self.generate_rooms(&db_pool).await?;
-        self.generate_timeslots(&db_pool).await?;
-        self.generate_sessions(&db_pool).await?;
-        self.generate_votes(&db_pool).await?;
+        self.generate_rooms(db_pool).await?;
+        self.generate_timeslots(db_pool).await?;
+        self.generate_sessions(db_pool).await?;
+        self.generate_votes(db_pool).await?;
 
         Ok(())
     }
@@ -190,8 +190,8 @@ impl Params {
     }
 
     async fn generate_timeslots(&self, db_pool: &Pool<Postgres>) -> Result<(), Box<dyn Error>> {
-        let mut start_time = NaiveTime::parse_from_str(&"08:00", "%H:%M")?;
-        let mut end_time = NaiveTime::parse_from_str(&"08:30", "%H:%M")?;
+        let mut start_time = NaiveTime::parse_from_str("08:00", "%H:%M")?;
+        let mut end_time = NaiveTime::parse_from_str("08:30", "%H:%M")?;
         let duration = end_time - start_time;
         let mut timeslots = vec![];
         dbg!(duration);
@@ -203,8 +203,8 @@ impl Params {
             };
 
             timeslots.push(timeslot);
-            start_time = start_time + duration;
-            end_time = end_time + duration;
+            start_time += duration;
+            end_time += duration;
         }
 
         let timeslots_req = TimeslotRequest {
