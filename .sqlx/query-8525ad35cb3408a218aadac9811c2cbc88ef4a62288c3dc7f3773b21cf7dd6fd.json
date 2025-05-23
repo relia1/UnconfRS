@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE sessions SET votes = votes + 1 WHERE id = ($1)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "8525ad35cb3408a218aadac9811c2cbc88ef4a62288c3dc7f3773b21cf7dd6fd"
+}

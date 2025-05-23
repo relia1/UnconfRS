@@ -96,11 +96,11 @@ pub async fn increment_vote(db_pool: &Pool<Postgres>, auth_session: AuthSessionL
         return Err(Box::new(SessionVoteErr::AlreadyVotedForSession(format!("Attempted to add vote to Session {index} that already had their vote"))));
     }
 
-    sqlx::query(
+    sqlx::query!(
         "INSERT INTO user_votes (user_id, session_id) VALUES ($1, $2)",
+        user_id,
+        index,
     )
-        .bind(user_id)
-        .bind(index)
         .execute(db_pool)
         .await?;
 
@@ -127,11 +127,11 @@ pub async fn decrement_vote(db_pool: &Pool<Postgres>, auth_session: AuthSessionL
         return Err(Box::new(SessionVoteErr::NonExistentVote(format!("Attempted to remove vote from Session {index} that didn't have their vote"))));
     }
 
-    sqlx::query(
+    sqlx::query!(
         "DELETE FROM user_votes WHERE user_id = $1 AND session_id = $2",
+        user_id,
+        index,
     )
-        .bind(user_id)
-        .bind(index)
         .execute(db_pool)
         .await?;
 
@@ -141,10 +141,10 @@ pub async fn decrement_vote(db_pool: &Pool<Postgres>, auth_session: AuthSessionL
 }
 
 pub async fn get_sessions_user_voted_for(db_pool: &Pool<Postgres>, user_id: i32) -> Result<Vec<i32>, Box<dyn Error>> {
-    let (sessions_user_voted_for, ) = (sqlx::query_scalar(
+    let (sessions_user_voted_for, ) = (sqlx::query_scalar!(
         "SELECT session_id FROM user_votes WHERE user_id = $1",
+        user_id
     )
-        .bind(user_id)
         .fetch_all(db_pool)
         .await?,);
 

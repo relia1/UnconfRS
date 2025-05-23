@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        DELETE FROM timeslot_assignments\n        WHERE room_id = $1\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "fb7b175c249005a9b44499fc96724e8ed0aa3b8082abddc71cf61c5fb833b11c"
+}

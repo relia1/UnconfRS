@@ -1,0 +1,26 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE timeslot_assignments\n                SET time_slot_id = $1, session_id = $2, room_id = $3\n                WHERE time_slot_id = $4 AND room_id = $5\n                RETURNING id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Int4",
+        "Int4",
+        "Int4",
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "2f81f2fa0a15a94bebcfd506878d58c3a93b779148d59828b49a9e306af37803"
+}

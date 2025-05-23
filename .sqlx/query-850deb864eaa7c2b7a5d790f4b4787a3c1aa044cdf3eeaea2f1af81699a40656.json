@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO time_slots (start_time, end_time, duration) VALUES ($1, $2, $3::interval) RETURNING id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Time",
+        "Time",
+        "Interval"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "850deb864eaa7c2b7a5d790f4b4787a3c1aa044cdf3eeaea2f1af81699a40656"
+}

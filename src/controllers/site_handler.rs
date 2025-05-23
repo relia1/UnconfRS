@@ -123,10 +123,16 @@ pub(crate) async fn schedule_handler(State(app_state): State<Arc<RwLock<AppState
             .await
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR.into_response())?;
         let assignments =
-            sqlx::query_as::<_, TimeslotAssignment>("SELECT * FROM timeslot_assignments")
+            sqlx::query_as!(
+                TimeslotAssignment,
+                r#"SELECT time_slot_id as "time_slot_id!", session_id as "session_id!", room_id as "room_id!" FROM timeslot_assignments"#,
+            )
                 .fetch_all(read_lock)
                 .await
-                .unwrap_or_default();
+                .map_err(|e| {
+                    tracing::error!("Failed to fetch timeslot assignments: {}", e);
+                    StatusCode::INTERNAL_SERVER_ERROR.into_response()
+                })?;
 
         let events = if let Some(schedule) = &schedule {
             let schedule_id = schedule
@@ -230,7 +236,8 @@ pub struct SessionAndUser {
 pub async fn combine_session_and_user(
     db_pool: &Pool<Postgres>,
 ) -> Result<Vec<SessionAndUser>, Box<dyn Error>> {
-    let session_with_user: Vec<SessionAndUser> = sqlx::query_as::<Postgres, SessionAndUser>(
+    let session_with_user: Vec<SessionAndUser> = sqlx::query_as!(
+        SessionAndUser,
         "SELECT t.id as \"session_id\", t.title, t.content, \
         u.id as \"user_id\", u.fname, u.lname, u.email \
         FROM sessions t \

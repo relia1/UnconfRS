@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id FROM time_slots WHERE start_time = $1 AND end_time = $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Time",
+        "Time"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "ea696f1cc9e6c15fd3d1298e74c3b21716eed0b19be81c1efe827f3a2eee2af5"
+}

@@ -120,20 +120,21 @@ impl Backend {
 
     pub async fn register(&self, new_user: RegistrationRequest) -> Result<(), Box<dyn Error>> {
         let password_hash = bcrypt::hash(&new_user.password, bcrypt::DEFAULT_COST)?;
-        let user: User = sqlx::query_as(
-            "INSERT INTO users (fname, lname, email, password) VALUES ($1, $2, $3, $4) RETURNING *"
+        let user: User = sqlx::query_as!(
+            User,
+            "INSERT INTO users (fname, lname, email, password) VALUES ($1, $2, $3, $4) RETURNING *",
+            &new_user.fname,
+            &new_user.lname,
+            &new_user.email,
+            &password_hash,
         )
-            .bind(&new_user.fname)
-            .bind(&new_user.lname)
-            .bind(&new_user.email)
-            .bind(&password_hash)
             .fetch_one(&self.db_pool)
             .await?;
 
-        sqlx::query(
-            "INSERT INTO users_groups (user_id, group_id) VALUES ($1, (SELECT id FROM groups WHERE name = 'user'))"
+        sqlx::query!(
+            "INSERT INTO users_groups (user_id, group_id) VALUES ($1, (SELECT id FROM groups WHERE name = 'user'))",
+            user.id,
         )
-            .bind(user.id)
             .execute(&self.db_pool)
             .await?;
 
@@ -151,8 +152,11 @@ impl AuthnBackend for Backend {
         &self,
         creds: Self::Credentials,
     ) -> Result<Option<Self::User>, Self::Error> {
-        let user: Option<Self::User> = sqlx::query_as(r"SELECT * FROM users WHERE email = $1")
-            .bind(creds.email)
+        let user: Option<Self::User> = sqlx::query_as!(
+            User,
+            r"SELECT * FROM users WHERE email = $1",
+            &creds.email,
+        )
             .fetch_optional(&self.db_pool)
             .await?;
 
@@ -167,8 +171,11 @@ impl AuthnBackend for Backend {
     }
 
     async fn get_user(&self, user_id: &UserId<Self>) -> Result<Option<Self::User>, Self::Error> {
-        let user = sqlx::query_as(r"SELECT * FROM users WHERE id = $1")
-            .bind(user_id)
+        let user = sqlx::query_as!(
+            User,
+            r"SELECT * FROM users WHERE id = $1",
+            user_id,
+        )
             .fetch_optional(&self.db_pool)
             .await?;
 
@@ -185,7 +192,8 @@ impl AuthzBackend for Backend {
         &self,
         user: &Self::User,
     ) -> Result<HashSet<Self::Permission>, Self::Error> {
-        let permissions: Vec<Self::Permission> = sqlx::query_as(
+        let permissions: Vec<Self::Permission> = sqlx::query_as!(
+            Permission,
             r"
             select distinct permissions.name
             from users
@@ -194,8 +202,8 @@ impl AuthzBackend for Backend {
             join permissions on groups_permissions.permission_id = permissions.id
             where users.id = $1
             ",
+            user.id,
         )
-            .bind(user.id)
             .fetch_all(&self.db_pool)
             .await?;
 

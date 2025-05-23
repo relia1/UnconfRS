@@ -145,7 +145,8 @@ impl IntoResponse for &Session {
 /// # Errors
 /// If the query fails, a Box error is returned.
 pub async fn get_all_sessions(db_pool: &Pool<Postgres>) -> Result<Vec<Session>, Box<dyn Error>> {
-    let sessions: Vec<Session> = sqlx::query_as(
+    let sessions: Vec<Session> = sqlx::query_as!(
+        Session,
         r"
         SELECT * FROM sessions",
     )
@@ -168,8 +169,11 @@ pub async fn get_all_sessions(db_pool: &Pool<Postgres>) -> Result<Vec<Session>, 
 /// # Errors
 /// If the query fails, a Box error is returned.
 pub async fn get(db_pool: &Pool<Postgres>, index: i32) -> Result<Session, Box<dyn Error>> {
-    let session = sqlx::query_as::<Postgres, Session>("SELECT * FROM sessions where id = $1")
-        .bind(index)
+    let session = sqlx::query_as!(
+        Session,
+        "SELECT * FROM sessions where id = $1",
+        index,
+    )
         .fetch_one(db_pool)
         .await?;
 
@@ -188,15 +192,15 @@ pub async fn get(db_pool: &Pool<Postgres>, index: i32) -> Result<Session, Box<dy
 /// # Errors
 /// If the query fails, a Box error is returned.
 pub async fn add(db_pool: &Pool<Postgres>, session: Session, auth_session: AuthSessionLayer) -> Result<i32, Box<dyn Error>> {
-    let (session_id, ) = sqlx::query_as(
+    let session_id = sqlx::query_scalar!(
         "INSERT INTO sessions (user_id, title, content, votes) VALUES ($1, $2, $3, $4) RETURNING id",
-        )
-        .bind(auth_session.user.unwrap().id)
-        .bind(session.title)
-        .bind(session.content)
-        .bind(session.votes)
-            .fetch_one(db_pool)
-            .await?;
+        auth_session.user.unwrap().id,
+        session.title,
+        session.content,
+        session.votes,
+    )
+        .fetch_one(db_pool)
+        .await?;
 
     Ok(session_id)
 }
@@ -222,10 +226,11 @@ pub(crate) async fn is_users_resource(session: &Session, auth_session: &AuthSess
 /// # Errors
 /// If the query fails, a Box error is returned.
 pub async fn delete(db_pool: &Pool<Postgres>, index: i32, auth_session: AuthSessionLayer) -> Result<(), Box<dyn Error>> {
-    let session = sqlx::query_as::<Postgres, Session>(
+    let session = sqlx::query_as!(
+        Session,
         "SELECT * FROM sessions where id = $1",
+        index,
     )
-        .bind(index)
         .fetch_optional(db_pool)
         .await?;
 
@@ -236,23 +241,21 @@ pub async fn delete(db_pool: &Pool<Postgres>, index: i32, auth_session: AuthSess
     match session {
         Some(session) => {
             if is_staff_or_admin {
-                sqlx::query_as::<Postgres, Session>(
-                    "DELETE FROM sessions
-                    WHERE id = $1;",
+                sqlx::query!(
+                    "DELETE FROM sessions WHERE id = $1;",
+                    index,
                 )
                     .bind(index)
-                    .bind(auth_session.user.clone().unwrap().id)
-                    .fetch_all(db_pool)
+                    .execute(db_pool)
                     .await?;
             } else {
                 is_users_resource(&session, &auth_session).await?;
-                sqlx::query_as::<Postgres, Session>(
-                    "DELETE FROM sessions
-                    WHERE id = $1 AND user_id = $2;",
+                sqlx::query!(
+                    "DELETE FROM sessions WHERE id = $1 AND user_id = $2",
+                    index,
+                    auth_session.user.clone().unwrap().id
                 )
-                    .bind(index)
-                    .bind(auth_session.user.clone().unwrap().id)
-                    .fetch_all(db_pool)
+                    .execute(db_pool)
                     .await?;
             }
         }
@@ -288,15 +291,13 @@ pub async fn update(
     session_to_update.title.clone_from(&title);
     session_to_update.content.clone_from(&content);
 
-    sqlx::query_as::<Postgres, Session>(
-        "UPDATE sessions
-        SET title = $1, content = $2
-        WHERE id = $3;",
+    sqlx::query!(
+        "UPDATE sessions SET title = $1, content = $2 WHERE id = $3",
+        title,
+        content,
+        index,
     )
-        .bind(title)
-        .bind(content)
-        .bind(index)
-        .fetch_all(db_pool)
+        .execute(db_pool)
         .await?;
 
     Ok(session_to_update)

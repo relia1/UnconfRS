@@ -126,9 +126,11 @@ pub async fn timeslot_assignment_update(
 
         // Get timeslot ID
         let new_timeslot_id: i32 =
-            sqlx::query_scalar("SELECT id FROM time_slots WHERE start_time = $1 AND end_time = $2")
-                .bind(start_time)
-                .bind(end_time)
+            sqlx::query_scalar!(
+                "SELECT id FROM time_slots WHERE start_time = $1 AND end_time = $2",
+                start_time as _,
+                end_time as _,
+            )
                 .fetch_one(db_pool)
                 .await?;
 
@@ -143,17 +145,17 @@ pub async fn timeslot_assignment_update(
                 timeslot_id,
                 new_timeslot_id
             );
-            let (assignment_id, ) = sqlx::query_as(
+            let assignment_id = sqlx::query_scalar!(
                 "UPDATE timeslot_assignments
-                     SET time_slot_id = $1, session_id = $2, room_id = $3
-                     WHERE time_slot_id = $4 AND room_id = $5
-                     RETURNING id",
+                SET time_slot_id = $1, session_id = $2, room_id = $3
+                WHERE time_slot_id = $4 AND room_id = $5
+                RETURNING id",
+                new_timeslot_id,
+                assignment.session_id,
+                assignment.room_id,
+                timeslot_id,
+                assignment.old_room_id,
             )
-                .bind(new_timeslot_id)
-                .bind(assignment.session_id)
-                .bind(assignment.room_id)
-                .bind(timeslot_id)
-                .bind(assignment.old_room_id)
                 .fetch_one(db_pool)
                 .await?;
 
@@ -170,7 +172,7 @@ pub async fn timeslot_assignment_swap(
 ) -> Result<(), Box<dyn Error>> {
     let mut tx = db_pool.begin().await?;
 
-    sqlx::query(
+    sqlx::query!(
         "UPDATE timeslot_assignments t1
         SET
             session_id = t2.session_id
@@ -181,11 +183,11 @@ pub async fn timeslot_assignment_swap(
         ) t2
         WHERE t1.id != t2.id
         AND (t1.time_slot_id, t1.room_id) IN (($1, $2), ($3, $4))",
+        request.timeslot_id_1,
+        request.room_id_1,
+        request.timeslot_id_2,
+        request.room_id_2,
     )
-        .bind(request.timeslot_id_1)
-        .bind(request.room_id_1)
-        .bind(request.timeslot_id_2)
-        .bind(request.room_id_2)
         .execute(&mut *tx)
         .await?;
 

@@ -1,0 +1,38 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, start_time as \"start_time!: NaiveTime\", end_time as \"end_time!: NaiveTime\",\n        (EXTRACT(EPOCH FROM duration) / 60)::integer as \"duration!\"\n        FROM time_slots",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "start_time!: NaiveTime",
+        "type_info": "Time"
+      },
+      {
+        "ordinal": 2,
+        "name": "end_time!: NaiveTime",
+        "type_info": "Time"
+      },
+      {
+        "ordinal": 3,
+        "name": "duration!",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      null
+    ]
+  },
+  "hash": "ead24c60beaaead4162d59ee124c3001977f17d0888a4c4c9b55256ed6ee707b"
+}

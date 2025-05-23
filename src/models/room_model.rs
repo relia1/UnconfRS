@@ -219,16 +219,17 @@ pub async fn rooms_add(
 ) -> Result<(), BoxedError> {
     let tx = db_pool.begin().await?;
     for room in &rooms_form.rooms {
-        sqlx::query_as::<Postgres, Room>(
+        sqlx::query_as!(
+            Room,
             r"INSERT INTO rooms (name,
         available_spots, 
         location) 
         VALUES 
         ($1, $2, $3) RETURNING id, available_spots, name, location",
+            room.name.clone(),
+            room.available_spots,
+            room.location.clone(),
         )
-            .bind(room.name.clone())
-            .bind(room.available_spots)
-            .bind(room.location.clone())
             .fetch_one(db_pool)
             .await?;
     }
@@ -252,23 +253,23 @@ pub async fn rooms_add(
 /// # Errors
 /// If an error occurs while removing the room from the database, a `BoxedError` is returned.
 pub async fn room_delete(db_pool: &Pool<Postgres>, index: i32) -> Result<(), BoxedError> {
-    sqlx::query(
+    sqlx::query!(
         r"
         DELETE FROM timeslot_assignments
         WHERE room_id = $1
         ",
+        index,
     )
-        .bind(index)
         .execute(db_pool)
         .await?;
 
-    sqlx::query(
+    sqlx::query!(
         r"
         DELETE FROM rooms
         WHERE id = $1
         ",
+        index,
     )
-        .bind(index)
         .execute(db_pool)
         .await?;
 

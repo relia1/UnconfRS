@@ -229,13 +229,13 @@ impl Params {
             let content = (8..15).fake::<String>();
             let votes = 0;
 
-            sqlx::query(
-                "INSERT INTO sessions (user_id, title, content, votes) VALUES ($1, $2, $3, $4) RETURNING id",
+            sqlx::query!(
+                "INSERT INTO sessions (user_id, title, content, votes) VALUES ($1, $2, $3, $4)",
+                user_id,
+                title,
+                content,
+                votes,
             )
-                .bind(user_id)
-                .bind(title)
-                .bind(content)
-                .bind(votes)
                 .execute(db_pool)
                 .await?;
         }
@@ -243,11 +243,11 @@ impl Params {
     }
 
     async fn generate_votes(&self, db_pool: &Pool<Postgres>) -> Result<(), Box<dyn Error>> {
-        let user_ids = sqlx::query_scalar::<Postgres, i32>("SELECT id FROM users")
+        let user_ids = sqlx::query_scalar!("SELECT id FROM users")
             .fetch_all(db_pool)
             .await?;
 
-        let session_ids = sqlx::query_scalar::<Postgres, i32>("SELECT id FROM sessions")
+        let session_ids = sqlx::query_scalar!("SELECT id FROM sessions")
             .fetch_all(db_pool)
             .await?;
 
@@ -268,18 +268,18 @@ impl Params {
                     session_id = session_ids[session_index];
                 }
 
-                sqlx::query(
+                sqlx::query!(
                     "INSERT INTO user_votes (user_id, session_id) VALUES ($1, $2)",
+                    user_id,
+                    session_id,
                 )
-                    .bind(user_id)
-                    .bind(session_id)
                     .execute(db_pool)
                     .await?;
 
-                sqlx::query(
-                    "UPDATE sessions SET votes = votes + 1 WHERE id = ($1)"
+                sqlx::query!(
+                    "UPDATE sessions SET votes = votes + 1 WHERE id = ($1)",
+                    session_id,
                 )
-                    .bind(session_id)
                     .execute(db_pool)
                     .await?;
 

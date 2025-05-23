@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM timeslot_assignments",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "c6bf0d8702a58d1e18d2b47a6438a91faf78cbdc40c1360cf6bc7ab53f82aed4"
+}

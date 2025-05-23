@@ -251,7 +251,7 @@ pub async fn schedule_generate(db_pool: &Pool<Postgres>) -> Result<Schedule, Sch
 /// # Errors
 /// If an error occurs while clearing the schedule, a `Box<dyn Error>` error is returned.
 pub async fn schedule_clear(db_pool: &Pool<Postgres>) -> Result<(), Box<dyn Error>> {
-    sqlx::query(r"DELETE FROM timeslot_assignments")
+    sqlx::query!(r"DELETE FROM timeslot_assignments")
         .execute(db_pool)
         .await?;
 

@@ -159,10 +159,11 @@ pub struct TimeslotAssignment {
 pub async fn timeslot_get(
     db_pool: &Pool<Postgres>,
 ) -> Result<Vec<ExistingTimeslot>, Box<dyn Error>> {
-    let timeslots = sqlx::query_as(
-        "SELECT id, start_time, end_time,
-        (EXTRACT(EPOCH FROM duration) / 60)::integer as duration
-        FROM time_slots",
+    let timeslots = sqlx::query_as!(
+        ExistingTimeslot,
+        r#"SELECT id, start_time as "start_time!: NaiveTime", end_time as "end_time!: NaiveTime",
+        (EXTRACT(EPOCH FROM duration) / 60)::integer as "duration!"
+        FROM time_slots"#,
     )
         .fetch_all(db_pool)
         .await?;
@@ -179,12 +180,12 @@ async fn insert_timeslot(
 ) -> Result<i32, Box<dyn Error>> {
     let end_time = start_time + chrono::Duration::minutes(duration);
     let duration_interval = format!("{duration} minutes");
-    let (id, ) = sqlx::query_as(
-        "INSERT INTO time_slots (start_time, end_time, duration) VALUES ($1, $2, $3::interval) RETURNING id"
+    let id = sqlx::query_scalar!(
+        "INSERT INTO time_slots (start_time, end_time, duration) VALUES ($1, $2, $3::interval) RETURNING id",
+        start_time as _,
+        end_time as _,
+        duration_interval as _,
     )
-        .bind(start_time)
-        .bind(end_time)
-        .bind(duration_interval)
         .fetch_one(db_pool)
         .await?;
     Ok(id)

@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE timeslot_assignments t1\n        SET\n            session_id = t2.session_id\n        FROM (\n            SELECT id, session_id\n            FROM timeslot_assignments\n            WHERE (time_slot_id, room_id) IN (($1, $2), ($3, $4))\n        ) t2\n        WHERE t1.id != t2.id\n        AND (t1.time_slot_id, t1.room_id) IN (($1, $2), ($3, $4))",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Int4",
+        "Int4",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "499ca8b4750836ad6b1b8bf4a4cd7eb71680698f0e000759242d601c3e9f5fea"
+}
