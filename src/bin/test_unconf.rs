@@ -12,11 +12,13 @@ use std::error::Error;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use Unconfrs::config::AppState;
-use Unconfrs::models::auth_model::Backend;
-use Unconfrs::models::auth_model::RegistrationRequest;
-use Unconfrs::models::room_model::{rooms_add, CreateRoomsForm, Room};
-use Unconfrs::models::timeslot_model::{timeslots_add, TimeslotForm, TimeslotRequest};
+use unconfrs::{
+    config::AppState,
+    models::auth_model::Backend,
+    models::auth_model::RegistrationRequest,
+    models::room_model::{rooms_add, CreateRoomsForm, Room},
+    models::timeslot_model::{timeslots_add, TimeslotForm, TimeslotRequest},
+};
 
 #[derive(Debug)]
 enum CliError {

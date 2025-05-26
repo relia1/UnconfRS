@@ -59,7 +59,7 @@ RUN adduser \
 USER appuser
 
 # Copy the executable from the "build" stage.
-COPY --from=build /app/target/${BUILD_TYPE}/Unconfrs /bin/
+COPY --from=build /app/target/${BUILD_TYPE}/unconfrs /bin/
 COPY --from=build /app/web/ /
 RUN ls -l
 # COPY --chown=appuser:appuser ./assets ./assets
@@ -68,4 +68,4 @@ RUN ls -l
 EXPOSE 3000
 
 # What the container should run when it is started.
-CMD ["/bin/Unconfrs"]
+CMD ["/bin/unconfrs"]

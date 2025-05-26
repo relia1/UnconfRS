@@ -3,7 +3,7 @@ extern crate thiserror;
 extern crate tracing;
 
 use std::env::var;
-pub use Unconfrs::*;
+pub use unconfrs::*;
 
 use axum::Router;
 use config::AppState;
