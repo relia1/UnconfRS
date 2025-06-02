@@ -2,18 +2,34 @@
 # Thesis
 
 ## Overview
-This project is a web application built using Rust, HTML, JavaScript, and Postgres. It assists in
-the organizing of an unconference by allowing users to submit topics, view a list of submitted topics,
-and create/update a schedule based on the submitted topics. 
+
+This project is a web application built using Rust, HTML, JavaScript, and Postgres. It assists in the organizing of an
+unconference by allowing users to submit sessions, view a list of submitted sessions, vote on sessions they would like
+to attend and allows an admin to create/update a schedule based on the submitted sessions.
+
+## Quick Start
+
+```sh
+docker compose up --build
+# Navigate to http://localhost:3000
+
+```
+
+## Quick Links
+
+- [Setup & Installation](docs/SETUP.md)
+- [User Guide](docs/USER_GUIDE.md)
+- [Development Guide](docs/DEVELOPMENT.md)
+- [Architecture & Technologies](docs/ARCHITECTURE.md)
 
 ## Features
-- Submit a new topic with details such as title, content, and presenter's name, email, and phone 
-  number.
-- View a list of submitted topics in a table with deletion, sorting, searching, and pagination 
-  functionalities.
-- Initialize schedule based on submitted rooms
-- Populate schedule with submitted topics
-- Manually drag and drop topics to adjust the schedule
+
+- Session Creation: Submit a new session with title and content details
+- Interactive Sessions Table: View a list of submitted sessions in a table with editing, voting, deletion, sorting, and
+  searching functionalities.
+- Schedule Creation: Initialize empty schedule and populate with submitted sessions
+- Drag & Drop: Manually adjust the schedule with drag and drop
+- Authentication and User Roles: Different levels of control/access with user, facilitator, and admin roles.
 
 ## Technologies Used
 - **Rust**: The programming language mainly used for the backend.
@@ -25,23 +41,38 @@ and create/update a schedule based on the submitted topics.
 - **JavaScript**: Used for client-side scripting and handling form submissions.
 - **DataTables**: jQuery plugin for enhancing HTML tables with advanced interaction controls.
 
-### Prerequisites
-- Rust and Cargo installed
-- Docker installed
-- Have a directory named 'db' in the root of the project with a password.txt inside containing the 
-  password for the Postgres database.
-
-### Running the Application
+### Running the Application Using Docker
 1. Start the Rust server:
     ```sh
     docker compose up --build
     ```
 2. Open your web browser and navigate to `http://localhost:3000`
 
+### Running the Application Using Docker for Just Postgres
+
+1. Start the database
+    ```shell
+   docker compose up --build db
+   cargo run --bin unconfrs --release
+    ```
+2. Open your web browser and navigate to `http://localhost:3000`
+
 ## File Structure
+
+- `sql_scripts`: Contains some helper sql scripts
 - `src/`: Contains the Rust source code
-  - `src/models`: Contains the api models
+  - `src/bin`: Contains the tool used for testing generated unconference's
+    - `src/bin/test_unconf.rs`: The tool for generating an unconference
   - `src/controllers`: Contains the api controllers
+  - `src/middleware`: Contains the web application middleware
+  - `src/models`: Contains the api models
+  - `src/routes`: Contains the routes for the web application
+  - `src/types`: Contains some helpful types for the application
+  - `src/api_docs.rs`: Contains OpenApi docs for the backend
+  - `src/config.rs`: Contains the configuration of AppState and UnconfData
+  - `src/db_config.rs`: Contains database configuration and connection
+  - `src/lib.rs`: Making modules accessible to `src/bin/test_unconf.rs`
+  - `src/main.rs`: Driver of the application
 - `web/templates/`: Contains the HTML templates
   - `web/templates/snippets`: Contains reusable HTML snippets
 - `web/scripts`: Contains JavaScript files
@@ -53,24 +84,6 @@ and create/update a schedule based on the submitted topics.
 - `Dockerfile`: Docker configuration file
 - `db/`: Contains the Postgres database password file
 - `migrations/`: Contains the SQL migration files
-
-## Usage
-
-- **Submit a Session**: Fill out the form on the topics page and click "Submit".
-- **View Sessions**: The topics table will display all submitted topics with options to delete,
-  search, sort, and paginate.
-- **Create Empty Schedule**: Navigate to the schedules page and fill in and submit the rooms form.
-- **Populate Schedule**: Click the "Populate Schedule" button to automatically assign topics to rooms.
-- **Manually Adjust Schedule**: Drag and drop topics to adjust the schedule.
-
-## Additional Notes
-- Sometimes during the development process you may find the migrations in an unhealthy state. If this
-  happens, you can reset the database by running the following commands:
-    ```sh
-    docker compose down
-    docker volume rm thesis_db_data
-    docker compose up --build
-    ```
 
 ## License
 This project is licensed under the MIT License.
