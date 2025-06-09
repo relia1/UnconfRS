@@ -144,6 +144,13 @@ pub struct TimeslotAssignment {
     pub room_id: i32,
 }
 
+#[derive(Debug, Deserialize, FromRow)]
+pub struct TimeslotAssignmentSessionAdd {
+    pub time_slot_id: i32,
+    pub session_id: Option<i32>,
+    pub room_id: i32,
+}
+
 /// Retrieves all timeslots from the database.
 ///
 /// This function retrieves all timeslots from the database.

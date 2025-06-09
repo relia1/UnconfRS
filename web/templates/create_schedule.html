@@ -35,6 +35,7 @@
 
             // Get unique timeslots from events
             window.APP.timeslots = [];
+            window.APP.unpopulated_sessions = [];
             {% if let Some(schedule) = schedule %}
                 {% for timeslot in schedule.timeslots %}
                     window.APP.timeslots.push(
@@ -45,6 +46,17 @@
                         }
                     );
                 {% endfor %}
+
+                {% if permissions.contains(&Permission::from("superuser")) %}
+                    {% for unpopulated_session in unpopulated_sessions %}
+                        window.APP.unpopulated_sessions.push(
+                            {
+                                id: {{ unpopulated_session.id.unwrap() }},
+                                title: "{{ unpopulated_session.title }}"
+                            }
+                        );
+                    {% endfor %}
+                {% endif %}
             {% endif %}
         </script>
         {% if permissions.contains(&Permission::from("superuser")) %}

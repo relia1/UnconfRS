@@ -1,15 +1,9 @@
 use crate::config::AppState;
 use crate::controllers::registration_handler::registration_handler;
-use crate::controllers::{
-    login_handler::{login_handler, logout_handler},
-    room_handler::{delete_room, post_rooms, rooms},
-    schedule_handler::{clear, generate},
-    session_voting_handler::{add_vote_for_session, subtract_vote_for_session},
-    sessions_handler::{
-        delete_session, get_session, post_session, sessions, update_session,
-    },
-    timeslot_handler::{add_timeslots, swap_timeslots, update_timeslot},
-};
+use crate::controllers::schedule_handler::{add_session_to_schedule, remove_session_from_schedule};
+use crate::controllers::{login_handler::{login_handler, logout_handler}, room_handler::{delete_room, post_rooms, rooms}, schedule_handler::{clear, generate}, session_voting_handler::{add_vote_for_session, subtract_vote_for_session}, sessions_handler::{
+    delete_session, get_session, post_session, sessions, update_session,
+}, timeslot_handler::{add_timeslots, swap_timeslots, update_timeslot}};
 use crate::middleware::auth::{auth_middleware, current_user_handler};
 use crate::middleware::unauth::unauth_middleware;
 use crate::models::auth_model::Backend;
@@ -56,6 +50,8 @@ pub fn get_routes(app_state: &Arc<RwLock<AppState>>) -> Router<Arc<RwLock<AppSta
         .route("/rooms/{id}", delete(delete_room))
         .route("/schedules/generate", post(generate))
         .route("/schedules/clear", post(clear))
+        .route("/schedules/add_session", post(add_session_to_schedule))
+        .route("/schedules/remove_session", post(remove_session_from_schedule))
         .route("/timeslots/{id}", put(update_timeslot))
         .route("/timeslots/add", post(add_timeslots))
         .route("/timeslots/swap", put(swap_timeslots))

@@ -88,6 +88,15 @@ document.addEventListener('DOMContentLoaded', function() {
       scheduleId: event.scheduleId,
     });
 
+    const deleteBtn     = document.createElement('button');
+    deleteBtn.className = 'delete-session-btn';
+    deleteBtn.innerHTML = 'x';
+    deleteBtn.setAttribute('data-session-id', event.sessionId);
+    deleteBtn.setAttribute('data-timeslot-id', event.timeslotId);
+    deleteBtn.setAttribute('data-room-id', event.roomId);
+    deleteBtn.title = 'Remove session from schedule';
+    div.appendChild(deleteBtn);
+
     div.addEventListener('dragstart', handleDragStart);
 
     const {top, height} = displayType === 'time' ?
@@ -361,11 +370,20 @@ document.addEventListener('DOMContentLoaded', function() {
       const overlay         = document.getElementById('overlay');
       popup.style.display   = 'block';
       overlay.style.display = 'block';
-      document.querySelector('#cancelButton').addEventListener('click', closePopup);
-      document.querySelector('#overlay').addEventListener('click', closePopup);
+      document.querySelector('#cancelRoomButton').addEventListener('click', closeRoomPopup);
+      document.querySelector('#overlay').addEventListener('click', closeRoomPopup);
     });
 
-    document.getElementById('submit-btn').addEventListener('click', async (e) => {
+    document.getElementById('add-session').addEventListener('click', async () => {
+      const popup           = document.getElementById('popup-add-session');
+      const overlay         = document.getElementById('overlay-add-session');
+      popup.style.display   = 'block';
+      overlay.style.display = 'block';
+      document.querySelector('#cancelSessionButton').addEventListener('click', closeSessionPopup);
+      document.querySelector('#overlay-add-session').addEventListener('click', closeSessionPopup);
+    });
+
+    document.getElementById('submit-room-btn').addEventListener('click', async (e) => {
       e.preventDefault();
       const createRoomsForm = {
         rooms: [
@@ -387,22 +405,56 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
-        closePopup();
+        closeRoomPopup();
         location.reload();
       } catch (error) {
         console.error('Error submitting room:', error);
         alert('There was an error submitting the room. Please try again.');
       }
     });
+
+    document.getElementById('submit-session-btn').addEventListener('click', async (e) => {
+      e.preventDefault();
+      const addSessionForm = {
+        session_id: Number(document.getElementById('sessions').value),
+      };
+
+      try {
+        const response = await fetch('/api/v1/schedules/add_session', {
+          method:  'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body:    JSON.stringify(addSessionForm),
+        });
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        closeSessionPopup();
+        location.reload();
+      } catch (error) {
+        console.error('Error submitting session: ', error);
+        alert('There was an error submitting the session. Please try again.');
+      }
+    });
   }
 
-  function closePopup() {
-    const popup           = document.getElementById('popup');
-    const overlay         = document.getElementById('overlay');
+  function closeRoomPopup() {
+    const popup   = document.getElementById('popup');
+    const overlay = document.getElementById('overlay');
     popup.style.display   = 'none';
     overlay.style.display = 'none';
-    document.querySelector('#cancelButton').removeEventListener('click', closePopup);
-    document.querySelector('#overlay').removeEventListener('click', closePopup);
+    document.querySelector('#cancelRoomButton').removeEventListener('click', closeRoomPopup);
+    document.querySelector('#overlay').removeEventListener('click', closeRoomPopup);
+  }
+
+  function closeSessionPopup() {
+    const popup           = document.getElementById('popup-add-session');
+    const overlay         = document.getElementById('overlay-add-session');
+    popup.style.display   = 'none';
+    overlay.style.display = 'none';
+    document.querySelector('#cancelSessionButton').removeEventListener('click', closeSessionPopup);
+    document.querySelector('#overlay-add-session').removeEventListener('click', closeSessionPopup);
   }
 
   async function removeRoom(roomId) {
@@ -445,6 +497,16 @@ document.addEventListener('DOMContentLoaded', function() {
       if (confirm('Are you sure you want to delete this room?')) {
         const roomId = e.target.getAttribute('data-room-id');
         await removeRoom(roomId);
+      }
+    }
+
+    if (e.target && e.target.classList.contains('delete-session-btn')) {
+      e.stopPropagation();
+      if (confirm('Are you sure you want to remove this session from the schedule?')) {
+        const sessionId  = e.target.getAttribute('data-session-id');
+        const timeslotId = e.target.getAttribute('data-timeslot-id');
+        const roomId     = e.target.getAttribute('data-room-id');
+        await removeSessionFromSchedule(sessionId, timeslotId, roomId);
       }
     }
   });
@@ -551,6 +613,46 @@ document.addEventListener('DOMContentLoaded', function() {
         column.appendChild(eventBlock);
       }
     });
+  }
+
+  async function removeSessionFromSchedule(sessionId, timeslotId, roomId) {
+    try {
+      const response = await fetch('/api/v1/schedules/remove_session', {
+        method:  'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body:    JSON.stringify({
+          session_id:  Number(sessionId),
+          timeslot_id: Number(timeslotId),
+          room_id:     Number(roomId),
+        }),
+      });
+
+      if (response.status === STATUS_CODES.UNAUTHORIZED) {
+        alert('You do not have permission to remove sessions');
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const eventIndex = events.findIndex(event =>
+          event.session_id === Number(sessionId) &&
+          event.timeslot_id === Number(timeslotId) &&
+          event.room_id === Number(roomId),
+      );
+
+      if (eventIndex === -1) {
+        events.splice(eventIndex, 1);
+      }
+
+      updateView();
+    } catch (error) {
+      console.error('Error removing session: ', error);
+      alert('There was an error removing the session. Please try again.');
+    }
   }
 
   // Initialize view selector handler and initial view

@@ -27,6 +27,14 @@
         display: inline-block;
     }
 
+    label.addSession {
+        display: inline-block;
+    }
+
+    select#sessions {
+        display: inline-block;
+    }
+
     .delete-room-btn {
         background: none;
         border: none;
@@ -67,6 +75,7 @@
         <button type="button" id="populate-schedule">Populate Schedule</button><br/>
         <button type="button" id="clear-schedule">Clear Schedule</button><br/>
         <button type="button" id="add-room">Add Room</button><br/>
+        <button type="button" id="add-session">Add Session</button><br/>
         <a href="/unconf_timeslots" id="config-timeslots"><button type="button">Timeslot Configuration</button></a><br/>
     </div>
     {% endif %}
@@ -99,8 +108,25 @@
                 <label class="addRoom" for="room-location">Room Location:</label>
                 <input type="text" id="room-location" name="room-location" required>
             </div>
-            <button type="submit" id="submit-btn">Save</button>
-            <button type="button" id="cancelButton">Cancel</button>
+            <button type="submit" id="submit-room-btn">Save</button>
+            <button type="button" id="cancelRoomButton">Cancel</button>
+        </form>
+    </div>
+</div>
+<div id="overlay-add-session" class="overlay"></div>
+    <div id="popup-add-session" class="popup">
+        <h2>Add a Session</h2>
+        <form id="addSessionForm">
+            <div class="form-field">
+                <label class="addSession" for="sessions" id="sessions-label">Session:</label>
+                <select name="sessions" id="sessions">
+                    {% for session in unpopulated_sessions %}
+                        <option value={{ session.id.unwrap() }}>{{ session.title }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="submit" id="submit-session-btn">Save</button>
+            <button type="button" id="cancelSessionButton">Cancel</button>
         </form>
     </div>
 </div>

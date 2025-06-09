@@ -4,7 +4,7 @@ use crate::models::auth_model::Permission;
 use crate::models::room_model::{rooms_get, Room};
 use crate::models::schedule_model::{schedules_get, Schedule};
 use crate::models::session_voting_model::get_sessions_user_voted_for;
-use crate::models::sessions_model::get_all_sessions;
+use crate::models::sessions_model::{get_all_sessions, Session};
 use crate::models::timeslot_model::{timeslot_get, ExistingTimeslot, TimeslotAssignment};
 use askama::Template;
 use axum::extract::State;
@@ -13,7 +13,7 @@ use axum::response::{Html, IntoResponse, Response};
 use axum::Extension;
 use axum_macros::debug_handler;
 use serde::{Deserialize, Serialize};
-use sqlx::{FromRow, Pool, Postgres};
+use sqlx::{query_as, FromRow, Pool, Postgres};
 use std::collections::HashSet;
 use std::error::Error;
 use std::sync::Arc;
@@ -90,6 +90,7 @@ pub(crate) struct ScheduleTemplate {
     pub(crate) events: Vec<Event>,
     is_authenticated: bool,
     permissions: HashSet<Permission>,
+    pub(crate) unpopulated_sessions: Vec<Session>,
 }
 
 #[debug_handler]
@@ -168,12 +169,23 @@ pub(crate) async fn schedule_handler(State(app_state): State<Arc<RwLock<AppState
             vec![]
         };
 
+        let populated_session_ids: Vec<i32> = events.iter().map(|event| event.session_id).collect();
+        let unpopulated_sessions = query_as!(
+            Session,
+            "SELECT * FROM sessions WHERE NOT (id = ANY($1))",
+            &populated_session_ids,
+        )
+            .fetch_all(read_lock)
+            .await
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR.into_response())?;
+
         let template = ScheduleTemplate {
             schedule,
             rooms,
             events,
             is_authenticated,
-            permissions
+            permissions,
+            unpopulated_sessions,
         };
 
         template

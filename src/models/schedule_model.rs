@@ -1,5 +1,5 @@
 use crate::models::room_model::RoomErr;
-use crate::models::timeslot_assignment_model::assign_sessions_to_timeslots;
+use crate::models::timeslot_assignment_model::{assign_sessions_to_timeslots, get_all_unassigned_timeslots, session_already_scheduled, space_to_add_session};
 use crate::models::{room_model::rooms_get, sessions_model::{get_all_sessions, SessionErr}, timeslot_model::{timeslot_get, ExistingTimeslot}};
 use crate::types::ApiStatusCode;
 use axum::response::IntoResponse;
@@ -28,6 +28,10 @@ pub enum ScheduleErr {
     SessionError(SessionErr),
     #[error("Room error: {0}")]
     RoomError(RoomErr),
+    #[error("Session {0} already scheduled")]
+    SessionAlreadyScheduled(String),
+    #[error("No space to add session {0}")]
+    ScheduleFull(String),
 }
 
 /// Implements the `From` trait for `std::io::Error` to convert it into a `ScheduleErr`.
@@ -114,6 +118,19 @@ impl ScheduleError {
         };
         (status, Json(error)).into_response()
     }
+}
+
+#[derive(Deserialize, ToSchema)]
+pub struct AddSessionReq {
+    pub session_id: i32,
+}
+
+
+#[derive(Deserialize, ToSchema)]
+pub struct RemoveSessionReq {
+    pub session_id: i32,
+    pub timeslot_id: i32,
+    pub room_id: i32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, FromRow)]
@@ -236,6 +253,90 @@ pub async fn schedule_generate(db_pool: &Pool<Postgres>) -> Result<Schedule, Sch
         }
         Err(e) => Err(ScheduleErr::IoError(e.to_string())),
     }
+}
+
+/// Generates a schedule.
+///
+/// This function generates a schedule by assigning sessions to timeslots.
+///
+/// # Parameters
+/// - `db_pool` - The database connection pool
+///
+/// # Returns
+/// A `Result` containing the generated `Schedule` or a `ScheduleErr` error.
+///
+/// # Errors
+/// If an error occurs while generating the schedule, a `ScheduleErr` error is returned.
+pub async fn add_session(db_pool: &Pool<Postgres>, session_id: i32) -> Result<Schedule, ScheduleErr> {
+    if session_already_scheduled(db_pool, session_id).await? {
+        return Err(ScheduleErr::SessionAlreadyScheduled(session_id.to_string()));
+    }
+
+    if !space_to_add_session(db_pool).await? {
+        return Err(ScheduleErr::ScheduleFull(session_id.to_string()));
+    }
+
+    let unassigned_timeslots = get_all_unassigned_timeslots(db_pool).await?;
+
+    if let Some(first_timeslot) = unassigned_timeslots.first() {
+        sqlx::query!(
+            "INSERT INTO timeslot_assignments (time_slot_id, session_id, room_id) VALUES ($1, $2, $3)",
+            first_timeslot.time_slot_id,
+            session_id,
+            first_timeslot.room_id,
+        )
+            .execute(db_pool)
+            .await
+            .map_err(|e| ScheduleErr::IoError(e.to_string()))?;
+
+        let timeslots = timeslot_get(db_pool)
+            .await
+            .map_err(|e| ScheduleErr::IoError(e.to_string()))?;
+
+        Ok(Schedule::new(
+            Some(1),
+            i32::try_from(timeslots.len()).map_err(|e| ScheduleErr::IoError(e.to_string()))?,
+            timeslots,
+        ))
+    } else {
+        Err(ScheduleErr::IoError(session_id.to_string()))
+    }
+}
+
+pub async fn remove_session(
+    db_pool: &Pool<Postgres>,
+    session_id: i32,
+    timeslot_id: i32,
+    room_id: i32,
+) -> Result<Schedule, ScheduleErr> {
+    let affected_rows = sqlx::query!(
+        "DELETE FROM timeslot_assignments
+        WHERE session_id = $1 AND time_slot_id = $2 AND room_id = $3",
+        session_id,
+        timeslot_id,
+        room_id,
+    )
+        .execute(db_pool)
+        .await
+        .map_err(|e| ScheduleErr::IoError(e.to_string()))?
+        .rows_affected();
+
+    if affected_rows == 0 {
+        return Err(ScheduleErr::DoesNotExist(format!(
+            "Session {} not found in time {} room {}",
+            session_id, timeslot_id, room_id,
+        )));
+    }
+
+    let timeslots = timeslot_get(db_pool)
+        .await
+        .map_err(|e| ScheduleErr::IoError(e.to_string()))?;
+
+    Ok(Schedule::new(
+        Some(1),
+        i32::try_from(timeslots.len()).map_err(|e| ScheduleErr::IoError(e.to_string()))?,
+        timeslots,
+    ))
 }
 
 /// Clears the schedule by removing session associations with timeslots.

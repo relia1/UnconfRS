@@ -1,8 +1,7 @@
 use crate::models::room_model::Room;
+use crate::models::schedule_model::ScheduleErr;
 use crate::models::sessions_model::Session;
-use crate::models::timeslot_model::{
-    ExistingTimeslot, TimeslotAssignment, TimeslotAssignmentForm, TimeslotRequest,
-};
+use crate::models::timeslot_model::{ExistingTimeslot, TimeslotAssignment, TimeslotAssignmentForm, TimeslotAssignmentSessionAdd, TimeslotRequest};
 use chrono::NaiveTime;
 use serde::{Deserialize, Serialize};
 use sqlx::{Pool, Postgres};
@@ -17,6 +16,62 @@ pub struct TimeslotSwapRequest {
     pub timeslot_id_2: i32,
     pub room_id_1: i32,
     pub room_id_2: i32,
+}
+
+pub async fn session_already_scheduled(db_pool: &Pool<Postgres>, session_id: i32) -> Result<bool, ScheduleErr> {
+    let count = sqlx::query_scalar!(
+        "SELECT COUNT(*) FROM timeslot_assignments WHERE session_id = $1",
+        session_id,
+    )
+        .fetch_one(db_pool)
+        .await
+        .map_err(|e| ScheduleErr::IoError(e.to_string()))?;
+
+    Ok(count.unwrap_or(0) > 0)
+}
+
+pub async fn space_to_add_session(db_pool: &Pool<Postgres>) -> Result<bool, ScheduleErr> {
+    let total_possible_timeslots = sqlx::query_scalar!(
+        "SELECT COUNT(*) FROM time_slots ts CROSS JOIN rooms r",
+    )
+        .fetch_one(db_pool)
+        .await
+        .map_err(|e| ScheduleErr::IoError(e.to_string()))?;
+
+    let assigned_slots = sqlx::query_scalar!(
+        "SELECT COUNT(*) FROM timeslot_assignments",
+    )
+        .fetch_one(db_pool)
+        .await
+        .map_err(|e| ScheduleErr::IoError(e.to_string()))?;
+
+    Ok(assigned_slots < total_possible_timeslots)
+}
+
+pub async fn get_all_unassigned_timeslots(db_pool: &Pool<Postgres>) -> Result<Vec<TimeslotAssignmentSessionAdd>, ScheduleErr> {
+    let unassigned_timeslots = sqlx::query_as!(
+        TimeslotAssignmentSessionAdd,
+        r#"
+        SELECT
+            ts.id as time_slot_id,
+            NULL::INTEGER as session_id,
+            r.id as room_id
+        FROM time_slots ts
+        CROSS JOIN rooms r
+        WHERE NOT EXISTS (
+            SELECT 1
+            FROM timeslot_assignments ta
+            WHERE ta.time_slot_id = ts.id
+            AND ta.room_id = r.id
+        )
+        ORDER BY ts.start_time, r.id
+        "#
+    )
+        .fetch_all(db_pool)
+        .await
+        .map_err(|e| ScheduleErr::IoError(e.to_string()))?;
+
+    Ok(unassigned_timeslots)
 }
 
 /// Assigns sessions to timeslots.
