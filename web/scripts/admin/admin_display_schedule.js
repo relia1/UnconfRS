@@ -503,9 +503,9 @@ document.addEventListener('DOMContentLoaded', function() {
     if (e.target && e.target.classList.contains('delete-session-btn')) {
       e.stopPropagation();
       if (confirm('Are you sure you want to remove this session from the schedule?')) {
-        const sessionId  = e.target.getAttribute('data-session-id');
-        const timeslotId = e.target.getAttribute('data-timeslot-id');
-        const roomId     = e.target.getAttribute('data-room-id');
+        const sessionId  = Number(e.target.getAttribute('data-session-id'));
+        const timeslotId = Number(e.target.getAttribute('data-timeslot-id'));
+        const roomId     = Number(e.target.getAttribute('data-room-id'));
         await removeSessionFromSchedule(sessionId, timeslotId, roomId);
       }
     }
@@ -639,12 +639,12 @@ document.addEventListener('DOMContentLoaded', function() {
       }
 
       const eventIndex = events.findIndex(event =>
-          event.session_id === Number(sessionId) &&
-          event.timeslot_id === Number(timeslotId) &&
-          event.room_id === Number(roomId),
+          event.sessionId === sessionId &&
+          event.timeslotId === timeslotId &&
+          event.roomId === roomId
       );
 
-      if (eventIndex === -1) {
+      if (eventIndex !== -1) {
         events.splice(eventIndex, 1);
       }
 
