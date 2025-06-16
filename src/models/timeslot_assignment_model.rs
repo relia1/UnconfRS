@@ -102,7 +102,7 @@ pub async fn assign_sessions_to_timeslots(
     let all_assigned_sessions: Vec<Option<i32>> = sqlx::query_scalar!(
         "SELECT session_id FROM timeslot_assignments"
     )
-        .fetch_all(transaction.deref_mut())
+        .fetch_all(db_pool)
         .await?;
 
     let mut used_sessions: HashSet<i32> = all_assigned_sessions
