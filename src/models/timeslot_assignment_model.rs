@@ -99,7 +99,16 @@ pub async fn assign_sessions_to_timeslots(
     db_pool: &Pool<Postgres>,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
     let mut session_index = 0;
-    let mut used_sessions = HashSet::new();
+    let all_assigned_sessions: Vec<Option<i32>> = sqlx::query_scalar!(
+        "SELECT session_id FROM timeslot_assignments"
+    )
+        .fetch_all(transaction.deref_mut())
+        .await?;
+
+    let mut used_sessions: HashSet<i32> = all_assigned_sessions
+        .into_iter()
+        .filter_map(|id| id)
+        .collect();
 
     for slot in existing_timeslots {
         let mut assignments = Vec::new();
@@ -113,10 +122,6 @@ pub async fn assign_sessions_to_timeslots(
             .await?;
 
         let used_rooms: HashSet<i32> = existing_assignments.iter().map(|a| a.room_id).collect();
-
-        for assignment in &existing_assignments {
-            used_sessions.insert(assignment.session_id);
-        }
 
         // Only assign to available rooms
         for room in rooms {
