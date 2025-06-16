@@ -1,0 +1,34 @@
+Assume a penalty function P(T)
+   * Penalize voted sessions not in schedule
+   * Penalize multiple popular sessions in same timeslot
+   * Penalize popular sessions later in the day
+
+Penalty for multiple popular sessions in a timeslot C, where
+  S is the set of sessions in C:
+     v <- sort S by votes descending
+     s <- 0
+     for i in 1..n-1
+         s <- s + v[i] * v[i + 1]
+     return s
+
+We want a schedule T: RT -> S where RT is roomtimes and S is
+  sessions. Some number of roomtimes may be marked "empty",
+  meaning they correspond to a session not being
+  presented. If there are excess RT, a choice will be made
+  in advance of which slots to fill, so |RT| = |S|
+  
+Local search given RT and S:
+  T <- random pairing of RT with S
+  V <- P(T)
+  loop 3 |S|**2 times
+    V0 <- V
+    for all r1, r2 in RT such that r1 < r2
+      swap T(r1) and T(r2) in T
+      if P(T) < V0
+          T0 <- T
+          V0 <- P(T)
+      swap T(r1) and T(r2) in T
+    if V0 = V
+       break
+    T <- T0
+    V <- V0
