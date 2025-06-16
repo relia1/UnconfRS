@@ -1,7 +1,7 @@
 use crate::models::room_model::Room;
 use crate::models::schedule_model::ScheduleErr;
 use crate::models::sessions_model::Session;
-use crate::models::timeslot_model::{ExistingTimeslot, TimeslotAssignment, TimeslotAssignmentForm, TimeslotAssignmentSessionAdd, TimeslotRequest};
+use crate::models::timeslot_model::{ExistingTimeslot, TimeslotAssignmentForm, TimeslotAssignmentSessionAdd, TimeslotRequest};
 use chrono::NaiveTime;
 use serde::{Deserialize, Serialize};
 use sqlx::{Pool, Postgres};
@@ -94,81 +94,55 @@ pub async fn get_all_unassigned_timeslots(db_pool: &Pool<Postgres>) -> Result<Ve
 /// If an I/O error occurs, a `ScheduleErr` error is returned.
 pub async fn assign_sessions_to_timeslots(
     sessions: &[Session],
-    rooms: &[Room],
-    existing_timeslots: &[ExistingTimeslot],
+    _rooms: &[Room],
+    _existing_timeslots: &[ExistingTimeslot],
     db_pool: &Pool<Postgres>,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
-    let mut session_index = 0;
     let all_assigned_sessions: Vec<Option<i32>> = sqlx::query_scalar!(
         "SELECT session_id FROM timeslot_assignments"
     )
         .fetch_all(db_pool)
         .await?;
-
-    let mut used_sessions: HashSet<i32> = all_assigned_sessions
+    let used_sessions: HashSet<i32> = all_assigned_sessions
         .into_iter()
         .filter_map(|id| id)
         .collect();
+    let all_sessions: HashSet<i32> = sessions
+        .iter()
+        .filter_map(|s| s.id)
+        .collect();
+    let free_sessions = all_sessions.difference(&used_sessions);
+    let free_roomtimes = get_all_unassigned_timeslots(db_pool).await?;
 
-    for slot in existing_timeslots {
-        let mut assignments = Vec::new();
+    let pairings = free_roomtimes
+        .into_iter()
+        .zip(free_sessions.into_iter());
 
-        // Get existing assignments for this timeslot
-        let existing_assignments = sqlx::query_as::<_, TimeslotAssignment>(
-            "SELECT * FROM timeslot_assignments WHERE time_slot_id = $1",
-        )
-            .bind(slot.id)
-            .fetch_all(db_pool)
-            .await?;
-
-        let used_rooms: HashSet<i32> = existing_assignments.iter().map(|a| a.room_id).collect();
-
-        // Only assign to available rooms
-        for room in rooms {
-            let room_id = room.id.ok_or("Room missing ID")?;
-            if !used_rooms.contains(&room_id) && session_index < sessions.len() {
-                while session_index < sessions.len() {
-                    let session = &sessions[session_index];
-                    let session_id = session.id.ok_or("Session missing ID")?;
-
-                    if !used_sessions.contains(&session_id) {
-                        assignments.push(TimeslotAssignmentForm {
-                            session_id,
-                            room_id,
-                            old_room_id: 0,
-                        });
-                        used_sessions.insert(session_id);
-                        session_index += 1;
-                        break;
-                    }
-                    session_index += 1;
-                }
-            }
-        }
-
-        if !assignments.is_empty() {
-            insert_assignments(db_pool, slot.id, assignments).await?;
-        }
+    for (rt, s) in pairings {
+        let assignment = TimeslotAssignmentForm {
+            session_id: *s,
+            room_id: rt.room_id,
+            old_room_id: 0,
+        };
+        insert_assignment(db_pool, rt.time_slot_id, assignment).await?;
     }
 
     Ok(())
 }
 
-async fn insert_assignments(
+async fn insert_assignment(
     db_pool: &Pool<Postgres>,
     timeslot_id: i32,
-    assignments: Vec<TimeslotAssignmentForm>,
+    assignment: TimeslotAssignmentForm,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
-    for assignment in assignments {
-        sqlx::query(
-            "INSERT INTO timeslot_assignments (time_slot_id, session_id, room_id) VALUES ($1, $2, $3)"
+    sqlx::query(
+        "INSERT INTO timeslot_assignments (time_slot_id, session_id, room_id) VALUES ($1, $2, $3)"
         )
-            .bind(timeslot_id)
-            .bind(assignment.session_id)
-            .bind(assignment.room_id)
-            .execute(db_pool)
-            .await?;
-    }
+        .bind(timeslot_id)
+        .bind(assignment.session_id)
+        .bind(assignment.room_id)
+        .execute(db_pool)
+        .await?;
     Ok(())
 }
 
