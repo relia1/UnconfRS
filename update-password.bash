@@ -4,6 +4,7 @@
 usage() {
   echo "Usage: $0 <email>"
   echo "Updates the password for the specified email in the database"
+  exit 1
 }
 
 # Check if database container is running
