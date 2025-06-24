@@ -1,7 +1,4 @@
 use rand::prelude::IteratorRandom;
-use std::error::Error;
-
-type BoxedError = Box<dyn Error + Send + Sync>;
 
 #[derive(Debug, Clone)]
 pub struct SessionVotes {
@@ -32,7 +29,7 @@ pub struct RoomTimeAssignment {
 }
 
 impl SchedulerData {
-    pub fn randomly_fill_available_spots(&mut self) -> Result<(), BoxedError> {
+    pub fn randomly_fill_available_spots(&mut self) {
         for schedule_row in &mut self.schedule_rows {
             for schedule_item in &mut schedule_row.schedule_items {
                 if schedule_item.already_assigned {
@@ -51,12 +48,11 @@ impl SchedulerData {
                 }
             }
         }
-        Ok(())
     }
 
-    pub fn improve(&mut self) -> Result<f32, BoxedError> {
+    pub fn improve(&mut self) -> f32 {
         // Start with randomly assigned schedule (preserves already assigned)
-        self.randomly_fill_available_spots()?;
+        self.randomly_fill_available_spots();
 
         let mut current_score = self.score();
         let max_iterations = 3 * self.capacity * self.capacity;
@@ -90,17 +86,17 @@ impl SchedulerData {
                     let pos2 = swappable_positions[j];
 
                     // Perform the pair swap
-                    if let Ok(()) = self.swap_sessions(pos1, pos2) {
-                        // Evaluate the new score
-                        let new_score = self.score();
-                        if new_score < best_score {
-                            best_score = new_score;
-                            best_swap = Some((pos1, pos2));
-                        }
+                    self.swap_sessions(pos1, pos2);
 
-                        // Swap back the positions
-                        self.swap_sessions(pos1, pos2)?;
+                    // Evaluate the new score
+                    let new_score = self.score();
+                    if new_score < best_score {
+                        best_score = new_score;
+                        best_swap = Some((pos1, pos2));
                     }
+
+                    // Swap back the positions
+                    self.swap_sessions(pos2, pos1);
                 }
             }
 
@@ -114,12 +110,12 @@ impl SchedulerData {
             }
 
             if let Some((pos1, pos2)) = best_swap {
-                self.swap_sessions(pos1, pos2)?;
+                self.swap_sessions(pos1, pos2);
                 current_score = best_score;
             }
         }
 
-        Ok(current_score)
+        current_score
     }
 
     pub fn score(&mut self) -> f32 {
@@ -197,10 +193,8 @@ impl SchedulerData {
             weight_late * penalty_late as f32
     }
 
-    fn swap_sessions(&mut self, pos1: (usize, usize), pos2: (usize, usize)) -> Result<(), BoxedError> {
-        if !self.is_swappable(pos1) || !self.is_swappable(pos2) {
-            return Err("Cannot swap already assigned sessions".into());
-        }
+    fn swap_sessions(&mut self, pos1: (usize, usize), pos2: (usize, usize)) {
+        assert!(self.is_swappable(pos1) && self.is_swappable(pos2));
 
         let (pos1_row, pos1_col) = pos1;
         let (pos2_row, pos2_col) = pos2;
@@ -216,8 +210,6 @@ impl SchedulerData {
 
         self.schedule_rows[pos2_row].schedule_items[pos2_col].session_id = session1;
         self.schedule_rows[pos2_row].schedule_items[pos2_col].num_votes = votes1;
-
-        Ok(())
     }
 
     fn is_swappable(&self, pos1: (usize, usize)) -> bool {

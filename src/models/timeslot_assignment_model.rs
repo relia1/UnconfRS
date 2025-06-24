@@ -83,6 +83,8 @@ pub enum SchedulingMethod {
 }
 
 impl SchedulingMethod {
+    
+    #[allow(clippy::new_without_default)]
     pub fn new() -> SchedulingMethod {
         let scheduling_method = var("SCHEDULING_METHOD")
             .unwrap_or(String::from("Original"));
@@ -285,7 +287,7 @@ pub async fn local_search_scheduling(db_pool: &Pool<Postgres>, scheduling_data: 
     let mut best_scheduler_data = scheduler_data.clone();
     let mut current_score: f32 = 0.0;
     for i in 0..5000 {
-        let new_score = scheduler_data.improve()?;
+        let new_score = scheduler_data.improve();
         if i == 0 {
             current_score = new_score;
         }
