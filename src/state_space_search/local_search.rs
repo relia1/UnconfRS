@@ -58,7 +58,7 @@ impl SchedulerData {
         // Start with randomly assigned schedule (preserves already assigned)
         self.randomly_fill_available_spots()?;
 
-        let mut current_score = self.score()?;
+        let mut current_score = self.score();
         let max_iterations = 3 * self.capacity * self.capacity;
 
         for iteration in 0..max_iterations {
@@ -92,11 +92,10 @@ impl SchedulerData {
                     // Perform the pair swap
                     if let Ok(()) = self.swap_sessions(pos1, pos2) {
                         // Evaluate the new score
-                        if let Ok(new_score) = self.score() {
-                            if new_score < best_score {
-                                best_score = new_score;
-                                best_swap = Some((pos1, pos2));
-                            }
+                        let new_score = self.score();
+                        if new_score < best_score {
+                            best_score = new_score;
+                            best_swap = Some((pos1, pos2));
                         }
 
                         // Swap back the positions
@@ -123,16 +122,15 @@ impl SchedulerData {
         Ok(current_score)
     }
 
-    pub fn score(&mut self) -> Result<f32, BoxedError> {
-        let conflicting_penalty = self.penalize_conflicting_popular_sessions()?;
-        let missing_popular_penalty = self.penalize_popular_sessions_missing()?;
-        let late_sessions_penalty = self.penalize_late_popular_sessions()?;
-        let penalty_sum = self.scale_scores(conflicting_penalty, missing_popular_penalty, late_sessions_penalty)?;
+    pub fn score(&mut self) -> f32 {
+        let conflicting_penalty = self.penalize_conflicting_popular_sessions();
+        let missing_popular_penalty = self.penalize_popular_sessions_missing();
+        let late_sessions_penalty = self.penalize_late_popular_sessions();
 
-        Ok(penalty_sum)
+        self.weight_scores(conflicting_penalty, missing_popular_penalty, late_sessions_penalty)
     }
 
-    fn penalize_conflicting_popular_sessions(&self) -> Result<i32, BoxedError> {
+    fn penalize_conflicting_popular_sessions(&self) -> i32 {
         // Iterate through the rows of timeslots
         // For each timeslot row calculate their penalty
         // Within each row only keep values that have session_ids and num_votes greater than 0
@@ -140,7 +138,7 @@ impl SchedulerData {
         // With a sliding window of 2 calculate the sum of adjacent pair products
         //      e.g. [a,b,c,d] (a * b) + (b * c) + (c * d)
         // Then sum up all the row sums to get our total penalty for all rows
-        let sum = self.schedule_rows
+        self.schedule_rows
             .iter()
             .map(|timeslot| {
                 let mut assigned_sessions: Vec<&RoomTimeAssignment> = timeslot.schedule_items
@@ -154,22 +152,19 @@ impl SchedulerData {
                     .map(|pair| pair[0].num_votes * pair[1].num_votes)
                     .sum::<i32>()
             })
-            .sum();
-
-        Ok(sum)
+            .sum()
     }
 
-    fn penalize_popular_sessions_missing(&mut self) -> Result<i32, BoxedError> {
+    fn penalize_popular_sessions_missing(&mut self) -> i32 {
         self.unassigned_sessions.sort_by(|a, b| b.num_votes.cmp(&a.num_votes));
-        let missing_sessions_score = self.unassigned_sessions
+
+        self.unassigned_sessions
             .windows(2)
             .map(|pair| pair[0].num_votes * pair[1].num_votes)
-            .sum::<i32>();
-
-        Ok(missing_sessions_score)
+            .sum::<i32>()
     }
 
-    fn penalize_late_popular_sessions(&self) -> Result<i32, BoxedError> {
+    fn penalize_late_popular_sessions(&self) -> i32 {
         // Iterate through the rows of timeslots
         // For each timeslot row calculate their penalty
         // Within each row only keep values that have session_ids and num_votes greater than 0
@@ -177,7 +172,7 @@ impl SchedulerData {
         // With a sliding window of 2 calculate the sum of adjacent pair products
         //      e.g. [a,b,c,d] (a * b) + (b * c) + (c * d)
         // Then sum up all the row sums to get our total penalty for all rows
-        let sum = self.schedule_rows
+        self.schedule_rows
             .iter()
             .enumerate()
             .map(|(row_idx, timeslot)| {
@@ -189,26 +184,17 @@ impl SchedulerData {
 
                 assigned_sessions_sum * ((self.schedule_rows.len() - 1 - row_idx) as i32)
             })
-            .sum();
-
-        Ok(sum)
+            .sum()
     }
 
-    fn scale_scores(&self, penalty_conflicting: i32, penalty_missing: i32, penalty_late: i32) -> Result<f32, BoxedError> {
-        let scores = [penalty_conflicting, penalty_missing, penalty_late];
-        let min_score = scores.iter().min().unwrap_or(&0);
-        let max_score = scores.iter().max().unwrap_or(&0);
-        let range = max_score - min_score;
+    fn weight_scores(&self, penalty_conflicting: i32, penalty_missing: i32, penalty_late: i32) -> f32 {
         let weight_conflicting = 0.3;
         let weight_missing = 0.5;
         let weight_late = 0.2;
 
-        let score_penalty_conflicting = ((penalty_conflicting - min_score) as f32 / range as f32) * weight_conflicting;
-        let score_penalty_missing = ((penalty_missing - min_score) as f32 / range as f32) * weight_missing;
-        let score_penalty_late = ((penalty_late - min_score) as f32 / range as f32) * weight_late;
-        let total_penalty_score = score_penalty_conflicting + score_penalty_missing + score_penalty_late;
-
-        Ok(total_penalty_score)
+        weight_conflicting * penalty_conflicting as f32 +
+            weight_missing * penalty_missing as f32 +
+            weight_late * penalty_late as f32
     }
 
     fn swap_sessions(&mut self, pos1: (usize, usize), pos2: (usize, usize)) -> Result<(), BoxedError> {
