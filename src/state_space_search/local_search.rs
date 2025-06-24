@@ -38,15 +38,14 @@ impl SchedulerData {
                 if schedule_item.already_assigned {
                     continue;
                 } else {
-                    let chosen_session = self.unassigned_sessions
+                    let (i, session) = self.unassigned_sessions
                         .iter()
                         .enumerate()
                         .choose(&mut rand::rng())
                         .unwrap();
 
-                    let (i, session_votes_ref) = chosen_session;
-                    schedule_item.session_id = Some(session_votes_ref.session_id);
-                    schedule_item.num_votes = session_votes_ref.num_votes;
+                    schedule_item.session_id = Some(session.session_id);
+                    schedule_item.num_votes = session.num_votes;
 
                     self.unassigned_sessions.swap_remove(i);
                 }
