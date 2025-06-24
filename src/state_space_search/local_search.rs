@@ -193,11 +193,12 @@ impl SchedulerData {
             weight_late * penalty_late as f32
     }
 
-    fn swap_sessions(&mut self, pos1: (usize, usize), pos2: (usize, usize)) {
+    fn swap_sessions(
+        &mut self,
+        pos1@(pos1_row, pos1_col): (usize, usize),
+        pos2@(pos2_row, pos2_col): (usize, usize),
+    ) {
         assert!(self.is_swappable(pos1) && self.is_swappable(pos2));
-
-        let (pos1_row, pos1_col) = pos1;
-        let (pos2_row, pos2_col) = pos2;
 
         let session1 = self.schedule_rows[pos1_row].schedule_items[pos1_col].session_id;
         let votes1 = self.schedule_rows[pos1_row].schedule_items[pos1_col].num_votes;
