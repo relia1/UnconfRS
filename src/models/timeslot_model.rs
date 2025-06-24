@@ -7,6 +7,8 @@ use sqlx::{FromRow, Pool, Postgres};
 use std::error::Error;
 use utoipa::ToSchema;
 
+type BoxedError = Box<dyn Error + Send + Sync>;
+
 /// An enumeration of possible errors that can occur when working with timeslots.
 ///
 /// # Variants
@@ -137,7 +139,7 @@ pub struct ExistingTimeslot {
     pub duration: i32,
 }
 
-#[derive(Debug, Deserialize, FromRow)]
+#[derive(Debug, Deserialize, FromRow, Clone)]
 pub struct TimeslotAssignment {
     pub time_slot_id: i32,
     pub session_id: i32,
@@ -227,4 +229,14 @@ pub async fn timeslots_add(
         timeslot_ids.push(id);
     }
     Ok(timeslot_ids)
+}
+
+pub async fn get_num_timeslots(db_pool: &Pool<Postgres>) -> Result<i32, BoxedError> {
+    let num_timeslots = sqlx::query_scalar!("SELECT COUNT(*)::INTEGER FROM time_slots")
+        .fetch_one(db_pool)
+        .await
+        .map_err(|e| Box::new(e) as BoxedError)?;
+
+    // This is safe to unwrap since it should always return a number
+    Ok(num_timeslots.unwrap())
 }

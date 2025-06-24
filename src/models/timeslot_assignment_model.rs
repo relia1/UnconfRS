@@ -1,12 +1,15 @@
-use crate::models::room_model::Room;
+use crate::models::room_model::{rooms_get, Room};
 use crate::models::schedule_model::ScheduleErr;
 use crate::models::sessions_model::Session;
-use crate::models::timeslot_model::{ExistingTimeslot, TimeslotAssignmentForm, TimeslotAssignmentSessionAdd, TimeslotRequest};
+use crate::models::timeslot_model::{timeslot_get, ExistingTimeslot, TimeslotAssignmentForm, TimeslotAssignmentSessionAdd, TimeslotRequest};
+use crate::state_space_search::local_search::{RoomTimeAssignment, ScheduleRow, SchedulerData, SessionVotes};
 use chrono::NaiveTime;
 use serde::{Deserialize, Serialize};
 use sqlx::{Pool, Postgres};
 use std::collections::HashSet;
+use std::env::var;
 use std::error::Error;
+use std::time::Instant;
 use tracing::info;
 use utoipa::ToSchema;
 
@@ -74,6 +77,30 @@ pub async fn get_all_unassigned_timeslots(db_pool: &Pool<Postgres>) -> Result<Ve
     Ok(unassigned_timeslots)
 }
 
+pub enum SchedulingMethod {
+    Original,
+    LocalSearch,
+}
+
+impl SchedulingMethod {
+    pub fn new() -> SchedulingMethod {
+        let scheduling_method = var("SCHEDULING_METHOD")
+            .unwrap_or(String::from("Original"));
+
+        match scheduling_method.to_lowercase().as_str() {
+            "original" => SchedulingMethod::Original,
+            "localsearch" => SchedulingMethod::LocalSearch,
+            _ => SchedulingMethod::Original,
+        }
+    }
+}
+
+pub struct SessionAssignmentData {
+    pub already_assigned_room_time_associations: Vec<RoomTimeAssignment>,
+    pub available_room_time_associations: Vec<TimeslotAssignmentSessionAdd>,
+    pub unassigned_session_ids: Vec<i32>,
+}
+
 /// Assigns sessions to timeslots.
 ///
 /// This function assigns sessions to timeslots based on the provided sessions, rooms, and existing
@@ -98,33 +125,199 @@ pub async fn assign_sessions_to_timeslots(
     _existing_timeslots: &[ExistingTimeslot],
     db_pool: &Pool<Postgres>,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
-    let all_assigned_sessions: Vec<Option<i32>> = sqlx::query_scalar!(
-        "SELECT session_id FROM timeslot_assignments"
+    // alias ta for the table timeslot_assignments
+    // alias uv for user_votes table
+    let all_assigned_sessions: Vec<RoomTimeAssignment> = sqlx::query_as!(
+        RoomTimeAssignment,
+        r#"SELECT
+            ta.id as "id?",
+            ta.time_slot_id as "time_slot_id!",
+            ta.session_id as "session_id!",
+            ta.room_id as "room_id!",
+            true as "already_assigned!",
+            COALESCE(COUNT(uv.session_id), 0)::INTEGER as "num_votes!"
+        FROM timeslot_assignments ta
+        JOIN user_votes uv ON ta.session_id = uv.session_id
+        GROUP BY ta.id, ta.time_slot_id, ta.session_id, ta.room_id"#
     )
         .fetch_all(db_pool)
         .await?;
+
+    tracing::trace!("all assigned sessions: {:?}", all_assigned_sessions);
+
     let used_sessions: HashSet<i32> = all_assigned_sessions
-        .into_iter()
-        .filter_map(|id| id)
+        .iter()
+        .filter_map(|item| item.session_id)
         .collect();
+
+    tracing::trace!("used_sessions: {:?}", used_sessions);
+
     let all_sessions: HashSet<i32> = sessions
         .iter()
         .filter_map(|s| s.id)
         .collect();
+
+    tracing::trace!("all_sessions: {:?}", all_sessions);
+
     let free_sessions = all_sessions.difference(&used_sessions);
+    tracing::trace!("free_sessions: {:?}", free_sessions);
     let free_roomtimes = get_all_unassigned_timeslots(db_pool).await?;
+    tracing::trace!("free_roomtimes: {:?}", free_roomtimes);
 
-    let pairings = free_roomtimes
-        .into_iter()
-        .zip(free_sessions.into_iter());
+    match SchedulingMethod::new() {
+        SchedulingMethod::Original => {
+            let pairings: Vec<(TimeslotAssignmentSessionAdd, i32)> = free_roomtimes
+                .into_iter()
+                .zip(free_sessions.copied())
+                .collect();
 
+            tracing::trace!("pairings: {:?}", pairings);
+
+            original_scheduling(db_pool, pairings).await
+        },
+        SchedulingMethod::LocalSearch => {
+            let scheduling_data = SessionAssignmentData {
+                already_assigned_room_time_associations: all_assigned_sessions,
+                available_room_time_associations: free_roomtimes,
+                unassigned_session_ids: free_sessions.copied().collect(),
+            };
+
+            local_search_scheduling(db_pool, scheduling_data).await
+        },
+    }
+}
+
+pub async fn original_scheduling(db_pool: &Pool<Postgres>, pairings: Vec<(TimeslotAssignmentSessionAdd, i32)>) -> Result<(), Box<dyn Error + Send + Sync>> {
     for (rt, s) in pairings {
         let assignment = TimeslotAssignmentForm {
-            session_id: *s,
+            session_id: s,
             room_id: rt.room_id,
             old_room_id: 0,
         };
         insert_assignment(db_pool, rt.time_slot_id, assignment).await?;
+    }
+
+    Ok(())
+}
+
+
+pub async fn local_search_scheduling(db_pool: &Pool<Postgres>, scheduling_data: SessionAssignmentData) -> Result<(), Box<dyn Error + Send + Sync>> {
+    tracing::trace!("unassigned_session_ids: {:?}", scheduling_data.unassigned_session_ids);
+    // We should not be able to get here if rooms is None
+    let rooms: Vec<Room> = rooms_get(db_pool).await?.unwrap();
+    // We should not be able to get here if timeslots is Err
+    let timeslots: Vec<ExistingTimeslot> = timeslot_get(db_pool).await.unwrap();
+    let num_rooms = rooms.len();
+    let num_timeslots = timeslots.len();
+
+    let session_and_votes: Vec<SessionVotes> = sqlx::query_as!(
+        SessionVotes,
+        "SELECT session_id, COALESCE(COUNT(*)::INTEGER, 0) as \"num_votes!\" from user_votes GROUP BY session_id"
+    )
+        .fetch_all(db_pool)
+        .await?;
+
+    let unassigned_session_and_votes: Vec<SessionVotes> = scheduling_data.unassigned_session_ids
+        .iter()
+        .map(|&session_id| {
+            let num_votes = session_and_votes
+                .iter()
+                .find(|sv| sv.session_id == session_id)
+                .map(|sv| sv.num_votes)
+                .unwrap_or(0);
+
+            SessionVotes {
+                session_id,
+                num_votes,
+            }
+        })
+        .collect();
+
+    let mut scheduler_data: SchedulerData = SchedulerData {
+        schedule_rows: vec![],
+        capacity: (num_rooms * num_timeslots) as i32,
+        unassigned_sessions: unassigned_session_and_votes,
+    };
+
+    for timeslot in timeslots {
+        let mut schedule_row: ScheduleRow = ScheduleRow {
+            schedule_items: vec![],
+        };
+        for room in &rooms {
+            let item = RoomTimeAssignment {
+                room_id: room.id.unwrap(),
+                time_slot_id: timeslot.id,
+                session_id: None,
+                num_votes: 0,
+                id: None,
+                already_assigned: false,
+            };
+
+            schedule_row.schedule_items.push(item);
+        }
+        scheduler_data.schedule_rows.push(schedule_row);
+    }
+
+    for room_time_assgn in scheduling_data.already_assigned_room_time_associations {
+        if let Some(schedule_item) = scheduler_data.schedule_rows
+            .iter_mut()
+            .flat_map(|row| row.schedule_items.iter_mut())
+            .find(|item| item.room_id == room_time_assgn.room_id
+                && item.time_slot_id == room_time_assgn.time_slot_id
+            ) {
+            schedule_item.session_id = room_time_assgn.session_id;
+            schedule_item.id = room_time_assgn.id;
+            schedule_item.already_assigned = room_time_assgn.already_assigned;
+
+            if let Some(session_id) = room_time_assgn.session_id {
+                schedule_item.num_votes = session_and_votes
+                    .iter()
+                    .find(|sv| sv.session_id == session_id)
+                    .map(|sv| sv.num_votes)
+                    .unwrap_or(0);
+            }
+        }
+    }
+
+    let start = Instant::now();
+    let unmodified_scheduler_data = scheduler_data.clone();
+
+    let mut best_scheduler_data = scheduler_data.clone();
+    let mut current_score: f32 = 0.0;
+    for i in 0..5000 {
+        let new_score = scheduler_data.improve()?;
+        if i == 0 {
+            current_score = new_score;
+        }
+        tracing::trace!("new_score: {}", new_score);
+        tracing::trace!("current_score: {}", current_score);
+        if new_score < current_score {
+            current_score = new_score;
+            best_scheduler_data = scheduler_data.clone();
+        }
+
+        scheduler_data = unmodified_scheduler_data.clone();
+    }
+
+    let duration = start.elapsed();
+    tracing::trace!("scheduling_data: {:?}", best_scheduler_data);
+    tracing::trace!("duration: {:?}", duration);
+    tracing::trace!("best score: {:?}", current_score);
+
+    for schedule_row in &best_scheduler_data.schedule_rows {
+        for schedule_item in &schedule_row.schedule_items {
+            if schedule_item.already_assigned || schedule_item.session_id.is_none() {
+                continue;
+            } else {
+                let assignment = TimeslotAssignmentForm {
+                    session_id: schedule_item.session_id.unwrap(),
+                    room_id: schedule_item.room_id,
+                    old_room_id: 0,
+                };
+
+                insert_assignment(db_pool, schedule_item.time_slot_id, assignment).await?;
+            }
+        }
     }
 
     Ok(())

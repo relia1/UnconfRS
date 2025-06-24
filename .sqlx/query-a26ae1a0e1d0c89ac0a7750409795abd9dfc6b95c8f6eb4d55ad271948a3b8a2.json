@@ -1,11 +1,11 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT session_id FROM timeslot_assignments",
+  "query": "SELECT COUNT(*)::INTEGER FROM rooms",
   "describe": {
     "columns": [
       {
         "ordinal": 0,
-        "name": "session_id",
+        "name": "count",
         "type_info": "Int4"
       }
     ],
@@ -13,8 +13,8 @@
       "Left": []
     },
     "nullable": [
-      true
+      null
     ]
   },
-  "hash": "a6f9864efd5dd3a894dbd8ae88ce963b2c60904174664f299355bfa3b2ca8581"
+  "hash": "a26ae1a0e1d0c89ac0a7750409795abd9dfc6b95c8f6eb4d55ad271948a3b8a2"
 }

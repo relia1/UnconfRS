@@ -275,3 +275,13 @@ pub async fn room_delete(db_pool: &Pool<Postgres>, index: i32) -> Result<(), Box
 
     Ok(())
 }
+
+pub async fn get_num_rooms(db_pool: &Pool<Postgres>) -> Result<i32, BoxedError> {
+    let num_rooms = sqlx::query_scalar!("SELECT COUNT(*)::INTEGER FROM rooms")
+        .fetch_one(db_pool)
+        .await
+        .map_err(|e| Box::new(e) as BoxedError)?;
+
+    // This is safe to unwrap since it should always return a number
+    Ok(num_rooms.unwrap())
+}
