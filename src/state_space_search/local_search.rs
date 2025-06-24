@@ -51,13 +51,16 @@ impl SchedulerData {
     }
 
     pub fn improve(&mut self) -> f32 {
+        use rand::{Rng, seq::IndexedRandom};
+        let mut rng = rand::rng();
+
         // Start with randomly assigned schedule (preserves already assigned)
         self.randomly_fill_available_spots();
 
         let mut current_score = self.score();
         let max_iterations = 3 * self.capacity * self.capacity;
 
-        for iteration in 0..max_iterations {
+        for _ in 0..max_iterations {
             let mut best_score = current_score;
             let mut best_swap: Option<((usize, usize), (usize, usize))> = None;
 
@@ -79,39 +82,40 @@ impl SchedulerData {
                 })
                 .collect();
 
-            // Try all pair swaps between swappable positions
-            for i in 0..swappable_positions.len() {
-                for j in (i + 1)..swappable_positions.len() {
-                    let pos1 = swappable_positions[i];
-                    let pos2 = swappable_positions[j];
+            let coin_flip = rng.random();
+            if coin_flip {
 
-                    // Perform the pair swap
-                    self.swap_sessions(pos1, pos2);
+                // Try all pair swaps between swappable positions
+                for i in 0..swappable_positions.len() {
+                    for j in (i + 1)..swappable_positions.len() {
+                        let pos1 = swappable_positions[i];
+                        let pos2 = swappable_positions[j];
 
-                    // Evaluate the new score
-                    let new_score = self.score();
-                    if new_score < best_score {
-                        best_score = new_score;
-                        best_swap = Some((pos1, pos2));
+                        // Perform the pair swap
+                        self.swap_sessions(pos1, pos2);
+
+                        // Evaluate the new score
+                        let new_score = self.score();
+                        if new_score < best_score {
+                            best_score = new_score;
+                            best_swap = Some((pos1, pos2));
+                        }
+
+                        // Swap back the positions
+                        self.swap_sessions(pos2, pos1);
                     }
-
-                    // Swap back the positions
-                    self.swap_sessions(pos2, pos1);
                 }
-            }
 
-            tracing::trace!("current_score: {:?}", current_score);
+                tracing::trace!("current_score: {:?}", current_score);
 
-            // Check for improvement
-            if best_score >= current_score {
-                // If no improvement found we are at a local minimum
-                tracing::trace!("iterations: {}", iteration);
-                break;
-            }
-
-            if let Some((pos1, pos2)) = best_swap {
+                if let Some((pos1, pos2)) = best_swap {
+                    self.swap_sessions(pos1, pos2);
+                    current_score = best_score;
+                }
+            } else {
+                let pos1 = *swappable_positions.choose(&mut rng).unwrap();
+                let pos2 = *swappable_positions.choose(&mut rng).unwrap();
                 self.swap_sessions(pos1, pos2);
-                current_score = best_score;
             }
         }
 
