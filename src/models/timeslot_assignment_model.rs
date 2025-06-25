@@ -298,6 +298,20 @@ pub async fn local_search_scheduling(db_pool: &Pool<Postgres>, scheduling_data: 
         }
     }
 
+    let formatted_schedule = scheduler_data.schedule_rows
+        .iter()
+        .map(|row| {
+            row.schedule_items
+                .iter()
+                .map(|session| session.num_votes.to_string())
+                .collect::<Vec<_>>()
+                .join(", ")
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    tracing::trace!("formatted schedule:\n {}", formatted_schedule);
+
     let duration = start.elapsed();
     tracing::trace!("scheduling_data: {:?}", best_scheduler_data);
     tracing::trace!("duration: {:?}", duration);
