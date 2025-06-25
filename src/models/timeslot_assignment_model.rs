@@ -287,6 +287,7 @@ pub async fn local_search_scheduling(db_pool: &Pool<Postgres>, scheduling_data: 
     let mut current_score: f32 = scheduler_data.improve();
     let mut best_scheduler_data = scheduler_data.clone();
     for _ in 0..100 {
+        scheduler_data = unmodified_scheduler_data.clone();
         tracing::trace!("current_score: {}", current_score);
 
         let new_score = scheduler_data.improve();
@@ -295,8 +296,6 @@ pub async fn local_search_scheduling(db_pool: &Pool<Postgres>, scheduling_data: 
             current_score = new_score;
             best_scheduler_data = scheduler_data.clone();
         }
-
-        scheduler_data = unmodified_scheduler_data.clone();
     }
 
     let duration = start.elapsed();
