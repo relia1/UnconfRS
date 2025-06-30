@@ -224,12 +224,12 @@ pub async fn local_search_scheduling(db_pool: &Pool<Postgres>, scheduling_data: 
         .map(|&session_id| {
             let num_votes = session_and_votes
                 .iter()
-                .find(|sv| sv.session_id == session_id)
+                .find(|sv| sv.session_id.is_some() && sv.session_id.unwrap() == session_id)
                 .map(|sv| sv.num_votes)
                 .unwrap_or(0);
 
             SessionVotes {
-                session_id,
+                session_id: Some(session_id),
                 num_votes,
             }
         })
@@ -274,7 +274,7 @@ pub async fn local_search_scheduling(db_pool: &Pool<Postgres>, scheduling_data: 
             if let Some(session_id) = room_time_assgn.session_id {
                 schedule_item.num_votes = session_and_votes
                     .iter()
-                    .find(|sv| sv.session_id == session_id)
+                    .find(|sv| sv.session_id.is_some() && sv.session_id.unwrap() == session_id)
                     .map(|sv| sv.num_votes)
                     .unwrap_or(0);
             }
@@ -310,7 +310,8 @@ pub async fn local_search_scheduling(db_pool: &Pool<Postgres>, scheduling_data: 
         .collect::<Vec<_>>()
         .join("\n");
 
-    tracing::trace!("formatted schedule:\n {}", formatted_schedule);
+    tracing::info!("formatted schedule:\n {}", formatted_schedule);
+    tracing::info!("current unassigned {:?}", best_scheduler_data.unassigned_sessions);
 
     let duration = start.elapsed();
     tracing::trace!("scheduling_data: {:?}", best_scheduler_data);

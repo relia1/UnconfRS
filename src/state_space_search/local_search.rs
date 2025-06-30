@@ -2,7 +2,7 @@ use rand::prelude::IteratorRandom;
 
 #[derive(Debug, Clone)]
 pub struct SessionVotes {
-    pub session_id: i32,
+    pub session_id: Option<i32>,
     pub num_votes: i32,
 }
 
@@ -41,7 +41,7 @@ impl SchedulerData {
                         .choose(&mut rand::rng())
                         .unwrap();
 
-                    schedule_item.session_id = Some(session.session_id);
+                    schedule_item.session_id = session.session_id;
                     schedule_item.num_votes = session.num_votes;
 
                     self.unassigned_sessions.swap_remove(i);
@@ -220,5 +220,27 @@ impl SchedulerData {
     fn is_swappable(&self, pos1: (usize, usize)) -> bool {
         let (row_idx, col_idx) = pos1;
         !self.schedule_rows[row_idx].schedule_items[col_idx].already_assigned
+    }
+
+    fn swap_with_unassigned_session(
+        &mut self,
+        pos1 @ (pos1_row, pos1_col): (usize, usize),
+        unassigned_idx: usize,
+    ) {
+        // Only need to check if pos1 is swappable since any unassigned item can be swapped onto the schedule
+        assert!(self.is_swappable(pos1));
+
+        // Get copies of the current values so we can perform the swap
+        let session1 = self.schedule_rows[pos1_row].schedule_items[pos1_col].session_id;
+        let votes1 = self.schedule_rows[pos1_row].schedule_items[pos1_col].num_votes;
+
+        let session2 = self.unassigned_sessions[unassigned_idx].session_id;
+        let votes2 = self.unassigned_sessions[unassigned_idx].num_votes;
+
+        self.schedule_rows[pos1_row].schedule_items[pos1_col].session_id = session2;
+        self.schedule_rows[pos1_row].schedule_items[pos1_col].num_votes = votes2;
+
+        self.unassigned_sessions[unassigned_idx].session_id = session1;
+        self.unassigned_sessions[unassigned_idx].num_votes = votes1;
     }
 }
