@@ -323,8 +323,7 @@ pub async fn remove_session(
 
     if affected_rows == 0 {
         return Err(ScheduleErr::DoesNotExist(format!(
-            "Session {} not found in time {} room {}",
-            session_id, timeslot_id, room_id,
+            "Session {session_id} not found in time {timeslot_id} room {room_id}",
         )));
     }
 

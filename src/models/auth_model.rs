@@ -160,13 +160,12 @@ impl AuthnBackend for Backend {
             .fetch_optional(&self.db_pool)
             .await?;
 
-        if let Some(user) = user {
-            if let Ok(is_valid) = bcrypt::verify(&creds.password, &user.password) {
-                if is_valid {
-                    return Ok(Some(user));
-                }
-            }
+        if let Some(user) = user
+            && let Ok(is_valid) = bcrypt::verify(&creds.password, &user.password)
+            && is_valid {
+            return Ok(Some(user));
         }
+
         Ok(None)
     }
 

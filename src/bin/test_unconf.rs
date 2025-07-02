@@ -105,15 +105,15 @@ async fn main() {
     let validated_params = match cli.validate().await {
         Ok(params) => params,
         Err(CliError::Io(err)) => {
-            eprintln!("Error: {:?}", err);
+            eprintln!("Error: {err:?}");
             std::process::exit(1);
         }
         Err(CliError::Json(err)) => {
-            eprintln!("Error: {:?}", err);
+            eprintln!("Error: {err:?}");
             std::process::exit(1);
         }
         Err(CliError::Args(err)) => {
-            eprintln!("Error: {:?}", err);
+            eprintln!("Error: {err:?}");
             std::process::exit(1);
         }
     };
@@ -134,7 +134,7 @@ async fn main() {
             match params.generate_data().await {
                 Ok(()) => println!("Successfully generated data"),
                 Err(err) => {
-                    eprintln!("Error: {:?}", err);
+                    eprintln!("Error: {err:?}");
                     std::process::exit(1);
                 }
             }
@@ -176,8 +176,8 @@ impl Params {
             let room = Room::new(
                 None,
                 20,
-                format!("Room {}", i),
-                format!("Loc {}", i),
+                format!("Room {i}"),
+                format!("Loc {i}"),
             );
             rooms.push(room);
         }

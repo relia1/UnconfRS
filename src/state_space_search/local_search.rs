@@ -75,7 +75,7 @@ impl SchedulerData {
         let mut best_action: Option<SwapAction> = None;
         for _ in 0..max_iterations {
             // Get only the swappable positions
-            let swappable_positions: Vec<(usize, usize)> = self.schedule_rows
+            let swappable_sessions: Vec<(usize, usize)> = self.schedule_rows
                 .iter()
                 .enumerate()
                 .flat_map(|(row_idx, row)| {
@@ -96,11 +96,11 @@ impl SchedulerData {
             if coin_flip {
 
                 // Try all pair swaps between swappable positions within the schedule and the unassigned
-                for i in 0..swappable_positions.len() {
-                    let pos1 = swappable_positions[i];
+                for i in 0..swappable_sessions.len() {
+                    let pos1 = swappable_sessions[i];
                     // Tries swaps with other values within the schedule
-                    for j in (i + 1)..swappable_positions.len() {
-                        let pos2 = swappable_positions[j];
+                    for session in swappable_sessions.iter().skip(i + 1) {
+                        let pos2 = *session;
 
                         // Perform the pair swap
                         self.swap_sessions(pos1, pos2);
@@ -135,8 +135,8 @@ impl SchedulerData {
                     }
                 }
             } else {
-                let pos1 = *swappable_positions.choose(&mut rng).unwrap();
-                let pos2 = *swappable_positions.choose(&mut rng).unwrap();
+                let pos1 = *swappable_sessions.choose(&mut rng).unwrap();
+                let pos2 = *swappable_sessions.choose(&mut rng).unwrap();
                 self.swap_sessions(pos1, pos2);
             }
 
