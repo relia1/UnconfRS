@@ -15,7 +15,7 @@ RUN if [ "$BUILD_TYPE" = "release" ]; then \
     mkdir /app/src/bin && \
     mkdir /app/web && \
     echo 'fn main() {}' > /app/src/main.rs && \
-    echo 'fn main() {}' > /app/src/bin/test_unconf.rs && \
+    echo 'fn main() {}' > /app/src/bin/main && \
     cargo build --release && \
     rm -Rvf /app/src target/${BUILD_TYPE}/deps/unconfrs*; \
 else \
@@ -23,15 +23,15 @@ else \
     mkdir /app/src/bin && \
     mkdir /app/web && \
     echo 'fn main() {}' > /app/src/main.rs && \
-    echo 'fn main() {}' > /app/src/bin/test_unconf.rs && \
+    echo 'fn main() {}' > /app/src/bin/main && \
     cargo build && \
     rm -Rvf /app/src target/${BUILD_TYPE}/deps/unconfrs*; \
 fi
 
 # Build our actual code
 COPY src /app/src
-COPY web /app/web
-COPY migrations /app/migrations
+COPY server/web /app/web
+COPY server/migrations /app/migrations
 RUN if [ "$BUILD_TYPE" = "release" ]; then \
     touch src/main.rs && \
     cargo build --release; \

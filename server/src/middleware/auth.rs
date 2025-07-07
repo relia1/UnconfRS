@@ -6,6 +6,7 @@ use axum::response::{IntoResponse, Response};
 use axum::Json;
 use axum_login::{AuthSession, AuthzBackend};
 use axum_macros::debug_handler;
+use serde_json;
 use std::collections::HashSet;
 
 pub type AuthSessionLayer = AuthSession<Backend>;

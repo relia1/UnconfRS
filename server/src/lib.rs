@@ -5,5 +5,4 @@ pub mod db_config;
 pub mod middleware;
 pub mod models;
 pub mod routes;
-pub mod state_space_search;
 pub mod types;

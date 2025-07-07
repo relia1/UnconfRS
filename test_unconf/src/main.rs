@@ -7,18 +7,18 @@ use fake::locales::EN;
 use fake::Fake;
 use rand::Rng;
 use serde_json::Value;
-use sqlx::{Pool, Postgres};
-use std::error::Error;
-use std::path::PathBuf;
-use std::sync::Arc;
-use tokio::sync::RwLock;
-use unconfrs::{
+use server::{
     config::AppState,
     models::auth_model::Backend,
     models::auth_model::RegistrationRequest,
     models::room_model::{rooms_add, CreateRoomsForm, Room},
     models::timeslot_model::{timeslots_add, TimeslotForm, TimeslotRequest},
 };
+use sqlx::{Pool, Postgres};
+use std::error::Error;
+use std::path::PathBuf;
+use std::sync::Arc;
+use tokio::sync::RwLock;
 
 #[derive(Debug)]
 enum CliError {

@@ -40,7 +40,7 @@ UnconfRS
  ├─ db_config.rs # Contains database configuration and connection
  ├─ main.rs # Driver of the application
  ├─ api_docs.rs # Contains OpenApi docs for the backend
- ├─ lib.rs # Making modules accessible to `src/bin/test_unconf.rs`
+ ├─ lib.rs # Making modules accessible to `src/bin/main`
  └─ config.rs # Contains the configuration of AppState and UnconfData
 ```
 

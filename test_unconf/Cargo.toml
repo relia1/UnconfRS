@@ -1,0 +1,16 @@
+[package]
+name = "test_unconf"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+server = { path = "../server" }
+
+tokio = { workspace = true, features = ["sync", "fs", "rt", "rt-multi-thread", "macros"] }
+serde_json.workspace = true
+chrono.workspace = true
+clap = { workspace = true, features = ["derive"] }
+sqlx = { workspace = true, features = ["postgres"] }
+rand = { workspace = true, features = ["thread_rng"] }
+fake.workspace = true
+dotenvy.workspace = true

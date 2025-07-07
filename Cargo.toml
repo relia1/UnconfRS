@@ -1,14 +1,8 @@
-[package]
-name = "unconfrs"
-version = "0.1.0"
-edition = "2024"
-rust-version = "1.88"
+[workspace]
+resolver = "3"
+members = ["scheduler", "server", "test_unconf"]
 
-[[bin]]
-name = "test_unconf"
-path = "src/bin/test_unconf.rs"
-
-[dependencies]
+[workspace.dependencies]
 askama = { version = "0.14.0", features = ["serde_json"] }
 axum = { version = "0.8.4", features = ["macros", "form"] }
 axum-macros = "0.5.0"
@@ -34,25 +28,25 @@ clap = { version = "4.5.40", features = ["derive"] }
 fake = "4.3.0"
 rand = { version = "0.9.1", features = ["thread_rng"] }
 
-[dependencies.utoipa]
+[workspace.dependencies.utoipa]
 #version = "5.3.1"
 git = "https://github.com/juhaku/utoipa.git"
 rev = "cecda0531bf7d90800af66b186055932ee730526"
 features = ["axum_extras", "chrono"]
 
-[dependencies.utoipa-rapidoc]
+[workspace.dependencies.utoipa-rapidoc]
 #version = "6.0.0"
 git = "https://github.com/juhaku/utoipa.git"
 rev = "cecda0531bf7d90800af66b186055932ee730526"
 features = ["axum"]
 
-[dependencies.utoipa-redoc]
+[workspace.dependencies.utoipa-redoc]
 #version = "6.0.0"
 git = "https://github.com/juhaku/utoipa.git"
 rev = "cecda0531bf7d90800af66b186055932ee730526"
 features = ["axum"]
 
-[dependencies.utoipa-swagger-ui]
+[workspace.dependencies.utoipa-swagger-ui]
 #version = "6.0.0"
 git = "https://github.com/juhaku/utoipa.git"
 rev = "cecda0531bf7d90800af66b186055932ee730526"

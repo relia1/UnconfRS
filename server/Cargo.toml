@@ -1,0 +1,34 @@
+[package]
+name = "server"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.88.0"
+
+[dependencies]
+scheduler = { path = "../scheduler" }
+
+tokio.workspace = true
+axum.workspace = true
+dotenvy.workspace = true
+chrono.workspace = true
+tracing.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sqlx.workspace = true
+utoipa.workspace = true
+askama.workspace = true
+axum-macros.workspace = true
+axum-login.workspace = true
+bcrypt.workspace = true
+serde_with.workspace = true
+thiserror.workspace = true
+tower.workspace = true
+tower-cookies.workspace = true
+tower-http.workspace = true
+tower-sessions.workspace = true
+tower-sessions-sqlx-store.workspace = true
+tracing-subscriber.workspace = true
+async-trait.workspace = true
+utoipa-rapidoc.workspace = true
+utoipa-redoc.workspace = true
+utoipa-swagger-ui.workspace = true

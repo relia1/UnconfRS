@@ -22,7 +22,7 @@ impl RegistrationRequest {
             email,
             password,
         }
-    }
+    }       
 }
 
 #[derive(Debug, Serialize)]
