@@ -46,6 +46,10 @@ impl SchedulerData {
                 if schedule_item.already_assigned {
                     continue;
                 } else {
+                    // If there are not anymore unassigned sessions we are done
+                    if self.unassigned_sessions.is_empty() {
+                        return;
+                    }
                     let (i, session) = self.unassigned_sessions
                         .iter()
                         .enumerate()
@@ -155,8 +159,12 @@ impl SchedulerData {
                     self.swap_with_unassigned_session(session_on_schedule1, unassigned_session_idx);
                     current_score = best_score;
                 },
-                None => break,
+                None => {
+                    continue;
+                },
             }
+
+            assert!(best_score >= current_score);
         }
 
         current_score
@@ -300,5 +308,402 @@ impl SchedulerData {
 
         self.unassigned_sessions[unassigned_idx].session_id = session1;
         self.unassigned_sessions[unassigned_idx].num_votes = votes1;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    mod common {
+        use super::*;
+        pub(crate) fn make_test_data(num_of_rooms: i32, num_of_time_slots: i32) -> SchedulerData {
+            let mut schedule_rows = Vec::new();
+
+            for time_slot in 1..=num_of_time_slots {
+                let mut schedule_items = Vec::new();
+                for room in 1..=num_of_rooms {
+                    schedule_items.push(RoomTimeAssignment {
+                        room_id: room,
+                        time_slot_id: time_slot,
+                        session_id: None,
+                        id: None,
+                        already_assigned: false,
+                        num_votes: 0,
+                    });
+                }
+                schedule_rows.push(ScheduleRow { schedule_items });
+            }
+
+            // Let there be 1/3 more sessions than spots on the schedule
+            let num_of_sessions: i32 = (((num_of_rooms * num_of_time_slots) as f32 * (4.0 / 3.0)) as i32) + 1;
+
+            let mut unassigned_sessions = Vec::new();
+            for i in 0..num_of_sessions {
+                unassigned_sessions.push(SessionVotes {
+                    session_id: Some(i),
+                    num_votes: 3 * (i / num_of_rooms),
+                });
+            }
+
+            SchedulerData {
+                schedule_rows,
+                capacity: num_of_rooms * num_of_time_slots,
+                unassigned_sessions,
+            }
+        }
+
+        pub(crate) fn make_test_data_with_preassigned(num_of_rooms: i32, num_of_time_slots: i32) -> SchedulerData {
+            let mut data = make_test_data(num_of_rooms, num_of_time_slots);
+
+            // Mark first session in the first time slot as already assigned
+            if let Some(first_schedule_row) = data.schedule_rows.first_mut() && let Some(session) = first_schedule_row.schedule_items.first_mut() {
+                session.already_assigned = true;
+                session.session_id = Some(999);
+            }
+
+            data
+        }
+    }
+    mod unit_tests {
+        use super::{common::*, *};
+        use approx::assert_relative_eq;
+        use std::collections::HashSet;
+
+
+        #[test]
+        fn test_randomly_fill_available_spots() {
+            // Creates an empty schedule with 4/3 * (num_rooms * num_time_slots) unassigned sessions
+            let mut data = make_test_data(3, 5);
+            let number_of_sessions = data.unassigned_sessions.len() as i32;
+            // Using the unassigned sessions fill in the schedule
+            data.randomly_fill_available_spots();
+
+            // Since we have an excess of sessions compared to available space on the schedule, the
+            // schedule should be entirely full
+            for row in &data.schedule_rows {
+                for item in &row.schedule_items {
+                    assert!(item.session_id.is_some());
+                }
+            }
+
+            // Make sure the number of unassigned sessions is the correct number
+            let expected_unassigned = number_of_sessions - data.capacity;
+
+            /*let formatted_schedule = data.schedule_rows
+                .iter()
+                .map(|row| {
+                    row.schedule_items
+                        .iter()
+                        .map(|session| session.num_votes.to_string())
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                })
+                .collect::<Vec<_>>()
+                .join("\n");
+
+            eprintln!("formatted schedule:\n {}", formatted_schedule);
+            eprintln!("current unassigned {:?}", data.unassigned_sessions);
+            */
+
+            assert_eq!(data.unassigned_sessions.len() as i32, expected_unassigned);
+        }
+
+        #[test]
+        fn test_no_duplicate_assignments() {
+            let mut data = make_test_data(3, 5);
+            data.randomly_fill_available_spots();
+            let mut sessions_on_schedule = HashSet::new();
+            for row in &data.schedule_rows {
+                for item in &row.schedule_items {
+                    if let Some(id) = item.session_id {
+                        assert!(sessions_on_schedule.insert(id), "Duplicate assignment {}", id);
+                    }
+                }
+            }
+        }
+
+        #[test]
+        fn test_fewer_sessions_than_spots() {
+            let mut data = make_test_data(3, 5);
+            // We need to remove some sessions from the unassigned list in order to not get a full schedule
+            data.unassigned_sessions.truncate(13);
+
+            data.randomly_fill_available_spots();
+
+            // Should have 13 sessions assigned and 2 empty spots
+            let assigned_count = data.schedule_rows
+                .iter()
+                .flat_map(|schedule_row| &schedule_row.schedule_items)
+                .filter(|session| session.session_id.is_some())
+                .count();
+
+            assert_eq!(assigned_count, 13);
+            assert_eq!(data.unassigned_sessions.len(), 0);
+        }
+
+        #[test]
+        fn test_swap_sessions() {
+            let mut data = make_test_data(3, 5);
+            data.randomly_fill_available_spots();
+
+            let pos1 = (0, 0);
+            let pos2 = (1, 1);
+
+            let session1_before = data.schedule_rows[pos1.0].schedule_items[pos1.1].session_id;
+            let votes1_before = data.schedule_rows[pos1.0].schedule_items[pos1.1].num_votes;
+            let session2_before = data.schedule_rows[pos2.0].schedule_items[pos2.1].session_id;
+            let votes2_before = data.schedule_rows[pos2.0].schedule_items[pos2.1].num_votes;
+
+            data.swap_sessions(pos1, pos2);
+
+            assert_eq!(data.schedule_rows[pos1.0].schedule_items[pos1.1].session_id, session2_before);
+            assert_eq!(data.schedule_rows[pos1.0].schedule_items[pos1.1].num_votes, votes2_before);
+            assert_eq!(data.schedule_rows[pos2.0].schedule_items[pos2.1].session_id, session1_before);
+            assert_eq!(data.schedule_rows[pos2.0].schedule_items[pos2.1].num_votes, votes1_before);
+        }
+
+        #[test]
+        fn test_swap_with_unassigned_session() {
+            let mut data = make_test_data(3, 5);
+            data.randomly_fill_available_spots();
+
+            let pos1 = (0, 0);
+            let unassigned_idx = 0;
+
+            let session1_before = data.schedule_rows[pos1.0].schedule_items[pos1.1].session_id;
+            let votes1_before = data.schedule_rows[pos1.0].schedule_items[pos1.1].num_votes;
+            let session2_before = data.unassigned_sessions[unassigned_idx].session_id;
+            let votes2_before = data.unassigned_sessions[unassigned_idx].num_votes;
+
+            data.swap_with_unassigned_session(pos1, unassigned_idx);
+
+            assert_eq!(data.schedule_rows[pos1.0].schedule_items[pos1.1].session_id, session2_before);
+            assert_eq!(data.schedule_rows[pos1.0].schedule_items[pos1.1].num_votes, votes2_before);
+            assert_eq!(data.unassigned_sessions[unassigned_idx].session_id, session1_before);
+            assert_eq!(data.unassigned_sessions[unassigned_idx].num_votes, votes1_before);
+        }
+
+        #[test]
+        fn test_is_swappable() {
+            let data = make_test_data_with_preassigned(3, 5);
+
+            // Already assigned position should not be swappable
+            assert!(!data.is_swappable((0, 0)));
+
+            // Positions not already assigned should be swappable
+            assert!(data.is_swappable((0, 1)));
+            assert!(data.is_swappable((1, 0)));
+        }
+
+        #[test]
+        fn test_penalize_conflicting_popular_sessions() {
+            let mut data = make_test_data(3, 3);
+            data.randomly_fill_available_spots();
+
+            // Time slot1
+            data.schedule_rows[0].schedule_items[0].num_votes = 10;
+            data.schedule_rows[0].schedule_items[1].num_votes = 8;
+            data.schedule_rows[0].schedule_items[2].num_votes = 5;
+
+            // Time slot 2
+            data.schedule_rows[1].schedule_items[0].num_votes = 3;
+            data.schedule_rows[1].schedule_items[1].num_votes = 7;
+            data.schedule_rows[1].schedule_items[2].num_votes = 5;
+
+            // Time slot 3
+            data.schedule_rows[2].schedule_items[0].num_votes = 4;
+            data.schedule_rows[2].schedule_items[1].num_votes = 0;
+            data.schedule_rows[2].schedule_items[2].num_votes = 7;
+
+            let penalty = data.penalize_conflicting_popular_sessions();
+            assert_eq!(penalty, 198);
+        }
+
+        #[test]
+        fn test_penalize_popular_sessions_missing() {
+            let data = SchedulerData {
+                schedule_rows: vec![],
+                capacity: 0,
+                unassigned_sessions: vec![
+                    SessionVotes { session_id: Some(1), num_votes: 10 },
+                    SessionVotes { session_id: Some(2), num_votes: 8 },
+                    SessionVotes { session_id: Some(3), num_votes: 12 },
+                    SessionVotes { session_id: Some(3), num_votes: 7 },
+                ],
+            };
+
+            let penalty = data.penalize_popular_sessions_missing();
+
+            assert_eq!(penalty, 256);
+        }
+
+        #[test]
+        fn test_penalize_late_popular_sessions() {
+            let mut data = make_test_data(3, 3);
+            data.randomly_fill_available_spots();
+
+            // Time slot1
+            data.schedule_rows[0].schedule_items[0].num_votes = 10;
+            data.schedule_rows[0].schedule_items[1].num_votes = 8;
+            data.schedule_rows[0].schedule_items[2].num_votes = 5;
+
+            // Time slot 2
+            data.schedule_rows[1].schedule_items[0].num_votes = 3;
+            data.schedule_rows[1].schedule_items[1].num_votes = 7;
+            data.schedule_rows[1].schedule_items[2].num_votes = 5;
+
+            // Time slot 3
+            data.schedule_rows[2].schedule_items[0].num_votes = 4;
+            data.schedule_rows[2].schedule_items[1].num_votes = 0;
+            data.schedule_rows[2].schedule_items[2].num_votes = 7;
+
+            let penalty = data.penalize_late_popular_sessions();
+
+            assert_eq!(penalty, 106);
+        }
+
+        #[test]
+        fn test_weight_scores() {
+            let data = make_test_data(2, 2);
+            let result = data.weight_scores(198, 256, 106);
+
+            // Expect: 0.3 * 198 + 0.5 * 256 + 0.2 * 106 = 59.4 + 128 + 21.2 = 208.6
+            assert_relative_eq!(result, 208.6);
+        }
+
+        #[test]
+        fn test_score_calculation() {
+            let mut data = make_test_data(3, 3);
+            data.randomly_fill_available_spots();
+            data.unassigned_sessions = vec![
+                SessionVotes { session_id: Some(1), num_votes: 10 },
+                SessionVotes { session_id: Some(2), num_votes: 8 },
+                SessionVotes { session_id: Some(3), num_votes: 12 },
+                SessionVotes { session_id: Some(3), num_votes: 7 },
+            ];
+
+            // Time slot1
+            data.schedule_rows[0].schedule_items[0].num_votes = 10;
+            data.schedule_rows[0].schedule_items[1].num_votes = 8;
+            data.schedule_rows[0].schedule_items[2].num_votes = 5;
+
+            // Time slot 2
+            data.schedule_rows[1].schedule_items[0].num_votes = 3;
+            data.schedule_rows[1].schedule_items[1].num_votes = 7;
+            data.schedule_rows[1].schedule_items[2].num_votes = 5;
+
+            // Time slot 3
+            data.schedule_rows[2].schedule_items[0].num_votes = 4;
+            data.schedule_rows[2].schedule_items[1].num_votes = 0;
+            data.schedule_rows[2].schedule_items[2].num_votes = 7;
+
+            let score = data.score();
+
+            assert_relative_eq!(score, 208.6);
+        }
+
+        #[test]
+        fn test_improve_reduces_score() {
+            let mut data = make_test_data(3, 5);
+            data.randomly_fill_available_spots();
+
+            let initial_score = data.score();
+            let final_score = data.improve();
+
+            // Score should be reduced or at least not worse
+            assert!(final_score <= initial_score);
+        }
+
+        #[test]
+        fn test_improve_preserves_already_assigned() {
+            let mut data = make_test_data_with_preassigned(3, 5);
+            let original_session_id = data.schedule_rows[0].schedule_items[0].session_id;
+            let original_num_votes = data.schedule_rows[0].schedule_items[0].num_votes;
+
+            data.improve();
+
+            // The already assigned session remains unchanged
+            assert_eq!(data.schedule_rows[0].schedule_items[0].session_id, original_session_id);
+            assert_eq!(data.schedule_rows[0].schedule_items[0].num_votes, original_num_votes);
+            assert!(data.schedule_rows[0].schedule_items[0].already_assigned);
+        }
+
+        #[test]
+        fn test_empty_schedule() {
+            let mut data = SchedulerData {
+                schedule_rows: vec![],
+                capacity: 0,
+                unassigned_sessions: vec![],
+            };
+
+            data.randomly_fill_available_spots();
+            let score = data.score();
+
+            assert_relative_eq!(score, 0.0);
+        }
+
+        #[test]
+        fn test_single_room_single_time_slot() {
+            let mut data = make_test_data(1, 1);
+            data.randomly_fill_available_spots();
+
+            assert!(data.schedule_rows[0].schedule_items[0].session_id.is_some());
+            assert!(data.unassigned_sessions.len() > 0);
+        }
+    }
+
+    #[cfg(test)]
+    mod scheduler_quality_tests {
+        use super::{common::*, *};
+        use approx::assert_relative_eq;
+
+        #[test]
+        fn test_improvement_over_random() {
+            let mut data = make_test_data(3, 5);
+            data.randomly_fill_available_spots();
+
+            let initial_score = data.score();
+            let final_score = data.improve();
+
+            assert!(final_score <= initial_score);
+        }
+
+        #[test]
+        fn test_optimal_scenario() {
+            let mut data = SchedulerData {
+                schedule_rows: vec![
+                    ScheduleRow {
+                        schedule_items: vec![
+                            RoomTimeAssignment { room_id: 1, time_slot_id: 1, session_id: None, id: None, already_assigned: false, num_votes: 0 },
+                            RoomTimeAssignment { room_id: 2, time_slot_id: 1, session_id: None, id: None, already_assigned: false, num_votes: 0 },
+                            RoomTimeAssignment { room_id: 3, time_slot_id: 1, session_id: None, id: None, already_assigned: false, num_votes: 0 },
+                        ]
+                    },
+                    ScheduleRow {
+                        schedule_items: vec![
+                            RoomTimeAssignment { room_id: 1, time_slot_id: 2, session_id: None, id: None, already_assigned: false, num_votes: 0 },
+                            RoomTimeAssignment { room_id: 2, time_slot_id: 2, session_id: None, id: None, already_assigned: false, num_votes: 0 },
+                            RoomTimeAssignment { room_id: 3, time_slot_id: 2, session_id: None, id: None, already_assigned: false, num_votes: 0 },
+                        ]
+                    },
+                ],
+                capacity: 6,
+                unassigned_sessions: vec![
+                    SessionVotes { session_id: Some(1), num_votes: 12 },
+                    SessionVotes { session_id: Some(2), num_votes: 10 },
+                    SessionVotes { session_id: Some(3), num_votes: 8 },
+                    SessionVotes { session_id: Some(4), num_votes: 6 },
+                    SessionVotes { session_id: Some(5), num_votes: 4 },
+                    SessionVotes { session_id: Some(6), num_votes: 2 },
+                ],
+            };
+
+            let final_score = data.improve();
+
+            // All sessions should be scheduled
+            assert_eq!(data.unassigned_sessions.len(), 0);
+            assert_relative_eq!(final_score, 66.40);
+        }
     }
 }
