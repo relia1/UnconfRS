@@ -138,7 +138,7 @@ impl BruteForceScheduler for scheduler::SchedulerData {
                     }
 
                     let used_sessions: std::collections::HashSet<_> = permutation.iter()
-                        .map(|s| (s.0, s.1))
+                        .map(|session| (session.0, session.1))
                         .collect();
 
                     for session in &all_sessions {
