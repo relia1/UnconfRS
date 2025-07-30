@@ -99,20 +99,28 @@ impl BruteForceScheduler for scheduler::SchedulerData {
 
         println!("Sessions: {}, Slots: {}\n", num_sessions, num_slots);
 
+        // Calculate capacity for each time slot
+        let time_slot_capacities = get_time_slot_capacities(self, &swappable_positions);
+
         println!("Creating C({}, {}) combinations", num_sessions, num_slots);
-        // Get all combinations of the number of spots on the schedule
         let combinations: Vec<_> = all_sessions.iter()
             .combinations(num_slots)
             .collect();
 
-        println!("Combinations created: {}\n", combinations.len());
+        println!("Combinations created: {}\n", combinations.len().to_formatted_string(&Locale::en));
 
-        println!("Processing the {} combinations in parallel ({} permutations sequentially within each thread)", combinations.len(), factorial(num_slots).to_formatted_string(&Locale::en));
+        // Calculate total assignments
+        let total_assignments = combinations.len() *
+            num_of_ways_to_group(num_slots, &time_slot_capacities);
+
+        println!("Processing {} combinations with {} time slot assignments each = {} total assignments",
+            combinations.len().to_formatted_string(&Locale::en),
+            num_of_ways_to_group(num_slots, &time_slot_capacities).to_formatted_string(&Locale::en),
+            total_assignments.to_formatted_string(&Locale::en));
+
         let best_data = std::sync::Mutex::new((f32::MAX, self.clone()));
         let worst_data = std::sync::Mutex::new((f32::MIN, self.clone()));
 
-        // For each combination in parallel create serially all permutations and score them while
-        // collecting statistics on best/worst scores/schedules
         let results: Vec<f32> = combinations
             .par_iter()
             .flat_map(|combination| {
@@ -120,29 +128,35 @@ impl BruteForceScheduler for scheduler::SchedulerData {
                     .map(|&&x| x)
                     .collect();
 
-                // Process all permutations of this combination sequentially within this thread
-                // Each thread will have its own local best/worst scores/schedules and will sync up
-                // with the 'global' mutex's after they have performed their local work
                 let mut local_best = (f32::MAX, self.clone());
                 let mut local_worst = (f32::MIN, self.clone());
                 let mut scores = Vec::new();
 
-                for permutation in combination_values.clone().into_iter().permutations(num_slots) {
+                // Generate all the ways to assign sessions to time slots
+                let time_slot_assignments = generate_time_slot_assignments(
+                    self,
+                    &combination_values,
+                    &time_slot_capacities,
+                    &swappable_positions,
+                );
+
+                for assignment in time_slot_assignments {
                     let mut test_data = self.clone();
                     test_data.unassigned_sessions.clear();
 
-                    for (i, &session) in permutation.iter().enumerate() {
-                        let (row, col) = swappable_positions[i];
-                        test_data.schedule_rows[row].schedule_items[col].session_id = session.0;
-                        test_data.schedule_rows[row].schedule_items[col].num_votes = session.1;
+                    // Apply the assignment
+                    for (session, (row, col)) in assignment.iter() {
+                        test_data.schedule_rows[*row].schedule_items[*col].session_id = session.0;
+                        test_data.schedule_rows[*row].schedule_items[*col].num_votes = session.1;
                     }
 
-                    let used_sessions: std::collections::HashSet<_> = permutation.iter()
-                        .map(|session| (session.0, session.1))
+                    // Add unused sessions to unassigned
+                    let used_sessions: std::collections::HashSet<_> = assignment.iter()
+                        .map(|(session, _)| *session)
                         .collect();
 
-                    for session in &all_sessions {
-                        if !used_sessions.contains(session) {
+                    for &session in &all_sessions {
+                        if !used_sessions.contains(&session) {
                             test_data.unassigned_sessions.push(SessionVotes {
                                 session_id: session.0,
                                 num_votes: session.1,
@@ -153,7 +167,6 @@ impl BruteForceScheduler for scheduler::SchedulerData {
                     let score = test_data.score();
                     scores.push(score);
 
-                    // Update this thread's best/worst score/schedule
                     if score < local_best.0 {
                         local_best = (score, test_data.clone());
                     }
@@ -163,7 +176,7 @@ impl BruteForceScheduler for scheduler::SchedulerData {
                     }
                 }
 
-                // Update the global best/worst score/schedule
+                // Update global best/worst
                 {
                     let mut best = best_data.lock().unwrap();
                     if local_best.0 < best.0 {
@@ -193,6 +206,125 @@ impl BruteForceScheduler for scheduler::SchedulerData {
             worst_score: worst.0,
         }
     }
+}
+
+// Get the number of swappable positions for each time slot
+fn get_time_slot_capacities(
+    data: &scheduler::SchedulerData,
+    swappable_positions: &[(usize, usize)],
+) -> Vec<usize> {
+    let mut capacities = vec![0; data.schedule_rows.len()];
+    for &(row, _) in swappable_positions {
+        capacities[row] += 1;
+    }
+    capacities
+}
+
+// Generate all the ways to assign sessions to time slots
+// Returns a vector of schedule assignments
+fn generate_time_slot_assignments(
+    data: &scheduler::SchedulerData,
+    sessions: &[(Option<i32>, i32)],
+    time_slot_capacities: &[usize],
+    swappable_positions: &[(usize, usize)],
+) -> Vec<Vec<((Option<i32>, i32), (usize, usize))>> {
+    let mut result = Vec::new();
+
+    // Group swappable positions by time slot
+    let mut positions_by_time_slot: Vec<Vec<(usize, usize)>> = vec![Vec::new(); data.schedule_rows.len()];
+    for &pos in swappable_positions {
+        positions_by_time_slot[pos.0].push(pos);
+    }
+
+    // Track which sessions have been assigned
+    let mut used = vec![false; sessions.len()];
+    let mut current_assignment = Vec::new();
+
+    generate_assignments_recursive(
+        sessions,
+        time_slot_capacities,
+        &positions_by_time_slot,
+        &mut current_assignment,
+        &mut used,
+        0,
+        &mut result,
+    );
+
+    result
+}
+
+// Recursively generate assignments using backtracking
+fn generate_assignments_recursive(
+    sessions: &[(Option<i32>, i32)],
+    capacities: &[usize],
+    positions_by_time_slot: &[Vec<(usize, usize)>],
+    current_assignment: &mut Vec<((Option<i32>, i32), (usize, usize))>,
+    used: &mut Vec<bool>,
+    time_slot_idx: usize,
+    result: &mut Vec<Vec<((Option<i32>, i32), (usize, usize))>>,
+) {
+    // We've assigned sessions to all time slots
+    if time_slot_idx >= capacities.len() {
+        result.push(current_assignment.clone());
+        return;
+    }
+
+    let capacity = capacities[time_slot_idx];
+
+    // If the time slot does not have capacity move on to the next
+    if capacity == 0 {
+        generate_assignments_recursive(sessions, capacities, positions_by_time_slot, current_assignment, used, time_slot_idx + 1, result);
+        return;
+    }
+
+    // Find sessions that have not been assigned yet
+    let available_sessions: Vec<usize> = used.iter()
+        .enumerate()
+        .filter_map(|(i, &is_used)| {
+            if !is_used {
+                Some(i)
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    // Generate all combinations of sessions for this time slot based on the capacity of the timeslot
+    for combination in available_sessions.into_iter().combinations(capacity) {
+        // Mark sessions as used
+        for &idx in &combination {
+            used[idx] = true;
+        }
+
+        // Assign sessions to positions in the time slot
+        for (i, &session_idx) in combination.iter().enumerate() {
+            let session = sessions[session_idx];
+            let position = positions_by_time_slot[time_slot_idx][i];
+            current_assignment.push((session, position));
+        }
+
+        // Recurse to next time slot
+        generate_assignments_recursive(sessions, capacities, positions_by_time_slot, current_assignment, used, time_slot_idx + 1, result);
+
+        // Backtrack: remove assignments and mark sessions as unused
+        for _ in 0..capacity {
+            current_assignment.pop();
+        }
+        for &idx in &combination {
+            used[idx] = false;
+        }
+    }
+}
+
+// Calculates the number of ways to divide n items into groups of given capacities
+fn num_of_ways_to_group(n: usize, capacities: &[usize]) -> usize {
+    let mut result = factorial(n);
+    for &capacity in capacities {
+        if capacity > 0 {
+            result /= factorial(capacity);
+        }
+    }
+    result
 }
 
 fn factorial(number: usize) -> usize {
