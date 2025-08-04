@@ -6,3 +6,5 @@ pub mod timeslot_handler;
 pub mod sessions_handler;
 pub mod registration_handler;
 pub mod session_voting_handler;
+pub mod session_tags_handler;
+pub mod tags_handler;

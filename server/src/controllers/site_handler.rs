@@ -5,6 +5,7 @@ use crate::models::room_model::{rooms_get, Room};
 use crate::models::schedule_model::{schedules_get, Schedule};
 use crate::models::session_voting_model::get_sessions_user_voted_for;
 use crate::models::sessions_model::{get_all_sessions, Session};
+use crate::models::tags_model::{get_all_tags, Tag};
 use crate::models::timeslot_model::{timeslot_get, ExistingTimeslot, TimeslotAssignment};
 use askama::Template;
 use axum::extract::State;
@@ -358,15 +359,25 @@ pub(crate) async fn unconf_timeslots_handler(State(app_state): State<Arc<RwLock<
 struct ConfigTemplate {
     permissions: HashSet<Permission>,
     is_authenticated: bool,
+    tags: Vec<Tag>,
 }
 #[debug_handler]
 pub(crate) async fn config_handler(State(app_state): State<Arc<RwLock<AppState>>>, Extension(auth_info): Extension<AuthInfo>) -> Response {
     let app_state_lock = app_state.read().await;
-    let _read_lock = &app_state_lock.unconf_data.read().await.unconf_db;
+    let read_lock = &app_state_lock.unconf_data.read().await.unconf_db;
+
+    let tags = match get_all_tags(read_lock).await {
+        Ok(tags) => tags,
+        Err(e) => {
+            tracing::info!("Error getting tags: {}", e);
+            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+        }
+    };
 
     let template = ConfigTemplate {
         permissions: auth_info.permissions,
         is_authenticated: auth_info.is_authenticated,
+        tags,
     };
 
     match template.render() {

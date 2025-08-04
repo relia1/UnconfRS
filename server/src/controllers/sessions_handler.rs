@@ -214,11 +214,12 @@ pub async fn delete_session(
 pub async fn update_session(
     State(app_state): State<Arc<RwLock<AppState>>>,
     Path(session_id): Path<i32>,
+    auth_session: AuthSessionLayer,
     Json(session): Json<Session>,
 ) -> Response {
     let app_state_lock = app_state.read().await;
     let write_lock = &app_state_lock.unconf_data.read().await.unconf_db;
-    match update(write_lock, session_id, session).await {
+    match update(write_lock, session_id, session, auth_session).await {
         Ok(_) => StatusCode::OK.into_response(),
         Err(e) => SessionError::response(ApiStatusCode::from(StatusCode::BAD_REQUEST), e),
     }

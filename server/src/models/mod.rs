@@ -5,3 +5,5 @@ pub mod timeslot_assignment_model;
 pub mod timeslot_model;
 pub mod sessions_model;
 pub mod session_voting_model;
+pub mod session_tags_model;
+pub mod tags_model;

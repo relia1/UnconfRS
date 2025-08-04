@@ -283,24 +283,52 @@ pub async fn update(
     db_pool: &Pool<Postgres>,
     index: i32,
     session: Session,
+    auth_session: AuthSessionLayer,
 ) -> Result<Session, Box<dyn Error>> {
-    let title = session.title;
-    let content = session.content;
-
-    let mut session_to_update = get(db_pool, index).await?;
-    session_to_update.title.clone_from(&title);
-    session_to_update.content.clone_from(&content);
-
-    sqlx::query!(
-        "UPDATE sessions SET title = $1, content = $2 WHERE id = $3",
-        title,
-        content,
+    let session_to_update = sqlx::query_as!(
+        Session,
+        "SELECT * FROM sessions where id = $1",
         index,
     )
-        .execute(db_pool)
+        .fetch_optional(db_pool)
         .await?;
 
-    Ok(session_to_update)
+    // The unwrap() here should be fine since by this point they have already been verified valid users
+    let is_staff_or_admin = auth_session.backend.has_superuser_or_staff_perms(&auth_session.user.clone().unwrap()).await?;
+    tracing::info!("Updating session: {:?}, is_staff_or_admin: {:?}", session_to_update, is_staff_or_admin);
+
+    match session_to_update {
+        Some(mut session_to_update) => {
+            if is_staff_or_admin {
+                sqlx::query!(
+                    "UPDATE sessions SET title = $1, content = $2 WHERE id = $3",
+                    &session.title,
+                    &session.content,
+                    index,
+                )
+                    .execute(db_pool)
+                    .await?;
+            } else {
+                is_users_resource(&session_to_update, &auth_session).await?;
+                sqlx::query!(
+                    "UPDATE sessions SET title = $1, content = $2 WHERE id = $3",
+                    &session.title,
+                    &session.content,
+                    index,
+                )
+                    .execute(db_pool)
+                    .await?;
+            }
+
+            session_to_update.content = session.content;
+            session_to_update.title = session.title;
+            Ok(session_to_update)
+        }
+        None => {
+            // In theory this shouldn't happen
+            Err(Box::new(SessionErr::DoesNotExist("Cannot find session to update".to_string())))
+        }
+    }
 }
 
 
