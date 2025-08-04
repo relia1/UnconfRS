@@ -200,7 +200,7 @@ pub async fn create_tag(db_pool: &Pool<Postgres>, auth_session: AuthSessionLayer
         )));
     }
 
-    if let Ok(_) = get_tag_by_name(db_pool, tag_name).await {
+    if get_tag_by_name(db_pool, tag_name).await.is_ok() {
         return Err(Box::new(TagErr::TagAlreadyExists(tag_name.to_string())));
     }
 
