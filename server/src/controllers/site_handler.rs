@@ -173,7 +173,7 @@ pub(crate) async fn schedule_handler(State(app_state): State<Arc<RwLock<AppState
         let populated_session_ids: Vec<i32> = events.iter().map(|event| event.session_id).collect();
         let unpopulated_sessions = query_as!(
             Session,
-            "SELECT * FROM sessions WHERE NOT (id = ANY($1))",
+            "SELECT id, user_id, title, content, votes, NULL::INTEGER as tag_id FROM sessions WHERE NOT (id = ANY($1))",
             &populated_session_ids,
         )
             .fetch_all(read_lock)
@@ -213,6 +213,19 @@ struct SessionsTemplate {
     current_users_voted_sessions: Vec<i32>,
     is_authenticated: bool,
     permissions: HashSet<Permission>,
+    tags: Vec<Tag>,
+}
+
+impl SessionsTemplate {
+    pub fn resolve_tag_names(&self, tag_ids: &[i32]) -> Vec<String> {
+        tag_ids.iter()
+            .filter_map(|tag_id| {
+                self.tags.iter()
+                    .find(|tag| tag.id == *tag_id)
+                    .map(|tag| tag.tag_name.clone())
+            })
+            .collect()
+    }
 }
 
 #[derive(Debug, Deserialize, FromRow)]
@@ -231,6 +244,7 @@ pub struct SessionAndUser {
     pub fname: String,
     pub lname: String,
     pub email: String,
+    pub tag_ids: Vec<i32>,
 }
 
 
@@ -251,10 +265,21 @@ pub async fn combine_session_and_user(
 ) -> Result<Vec<SessionAndUser>, Box<dyn Error>> {
     let session_with_user: Vec<SessionAndUser> = sqlx::query_as!(
         SessionAndUser,
-        "SELECT t.id as \"session_id\", t.title, t.content, \
-        u.id as \"user_id\", u.fname, u.lname, u.email \
-        FROM sessions t \
-        JOIN users u ON u.id = t.user_id",
+        "SELECT s.id as \"session_id\",
+                s.title, \
+                s.content, \
+                u.id as \"user_id\", \
+                u.fname, \
+                u.lname, \
+                u.email, \
+                COALESCE(
+                    array_agg(st.tag_id) FILTER (WHERE st.tag_id IS NOT NULL),
+                    ARRAY[]::integer[]
+                ) as \"tag_ids!\" \
+        FROM sessions s \
+        JOIN users u ON u.id = s.user_id
+        LEFT JOIN session_tags st on s.id = st.session_id
+        GROUP BY s.id, u.id",
     )
         .fetch_all(db_pool)
         .await?;
@@ -289,7 +314,9 @@ pub(crate) async fn session_handler(
     } else {
         Vec::<i32>::new()
     };
-    let sessions_with_user_info = combine_session_and_user(write_lock).await;
+    let tags = get_all_tags(&write_lock.clone()).await.unwrap_or_default();
+    let sessions_with_user_info = combine_session_and_user(&write_lock.clone()).await;
+
 
 
     match sessions_with_user_info {
@@ -299,6 +326,7 @@ pub(crate) async fn session_handler(
                 current_users_voted_sessions,
                 is_authenticated,
                 permissions,
+                tags,
             };
 
             match template.render() {

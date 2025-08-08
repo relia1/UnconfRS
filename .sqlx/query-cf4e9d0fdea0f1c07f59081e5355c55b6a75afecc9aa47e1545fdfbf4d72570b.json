@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT * FROM sessions WHERE NOT (id = ANY($1))",
+  "query": "SELECT id, user_id, title, content, votes, NULL::INTEGER as tag_id FROM sessions WHERE NOT (id = ANY($1))",
   "describe": {
     "columns": [
       {
@@ -27,6 +27,11 @@
         "ordinal": 4,
         "name": "votes",
         "type_info": "Int4"
+      },
+      {
+        "ordinal": 5,
+        "name": "tag_id",
+        "type_info": "Int4"
       }
     ],
     "parameters": {
@@ -39,8 +44,9 @@
       false,
       false,
       false,
-      false
+      false,
+      null
     ]
   },
-  "hash": "403f702218466d3751e11ed11ef2a296c3794ddd73a38457cabd59817a555508"
+  "hash": "cf4e9d0fdea0f1c07f59081e5355c55b6a75afecc9aa47e1545fdfbf4d72570b"
 }

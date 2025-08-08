@@ -1,6 +1,6 @@
 use crate::config::AppState;
 use crate::middleware::auth::AuthSessionLayer;
-use crate::models::session_tags_model::{add_session_tag, remove_session_tag, SessionTagError};
+use crate::models::session_tags_model::{add_session_tag, remove_session_tag, update_session_tag, SessionTagError};
 use crate::models::tags_model::Tag;
 use crate::types::ApiStatusCode;
 use axum::extract::Path;
@@ -22,6 +22,12 @@ pub struct AddTagToSessionRequest {
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct RemoveTagFromSessionRequest {
     pub tag_id: i32,
+}
+
+#[derive(Debug, Deserialize, ToSchema)]
+pub struct UpdateTagForSessionRequest {
+    pub old_tag_id: i32,
+    pub new_tag_id: i32,
 }
 
 #[utoipa::path(
@@ -123,6 +129,62 @@ pub async fn remove_tag_for_session(
         Err(e) => {
             let status = if e.to_string().contains("NonExistentTag") || e.to_string().contains("not found") {
                 StatusCode::NOT_FOUND
+            } else if e.to_string().contains("does not have access") {
+                StatusCode::FORBIDDEN
+            } else {
+                StatusCode::BAD_REQUEST
+            };
+            SessionTagError::response(ApiStatusCode::from(status), e)
+        }
+    }
+}
+
+#[utoipa::path(
+    put,
+    path = "/api/v1/sessions/{session_id}/tags",
+    request_body = UpdateTagForSessionRequest,
+    responses(
+        (status = 200, description = "Tag updated for session", body = [Tag]),
+        (status = 404, description = "Old tag not found on session", body = SessionTagError),
+        (status = 409, description = "New tag already applied to session", body = SessionTagError),
+        (status = 403, description = "Unauthorized access", body = SessionTagError),
+    )
+)]
+#[debug_handler]
+/// Updates a tag for a session
+///
+/// This function is a handler for the route `PUT /api/v1/sessions/{session_id}/tags`.
+/// It updates a session's tag by replacing an old tag with a new one atomically.
+///
+/// # Parameters
+/// - `app_state` - Thread-safe shared state wrapped in an Arc and RwLock
+/// - `auth_session` - Authentication session for authorization
+/// - `session_id` - The id of the session to update the tag for
+/// - `request` - JSON body containing the old and new tag IDs
+///
+/// # Returns
+/// `Response` with a status code of 200 OK and the updated list of tags for the session,
+/// or an error response if the tag could not be updated.
+///
+/// # Errors
+/// If an error occurs while updating the tag (old tag not found, new tag already applied, 
+/// unauthorized access, etc.), a session tag error response is returned.
+pub async fn update_tag_for_session(
+    State(app_state): State<Arc<RwLock<AppState>>>,
+    auth_session: AuthSessionLayer,
+    Path(session_id): Path<i32>,
+    Json(request): Json<UpdateTagForSessionRequest>,
+) -> Response {
+    let app_state_lock = app_state.read().await;
+    let db_pool = &app_state_lock.unconf_data.read().await.unconf_db;
+
+    match update_session_tag(db_pool, auth_session, session_id, request.old_tag_id, request.new_tag_id).await {
+        Ok(session_tags) => (StatusCode::OK, Json(session_tags)).into_response(),
+        Err(e) => {
+            let status = if e.to_string().contains("not found") {
+                StatusCode::NOT_FOUND
+            } else if e.to_string().contains("already applied") {
+                StatusCode::CONFLICT
             } else if e.to_string().contains("does not have access") {
                 StatusCode::FORBIDDEN
             } else {

@@ -2,7 +2,7 @@ use crate::config::AppState;
 use crate::controllers::registration_handler::registration_handler;
 use crate::controllers::schedule_handler::{add_session_to_schedule, remove_session_from_schedule};
 use crate::controllers::tags_handler::{create_tag, delete_tag, update_tag};
-use crate::controllers::{login_handler::{login_handler, logout_handler}, room_handler::{delete_room, post_rooms, rooms}, schedule_handler::{clear, generate}, session_voting_handler::{add_vote_for_session, subtract_vote_for_session}, sessions_handler::{
+use crate::controllers::{login_handler::{login_handler, logout_handler}, room_handler::{delete_room, post_rooms, rooms}, schedule_handler::{clear, generate}, session_tags_handler::{add_tag_for_session, remove_tag_for_session, update_tag_for_session}, session_voting_handler::{add_vote_for_session, subtract_vote_for_session}, sessions_handler::{
     delete_session, get_session, post_session, sessions, update_session,
 }, timeslot_handler::{add_timeslots, swap_timeslots, update_timeslot}};
 use crate::middleware::auth::{auth_middleware, current_user_handler};
@@ -44,6 +44,7 @@ pub fn get_routes(app_state: &Arc<RwLock<AppState>>) -> Router<Arc<RwLock<AppSta
         .route("/sessions/{id}", put(update_session))
         .route("/sessions/{id}/increment", put(add_vote_for_session))
         .route("/sessions/{id}/decrement", put(subtract_vote_for_session))
+        .route("/sessions/{id}/tags", post(add_tag_for_session).put(update_tag_for_session).delete(remove_tag_for_session))
         .route_layer(from_fn_with_state(app_state.clone(), auth_middleware));
 
     let admin_routes = Router::new()

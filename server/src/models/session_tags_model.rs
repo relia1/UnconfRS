@@ -197,6 +197,96 @@ pub async fn remove_session_tag(
     get_tags_for_session(db_pool, session_id).await
 }
 
+/// Updates a session's tag
+///
+/// # Parameters
+/// - `db_pool`: The database connection pool
+/// - `auth_session`: Authentication session for authorization
+/// - `session_id`: The ID of the session to update
+/// - `old_tag_id`: The ID of the tag to replace
+/// - `new_tag_id`: The ID of the new tag
+///
+/// # Returns
+/// The updated list of tags for the session or an error if the operation fails.
+///
+/// # Errors
+/// If the operation fails due to authorization, old tag not found, new tag already applied, etc.
+pub async fn update_session_tag(
+    db_pool: &Pool<Postgres>,
+    auth_session: AuthSessionLayer,
+    session_id: i32,
+    old_tag_id: i32,
+    new_tag_id: i32,
+) -> Result<Vec<Tag>, Box<dyn Error>> {
+    // The unwrap() here should be fine since by this point they have already been verified valid users
+    let is_staff_or_admin = auth_session
+        .backend
+        .has_superuser_or_staff_perms(&auth_session.user.clone().unwrap())
+        .await?;
+
+    let session = sessions_model::get(db_pool, session_id).await?;
+
+    tracing::info!("Updating tag for session: {:?}, changing tag {} to {}, is_staff_or_admin: {:?}", 
+                  session_id, old_tag_id, new_tag_id, is_staff_or_admin);
+
+    // Get current tags for the session
+    let current_tags = get_tags_for_session(db_pool, session_id).await?;
+
+    // Check if old tag is currently applied
+    if !current_tags.iter().any(|tag| tag.id == old_tag_id) {
+        return Err(Box::new(SessionTagErr::NonExistentTag(
+            format!("Session {session_id} does not have tag with id: {old_tag_id}")
+        )));
+    }
+
+    // Check if new tag is already applied (and is different from old tag)
+    if old_tag_id != new_tag_id && current_tags.iter().any(|tag| tag.id == new_tag_id) {
+        return Err(Box::new(SessionTagErr::AlreadyAppliedTagForSession(
+            format!("Session {session_id} already has tag with id: {new_tag_id}")
+        )));
+    }
+
+    // Verify the new tag exists
+    let looked_up_tag_id = sqlx::query_scalar!(
+        "SELECT id FROM tags WHERE id = $1",
+        new_tag_id
+    )
+        .fetch_optional(db_pool)
+        .await?;
+
+    match looked_up_tag_id {
+        Some(_id) => {}
+        None => {
+            return Err(Box::new(SessionTagErr::NonExistentTag(new_tag_id.to_string())));
+        }
+    };
+
+    if is_staff_or_admin {
+        // Update the tag
+        sqlx::query!(
+            "UPDATE session_tags SET tag_id = $1 WHERE session_id = $2 AND tag_id = $3",
+            new_tag_id,
+            session_id,
+            old_tag_id,
+        )
+            .execute(db_pool)
+            .await?;
+    } else {
+        is_users_resource(&session, &auth_session).await?;
+        // Update the tag
+        sqlx::query!(
+            "UPDATE session_tags SET tag_id = $1 WHERE session_id = $2 AND tag_id = $3",
+            new_tag_id,
+            session_id,
+            old_tag_id,
+        )
+            .execute(db_pool)
+            .await?;
+    }
+
+    get_tags_for_session(db_pool, session_id).await
+}
+
 pub async fn get_tags_for_session(db_pool: &Pool<Postgres>, session_id: i32) -> Result<Vec<Tag>, Box<dyn Error>> {
     let session_tags = sqlx::query_as!(
         Tag,

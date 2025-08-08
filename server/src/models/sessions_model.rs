@@ -83,6 +83,7 @@ impl SessionError {
 /// - `title` - The title of the session
 /// - `content` - The content of the session
 /// - `votes` - The number of votes the session has
+/// - `tag_id` - Optional tag ID for the session
 pub struct Session {
     pub id: Option<i32>,
     #[serde(skip_deserializing)]
@@ -91,6 +92,7 @@ pub struct Session {
     pub content: String,
     #[serde(skip_deserializing)]
     pub votes: i32,
+    pub tag_id: Option<i32>,
 }
 
 impl Session {
@@ -101,10 +103,11 @@ impl Session {
     /// - `title`: The title of the session
     /// - `content`: The content of the session
     /// - `votes`: The number of votes the session has
+    /// - `tag_id`: Optional tag ID for the session
     ///
     /// # Returns
     /// A new `Session` instance
-    pub fn new(id: Option<i32>, user_id: i32, title: &str, content: &str) -> Self {
+    pub fn new(id: Option<i32>, user_id: i32, title: &str, content: &str, tag_id: Option<i32>) -> Self {
         let title = title.into();
         let content = content.into();
         Self {
@@ -113,6 +116,7 @@ impl Session {
             title,
             content,
             votes: 0,
+            tag_id,
         }
     }
 }
@@ -148,7 +152,7 @@ pub async fn get_all_sessions(db_pool: &Pool<Postgres>) -> Result<Vec<Session>, 
     let sessions: Vec<Session> = sqlx::query_as!(
         Session,
         r"
-        SELECT * FROM sessions",
+        SELECT id, user_id, title, content, votes, NULL::INTEGER as tag_id FROM sessions",
     )
         .fetch_all(db_pool)
         .await?;
@@ -171,7 +175,7 @@ pub async fn get_all_sessions(db_pool: &Pool<Postgres>) -> Result<Vec<Session>, 
 pub async fn get(db_pool: &Pool<Postgres>, index: i32) -> Result<Session, Box<dyn Error>> {
     let session = sqlx::query_as!(
         Session,
-        "SELECT * FROM sessions where id = $1",
+        "SELECT id, user_id, title, content, votes, NULL::INTEGER as tag_id FROM sessions where id = $1",
         index,
     )
         .fetch_one(db_pool)
@@ -194,13 +198,19 @@ pub async fn get(db_pool: &Pool<Postgres>, index: i32) -> Result<Session, Box<dy
 pub async fn add(db_pool: &Pool<Postgres>, session: Session, auth_session: AuthSessionLayer) -> Result<i32, Box<dyn Error>> {
     let session_id = sqlx::query_scalar!(
         "INSERT INTO sessions (user_id, title, content, votes) VALUES ($1, $2, $3, $4) RETURNING id",
-        auth_session.user.unwrap().id,
+        auth_session.user.as_ref().unwrap().id,
         session.title,
         session.content,
         session.votes,
     )
         .fetch_one(db_pool)
         .await?;
+
+    // If a tag was provided, add it to the session
+    if let Some(tag_id) = session.tag_id {
+        use crate::models::session_tags_model::add_session_tag;
+        add_session_tag(db_pool, auth_session, session_id, tag_id).await?;
+    }
 
     Ok(session_id)
 }
@@ -228,7 +238,7 @@ pub(crate) async fn is_users_resource(session: &Session, auth_session: &AuthSess
 pub async fn delete(db_pool: &Pool<Postgres>, index: i32, auth_session: AuthSessionLayer) -> Result<(), Box<dyn Error>> {
     let session = sqlx::query_as!(
         Session,
-        "SELECT * FROM sessions where id = $1",
+        "SELECT id, user_id, title, content, votes, NULL::INTEGER as tag_id FROM sessions where id = $1",
         index,
     )
         .fetch_optional(db_pool)
@@ -287,7 +297,7 @@ pub async fn update(
 ) -> Result<Session, Box<dyn Error>> {
     let session_to_update = sqlx::query_as!(
         Session,
-        "SELECT * FROM sessions where id = $1",
+        "SELECT id, user_id, title, content, votes, NULL::INTEGER as tag_id FROM sessions where id = $1",
         index,
     )
         .fetch_optional(db_pool)

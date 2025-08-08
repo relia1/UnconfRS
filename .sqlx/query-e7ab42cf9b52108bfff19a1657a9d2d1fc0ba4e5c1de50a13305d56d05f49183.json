@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE session_tags SET tag_id = $1 WHERE session_id = $2 AND tag_id = $3",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Int4",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "e7ab42cf9b52108bfff19a1657a9d2d1fc0ba4e5c1de50a13305d56d05f49183"
+}
