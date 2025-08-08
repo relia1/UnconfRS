@@ -6,3 +6,12 @@
     <label for="sessionContent">Content:</label>
     <textarea id="sessionContent" name="sessionContent" required></textarea>
 </div>
+<div class="form-field">
+    <label for="tagSelect">Tag (optional):</label>
+    <select id="tagSelect" name="tagSelect">
+        <option value="">No tag</option>
+        {% for tag in tags %}
+        <option value="{{ tag.id }}">{{ tag.tag_name }}</option>
+        {% endfor %}
+    </select>
+</div>

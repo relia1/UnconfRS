@@ -3,6 +3,7 @@ set('sessions_voted_for', current_users_voted_sessions);
 
 let currentUserId = null;
 let currentSessionId = null;
+let currentTagId = null;
 
 document.addEventListener('DOMContentLoaded', function () {
     let table = new DataTable('.sessionsTable', {
@@ -17,6 +18,7 @@ document.addEventListener('DOMContentLoaded', function () {
             {data: 'title'},
             {data: 'name'},
             {data: 'email'},
+          {data: 'tags'},
             {
                 data: null,
                 defaultContent: '<button class="del-btn btn-action"' +
@@ -146,35 +148,89 @@ document.addEventListener('DOMContentLoaded', function () {
         event.preventDefault();
         const title = document.getElementById('title').value;
         const content = document.getElementById('sessionContent').value;
+      const newTagId = parseInt(document.getElementById('tagSelect').value) ?? null;
         const isEdit  = currentSessionId !== null;
 
         let response;
         if (isEdit) {
             try {
+              // Update session title and content
                 response = await fetch(`/api/v1/sessions/${currentSessionId}`, {
                     method:  'PUT',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body:    JSON.stringify({user_id, title, content}),
+                  body: JSON.stringify({user_id: currentUserId, title, content}),
                 });
 
                 if (!response.ok) {
                     const error = await response.json();
                     throw new Error(error.error);
                 }
+
+              // Handle tag changes
+              if (newTagId !== currentTagId) {
+                let tagResponse;
+                if (newTagId && currentTagId) {
+                  // Update existing tag to new tag
+                  tagResponse = await fetch(`/api/v1/sessions/${currentSessionId}/tags`, {
+                    method:  'PUT',
+                    headers: {
+                      'Content-Type': 'application/json',
+                    },
+                    body:    JSON.stringify({
+                      old_tag_id: currentTagId,
+                      new_tag_id: newTagId,
+                    }),
+                  });
+                } else if (currentTagId && !newTagId) {
+                  // Remove tag when "No tag" is selected
+                  tagResponse = await fetch(`/api/v1/sessions/${currentSessionId}/tags`, {
+                    method:  'DELETE',
+                    headers: {
+                      'Content-Type': 'application/json',
+                    },
+                    body:    JSON.stringify({tag_id: currentTagId}),
+                  });
+                } else if (!currentTagId && newTagId) {
+                  // Add new tag when session had no tag before
+                  tagResponse = await fetch(`/api/v1/sessions/${currentSessionId}/tags`, {
+                    method:  'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                    },
+                    body:    JSON.stringify({tag_id: newTagId}),
+                  });
+                }
+
+                if (tagResponse && !tagResponse.ok) {
+                  const tagError = await tagResponse.json();
+                  console.error('Error updating tag:', tagError);
+                  alert('There was an error updating the tag. Please try again.');
+                  return;
+                }
+              }
+
+              alert('Session updated successfully!');
+              closePopup();
             } catch (error) {
                 console.log('Error updating session: ', error);
+              alert('There was an error updating the session. Please try again.');
             }
             location.reload();
         } else {
             try {
+              const requestBody = {title, content};
+              if (newTagId) {
+                requestBody.tag_id = parseInt(newTagId);
+              }
+                
                 response = await fetch('/api/v1/sessions/add', {
                     method:  'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body:    JSON.stringify({title, content}),
+                  body: JSON.stringify(requestBody),
                 });
 
                 if (!response.ok) {
@@ -187,10 +243,6 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    table.on('click', '.upvote-btn', async function(e) {
-        var data = table.row($(this).closest('tr')).data();
-        console.log('Upvoting session with id: ' + data.session_id);
-    });
 
     document.querySelector('#add-session').addEventListener('click', async function(data) {
         await showPopup(false);
@@ -214,12 +266,24 @@ async function showPopup(isEdit, data=null) {
     if(isEdit && data) {
         document.getElementById('title').value = data.title;
         document.getElementById('sessionContent').value = data.content;
-        currentSessionId                                = data.session_id;
+      currentSessionId = data.session_id;
         currentUserId = data.user_id;
+
+      // Set current tag in dropdown
+      const tagSelect = document.getElementById('tagSelect');
+      if (data.tags === '') {
+        tagSelect.value = '';
+        currentTagId    = null;
+      } else {
+        currentTagId    =
+            parseInt(Array.from(tagSelect.options).find(opt => opt.text === data.tags).value);
+        tagSelect.value = currentTagId;
+      }
     } else {
         document.getElementById('sessionForm').reset();
         currentSessionId = null;
         currentUserId = null;
+      currentTagId = null;
     }
 
     document.querySelector('#cancelButton').addEventListener('click', closePopup);
@@ -230,15 +294,7 @@ function closePopup() {
     const popup = document.getElementById('popup');
     const overlay = document.getElementById('overlay');
     popup.style.display = 'none';
-    overlay.style.display = 'none';function closePopup() {
-    const popup = document.getElementById('popup');
-    const overlay = document.getElementById('overlay');
-    popup.style.display = 'none';
     overlay.style.display = 'none';
-
-    document.querySelector('#cancelButton').removeEventListener('click', closePopup);
-    document.querySelector('#overlay').removeEventListener('click', closePopup);
-}
 
     document.querySelector('#cancelButton').removeEventListener('click', closePopup);
     document.querySelector('#overlay').removeEventListener('click', closePopup);

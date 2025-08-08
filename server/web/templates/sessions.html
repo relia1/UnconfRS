@@ -98,12 +98,13 @@
                         <th>Title</th>
                         <th>Name</th>
                         <th>Email</th>
+                        <th>Tag</th>
                         <th>Delete Session</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for session in sessions %}
-                        <tr data-session-id={{ session.session_id }}>
+                        <tr data-session-id="{{ session.session_id }}" data-content="{{ session.content|escape }}" data-user-id="{{ session.user_id }}">
                             <td>
                             </td>
                             <td>
@@ -117,7 +118,16 @@
                             </td>
                             <td>
                                 {{ session.email }}
-                            <td>
+                            </td>
+                            <td class="tag-cell" data-tag-ids="{{ session.tag_ids|join(",") }}">
+                                {% if !session.tag_ids.is_empty() %}
+                                    {{ self.resolve_tag_names(session.tag_ids)|join(", ") }}
+                                {% endif %}
+                            </td>
+                            <td class="action-buttons">
+                                <button class="del-btn btn-action" data-session-id="{{ session.session_id }}">Delete</button>
+                                <button class="edit-btn btn-action" data-session-id="{{ session.session_id }}">Edit</button>
+                                <button class="upvote-btn btn-action" data-session-id="{{ session.session_id }}">Upvote</button>
                             </td>
                             <td>
                                 {{ session.content }}
