@@ -3,7 +3,7 @@ use crate::models::schedule_model::ScheduleErr;
 use crate::models::sessions_model::Session;
 use crate::models::timeslot_model::{timeslot_get, ExistingTimeslot, TimeslotAssignmentForm, TimeslotAssignmentSessionAdd, TimeslotRequest};
 use chrono::NaiveTime;
-use scheduler::{RoomTimeAssignment, ScheduleRow, SchedulerData, SessionVotes};
+use scheduler::{RoomTimeAssignment, ScheduleRow, SchedulerData, SessionData};
 use serde::{Deserialize, Serialize};
 use sqlx::{Pool, Postgres};
 use std::collections::HashSet;
@@ -97,10 +97,16 @@ impl SchedulingMethod {
     }
 }
 
+#[derive(Debug)]
+pub struct UnassignedSession {
+    pub session_id: i32,
+    pub tag_id: Option<i32>,
+}
+
 pub struct SessionAssignmentData {
     pub already_assigned_room_time_associations: Vec<RoomTimeAssignment>,
     pub available_room_time_associations: Vec<TimeslotAssignmentSessionAdd>,
-    pub unassigned_session_ids: Vec<i32>,
+    pub unassigned_sessions: Vec<UnassignedSession>,
 }
 
 /// Assigns sessions to timeslots.
@@ -129,6 +135,7 @@ pub async fn assign_sessions_to_timeslots(
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
     // alias ta for the table timeslot_assignments
     // alias uv for user_votes table
+    // alias st for session_tags
     let all_assigned_sessions: Vec<RoomTimeAssignment> = sqlx::query_as!(
         RoomTimeAssignment,
         r#"SELECT
@@ -137,10 +144,12 @@ pub async fn assign_sessions_to_timeslots(
             ta.session_id as "session_id!",
             ta.room_id as "room_id!",
             true as "already_assigned!",
-            COALESCE(COUNT(uv.session_id), 0)::INTEGER as "num_votes!"
+            COALESCE(COUNT(uv.session_id), 0)::INTEGER as "num_votes!",
+            st.tag_id
         FROM timeslot_assignments ta
         JOIN user_votes uv ON ta.session_id = uv.session_id
-        GROUP BY ta.id, ta.time_slot_id, ta.session_id, ta.room_id"#
+        LEFT JOIN session_tags st ON st.session_id = ta.session_id
+        GROUP BY ta.id, ta.time_slot_id, ta.session_id, ta.room_id, st.tag_id"#
     )
         .fetch_all(db_pool)
         .await?;
@@ -181,7 +190,15 @@ pub async fn assign_sessions_to_timeslots(
             let scheduling_data = SessionAssignmentData {
                 already_assigned_room_time_associations: all_assigned_sessions,
                 available_room_time_associations: free_roomtimes,
-                unassigned_session_ids: free_sessions.copied().collect(),
+                unassigned_sessions: free_sessions
+                    .map(|&session_id| {
+                        let tag_id = sessions
+                            .iter()
+                            .find(|s| s.id == Some(session_id))
+                            .and_then(|s| s.tag_id);
+                        UnassignedSession { session_id, tag_id }
+                    })
+                    .collect(),
             };
 
             local_search_scheduling(db_pool, scheduling_data).await
@@ -204,7 +221,7 @@ pub async fn original_scheduling(db_pool: &Pool<Postgres>, pairings: Vec<(Timesl
 
 
 pub async fn local_search_scheduling(db_pool: &Pool<Postgres>, scheduling_data: SessionAssignmentData) -> Result<(), Box<dyn Error + Send + Sync>> {
-    tracing::trace!("unassigned_session_ids: {:?}", scheduling_data.unassigned_session_ids);
+    tracing::trace!("unassigned_sessions: {:?}", scheduling_data.unassigned_sessions);
     // We should not be able to get here if rooms is None
     let rooms: Vec<Room> = rooms_get(db_pool).await?.unwrap();
     // We should not be able to get here if timeslots is Err
@@ -212,25 +229,29 @@ pub async fn local_search_scheduling(db_pool: &Pool<Postgres>, scheduling_data: 
     let num_rooms = rooms.len();
     let num_timeslots = timeslots.len();
 
-    let session_and_votes: Vec<SessionVotes> = sqlx::query_as!(
-        SessionVotes,
-        "SELECT session_id, COALESCE(COUNT(*)::INTEGER, 0) as \"num_votes!\" from user_votes GROUP BY session_id"
+    let session_and_votes: Vec<SessionData> = sqlx::query_as!(
+        SessionData,
+        "SELECT uv.session_id, COALESCE(COUNT(*)::INTEGER, 0) as \"num_votes!\", st.tag_id \
+         from user_votes uv \
+         LEFT JOIN session_tags st ON st.session_id = uv.session_id \
+         GROUP BY uv.session_id, st.tag_id"
     )
         .fetch_all(db_pool)
         .await?;
 
-    let unassigned_session_and_votes: Vec<SessionVotes> = scheduling_data.unassigned_session_ids
+    let unassigned_sessions: Vec<SessionData> = scheduling_data.unassigned_sessions
         .iter()
-        .map(|&session_id| {
+        .map(|&UnassignedSession { session_id, tag_id }| {
             let num_votes = session_and_votes
                 .iter()
                 .find(|sv| sv.session_id.is_some() && sv.session_id.unwrap() == session_id)
                 .map(|sv| sv.num_votes)
                 .unwrap_or(0);
 
-            SessionVotes {
+            SessionData {
                 session_id: Some(session_id),
                 num_votes,
+                tag_id,
             }
         })
         .collect();
@@ -238,7 +259,7 @@ pub async fn local_search_scheduling(db_pool: &Pool<Postgres>, scheduling_data: 
     let mut scheduler_data: SchedulerData = SchedulerData {
         schedule_rows: vec![],
         capacity: (num_rooms * num_timeslots) as i32,
-        unassigned_sessions: unassigned_session_and_votes,
+        unassigned_sessions,
     };
 
     for timeslot in timeslots {
@@ -253,6 +274,7 @@ pub async fn local_search_scheduling(db_pool: &Pool<Postgres>, scheduling_data: 
                 num_votes: 0,
                 id: None,
                 already_assigned: false,
+                tag_id: None,
             };
 
             schedule_row.schedule_items.push(item);

@@ -1,17 +1,19 @@
 use rand::prelude::IteratorRandom;
+use std::cmp::max;
 use std::fmt::{Display, Formatter};
 
 #[derive(Debug, Clone)]
-pub struct SessionVotes {
+pub struct SessionData {
     pub session_id: Option<i32>,
     pub num_votes: i32,
+    pub tag_id: Option<i32>,
 }
 
 #[derive(Debug, Clone)]
 pub struct SchedulerData {
     pub schedule_rows: Vec<ScheduleRow>,
     pub capacity: i32,
-    pub unassigned_sessions: Vec<SessionVotes>,
+    pub unassigned_sessions: Vec<SessionData>,
 }
 
 #[derive(Debug, Clone)]
@@ -27,6 +29,7 @@ pub struct RoomTimeAssignment {
     pub id: Option<i32>,
     pub already_assigned: bool,
     pub num_votes: i32,
+    pub tag_id: Option<i32>,
 }
 
 #[derive(Clone)]
@@ -91,6 +94,7 @@ impl SchedulerData {
 
                     schedule_item.session_id = session.session_id;
                     schedule_item.num_votes = session.num_votes;
+                    schedule_item.tag_id = session.tag_id;
 
                     self.unassigned_sessions.swap_remove(i);
                 }
@@ -204,8 +208,9 @@ impl SchedulerData {
         let conflicting_penalty = self.penalize_conflicting_popular_sessions();
         let missing_popular_penalty = self.penalize_popular_sessions_missing();
         let late_sessions_penalty = self.penalize_late_popular_sessions();
+        let same_tag_penalty = self.penalize_same_topic_time_slots();
 
-        self.weight_scores(conflicting_penalty, missing_popular_penalty, late_sessions_penalty)
+        self.weight_scores(conflicting_penalty, missing_popular_penalty, late_sessions_penalty, same_tag_penalty)
     }
 
     fn penalize_conflicting_popular_sessions(&self) -> i32 {
@@ -288,14 +293,46 @@ impl SchedulerData {
             .sum()
     }
 
-    fn weight_scores(&self, penalty_conflicting: i32, penalty_missing: i32, penalty_late: i32) -> f32 {
+    fn penalize_same_topic_time_slots(&self) -> i32 {
+        // Iterate through the rows of timeslots
+        // For each timeslot row calculate their penalty
+        // Within each row only keep values that have session_ids and tag_ids
+        // For each session in the row check if any after it have the same tag_id
+        // If they have the same tag_id add to the penalty the product of the two
+        // Sum the penalties for each of the rows
+        self.schedule_rows
+            .iter()
+            .map(|timeslot| {
+                let assigned_sessions: Vec<&RoomTimeAssignment> = timeslot.schedule_items
+                    .iter()
+                    .filter(|session_assignment| session_assignment.session_id.is_some() && session_assignment.tag_id.is_some())
+                    .collect();
+
+                let mut penalty = 0;
+                for i in 0..assigned_sessions.len() {
+                    for j in (i + 1)..assigned_sessions.len() {
+                        if assigned_sessions[i].tag_id == assigned_sessions[j].tag_id {
+                            // Apply penalty based on the product of votes for sessions with same tag
+                            // Make sure if a session has 0 votes that a penalty is still applied
+                            penalty += max(assigned_sessions[i].num_votes, 1) * max(assigned_sessions[j].num_votes, 1);
+                        }
+                    }
+                }
+                penalty
+            })
+            .sum()
+    }
+
+    fn weight_scores(&self, penalty_conflicting: i32, penalty_missing: i32, penalty_late: i32, penalty_same_tag: i32) -> f32 {
         let weight_conflicting = 0.5;
         let weight_missing = 0.75;
         let weight_late = 0.1;
+        let weight_same_tag = 0.3;
 
         weight_conflicting * penalty_conflicting as f32 +
             weight_missing * penalty_missing as f32 +
-            weight_late * penalty_late as f32
+            weight_late * penalty_late as f32 +
+            weight_same_tag * penalty_same_tag as f32
     }
 
     fn apply_action(&mut self, action: &SwapAction) {
@@ -340,19 +377,23 @@ impl SchedulerData {
         assert!(self.is_swappable(pos1) && self.is_swappable(pos2));
 
         // Get copies of the current values so we can perform the swap
-        // Cannot do just mem::swap on the whole item since we only want to change the session_id and num_votes fields
-        // Cannot do mem::swap on just session_id and num_votes either since we'd be holding 2 mutable references
+        // Cannot do just mem::swap on the whole item since we only want to change the session_id, num_votes, and tag_id fields
+        // Cannot do mem::swap on just session_id, num_votes, and tag_id either since we'd be holding 2 mutable references
         let session1 = self.schedule_rows[pos1_row].schedule_items[pos1_col].session_id;
         let votes1 = self.schedule_rows[pos1_row].schedule_items[pos1_col].num_votes;
+        let tag1 = self.schedule_rows[pos1_row].schedule_items[pos1_col].tag_id;
 
         let session2 = self.schedule_rows[pos2_row].schedule_items[pos2_col].session_id;
         let votes2 = self.schedule_rows[pos2_row].schedule_items[pos2_col].num_votes;
+        let tag2 = self.schedule_rows[pos2_row].schedule_items[pos2_col].tag_id;
 
         self.schedule_rows[pos1_row].schedule_items[pos1_col].session_id = session2;
         self.schedule_rows[pos1_row].schedule_items[pos1_col].num_votes = votes2;
+        self.schedule_rows[pos1_row].schedule_items[pos1_col].tag_id = tag2;
 
         self.schedule_rows[pos2_row].schedule_items[pos2_col].session_id = session1;
         self.schedule_rows[pos2_row].schedule_items[pos2_col].num_votes = votes1;
+        self.schedule_rows[pos2_row].schedule_items[pos2_col].tag_id = tag1;
     }
 
     fn is_swappable(&self, pos1: (usize, usize)) -> bool {
@@ -371,15 +412,19 @@ impl SchedulerData {
         // Get copies of the current values so we can perform the swap
         let session1 = self.schedule_rows[pos1_row].schedule_items[pos1_col].session_id;
         let votes1 = self.schedule_rows[pos1_row].schedule_items[pos1_col].num_votes;
+        let tag1 = self.schedule_rows[pos1_row].schedule_items[pos1_col].tag_id;
 
         let session2 = self.unassigned_sessions[unassigned_idx].session_id;
         let votes2 = self.unassigned_sessions[unassigned_idx].num_votes;
+        let tag2 = self.unassigned_sessions[unassigned_idx].tag_id;
 
         self.schedule_rows[pos1_row].schedule_items[pos1_col].session_id = session2;
         self.schedule_rows[pos1_row].schedule_items[pos1_col].num_votes = votes2;
+        self.schedule_rows[pos1_row].schedule_items[pos1_col].tag_id = tag2;
 
         self.unassigned_sessions[unassigned_idx].session_id = session1;
         self.unassigned_sessions[unassigned_idx].num_votes = votes1;
+        self.unassigned_sessions[unassigned_idx].tag_id = tag1;
     }
 }
 
@@ -399,6 +444,7 @@ pub mod utils {
                     id: None,
                     already_assigned: false,
                     num_votes: 0,
+                    tag_id: Some(room),
                 });
             }
             schedule_rows.push(ScheduleRow { schedule_items });
@@ -409,9 +455,10 @@ pub mod utils {
 
         let mut unassigned_sessions = Vec::new();
         for i in 0..num_of_sessions {
-            unassigned_sessions.push(SessionVotes {
+            unassigned_sessions.push(SessionData {
                 session_id: Some(i),
                 num_votes: 3 * (i / num_of_rooms),
+                tag_id: Some((i % 6) + 1),
             });
         }
 
@@ -584,10 +631,10 @@ pub(crate) mod tests {
             let mut data = make_test_data(3, 3);
             data.randomly_fill_available_spots();
             data.unassigned_sessions = vec![
-                SessionVotes { session_id: Some(1), num_votes: 10 },
-                SessionVotes { session_id: Some(2), num_votes: 8 },
-                SessionVotes { session_id: Some(3), num_votes: 12 },
-                SessionVotes { session_id: Some(3), num_votes: 7 },
+                SessionData { session_id: Some(1), num_votes: 10, tag_id: Some(1) },
+                SessionData { session_id: Some(2), num_votes: 8, tag_id: Some(2) },
+                SessionData { session_id: Some(3), num_votes: 12, tag_id: Some(3) },
+                SessionData { session_id: Some(3), num_votes: 7, tag_id: Some(4) },
             ];
 
             // Time slot1
@@ -638,7 +685,7 @@ pub(crate) mod tests {
         #[test]
         fn test_weight_scores() {
             let data = make_test_data(2, 2);
-            let result = data.weight_scores(198, 256, 106);
+            let result = data.weight_scores(198, 256, 106, 0);
 
             // Expect: 0.3 * 198 + 0.5 * 256 + 0.2 * 106 = 59.4 + 128 + 21.2 = 208.6
             assert_relative_eq!(result, 301.6);
@@ -649,10 +696,10 @@ pub(crate) mod tests {
             let mut data = make_test_data(3, 3);
             data.randomly_fill_available_spots();
             data.unassigned_sessions = vec![
-                SessionVotes { session_id: Some(1), num_votes: 10 },
-                SessionVotes { session_id: Some(2), num_votes: 8 },
-                SessionVotes { session_id: Some(3), num_votes: 12 },
-                SessionVotes { session_id: Some(3), num_votes: 7 },
+                SessionData { session_id: Some(1), num_votes: 10, tag_id: Some(1) },
+                SessionData { session_id: Some(2), num_votes: 8, tag_id: Some(2) },
+                SessionData { session_id: Some(3), num_votes: 12, tag_id: Some(3) },
+                SessionData { session_id: Some(3), num_votes: 7, tag_id: Some(4) },
             ];
 
             // Time slot1
@@ -747,27 +794,27 @@ pub(crate) mod tests {
                 schedule_rows: vec![
                     ScheduleRow {
                         schedule_items: vec![
-                            RoomTimeAssignment { room_id: 1, time_slot_id: 1, session_id: None, id: None, already_assigned: false, num_votes: 0 },
-                            RoomTimeAssignment { room_id: 2, time_slot_id: 1, session_id: None, id: None, already_assigned: false, num_votes: 0 },
-                            RoomTimeAssignment { room_id: 3, time_slot_id: 1, session_id: None, id: None, already_assigned: false, num_votes: 0 },
+                            RoomTimeAssignment { room_id: 1, time_slot_id: 1, session_id: None, id: None, already_assigned: false, num_votes: 0, tag_id: None },
+                            RoomTimeAssignment { room_id: 2, time_slot_id: 1, session_id: None, id: None, already_assigned: false, num_votes: 0, tag_id: None },
+                            RoomTimeAssignment { room_id: 3, time_slot_id: 1, session_id: None, id: None, already_assigned: false, num_votes: 0, tag_id: None },
                         ]
                     },
                     ScheduleRow {
                         schedule_items: vec![
-                            RoomTimeAssignment { room_id: 1, time_slot_id: 2, session_id: None, id: None, already_assigned: false, num_votes: 0 },
-                            RoomTimeAssignment { room_id: 2, time_slot_id: 2, session_id: None, id: None, already_assigned: false, num_votes: 0 },
-                            RoomTimeAssignment { room_id: 3, time_slot_id: 2, session_id: None, id: None, already_assigned: false, num_votes: 0 },
+                            RoomTimeAssignment { room_id: 1, time_slot_id: 2, session_id: None, id: None, already_assigned: false, num_votes: 0, tag_id: None },
+                            RoomTimeAssignment { room_id: 2, time_slot_id: 2, session_id: None, id: None, already_assigned: false, num_votes: 0, tag_id: None },
+                            RoomTimeAssignment { room_id: 3, time_slot_id: 2, session_id: None, id: None, already_assigned: false, num_votes: 0, tag_id: None },
                         ]
                     },
                 ],
                 capacity: 6,
                 unassigned_sessions: vec![
-                    SessionVotes { session_id: Some(1), num_votes: 12 },
-                    SessionVotes { session_id: Some(2), num_votes: 10 },
-                    SessionVotes { session_id: Some(3), num_votes: 8 },
-                    SessionVotes { session_id: Some(4), num_votes: 6 },
-                    SessionVotes { session_id: Some(5), num_votes: 4 },
-                    SessionVotes { session_id: Some(6), num_votes: 2 },
+                    SessionData { session_id: Some(1), num_votes: 12, tag_id: Some(1) },
+                    SessionData { session_id: Some(2), num_votes: 10, tag_id: Some(2) },
+                    SessionData { session_id: Some(3), num_votes: 8, tag_id: Some(3) },
+                    SessionData { session_id: Some(4), num_votes: 6, tag_id: Some(4) },
+                    SessionData { session_id: Some(5), num_votes: 4, tag_id: Some(5) },
+                    SessionData { session_id: Some(6), num_votes: 2, tag_id: Some(6) },
                 ],
             };
 

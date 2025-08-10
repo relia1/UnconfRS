@@ -2,8 +2,9 @@ use itertools::Itertools;
 use num_format::{Locale, ToFormattedString};
 use rayon::prelude::*;
 use scheduler::utils::*;
-use scheduler::SessionVotes;
+use scheduler::SessionData;
 
+type ScheduleAssignment = Vec<((Option<i32>, i32, Option<i32>), (usize, usize))>;
 struct BruteForceResults {
     scores: Vec<f32>,
     best_schedule: scheduler::SchedulerData,
@@ -47,15 +48,14 @@ fn run_scheduler(data: &scheduler::SchedulerData, iterations: usize) -> Schedule
             best_score = Some(score);
             worst_schedule = schedule_data.clone();
             best_schedule = schedule_data.clone();
-        } else {
-            if score < best_score.unwrap() {
+        } else if score < best_score.unwrap() {
                 best_score = Some(score);
                 best_schedule = schedule_data.clone();
-            } else if score > worst_score.unwrap() {
-                worst_score = Some(score);
-                worst_schedule = schedule_data.clone();
-            }
+        } else if score > worst_score.unwrap() {
+            worst_score = Some(score);
+            worst_schedule = schedule_data.clone();
         }
+
         scores.push(score);
     }
 
@@ -86,23 +86,23 @@ impl BruteForceScheduler for scheduler::SchedulerData {
         for &(row, col) in &swappable_positions {
             let slot = &self.schedule_rows[row].schedule_items[col];
             if slot.session_id.is_some() {
-                all_sessions.push((slot.session_id, slot.num_votes));
+                all_sessions.push((slot.session_id, slot.num_votes, slot.tag_id));
             }
         }
 
         for session in &self.unassigned_sessions {
-            all_sessions.push((session.session_id, session.num_votes));
+            all_sessions.push((session.session_id, session.num_votes, session.tag_id));
         }
 
         let num_slots = swappable_positions.len();
         let num_sessions = all_sessions.len();
 
-        println!("Sessions: {}, Slots: {}\n", num_sessions, num_slots);
+        println!("Sessions: {num_sessions}, Slots: {num_slots}\n");
 
         // Calculate capacity for each time slot
         let time_slot_capacities = get_time_slot_capacities(self, &swappable_positions);
 
-        println!("Creating C({}, {}) combinations", num_sessions, num_slots);
+        println!("Creating C({num_sessions}, {num_slots}) combinations");
         let combinations: Vec<_> = all_sessions.iter()
             .combinations(num_slots)
             .collect();
@@ -157,9 +157,10 @@ impl BruteForceScheduler for scheduler::SchedulerData {
 
                     for &session in &all_sessions {
                         if !used_sessions.contains(&session) {
-                            test_data.unassigned_sessions.push(SessionVotes {
+                            test_data.unassigned_sessions.push(SessionData {
                                 session_id: session.0,
                                 num_votes: session.1,
+                                tag_id: session.2,
                             });
                         }
                     }
@@ -224,10 +225,10 @@ fn get_time_slot_capacities(
 // Returns a vector of schedule assignments
 fn generate_time_slot_assignments(
     data: &scheduler::SchedulerData,
-    sessions: &[(Option<i32>, i32)],
+    sessions: &[(Option<i32>, i32, Option<i32>)],
     time_slot_capacities: &[usize],
     swappable_positions: &[(usize, usize)],
-) -> Vec<Vec<((Option<i32>, i32), (usize, usize))>> {
+) -> Vec<ScheduleAssignment> {
     let mut result = Vec::new();
 
     // Group swappable positions by time slot
@@ -255,13 +256,13 @@ fn generate_time_slot_assignments(
 
 // Recursively generate assignments using backtracking
 fn generate_assignments_recursive(
-    sessions: &[(Option<i32>, i32)],
+    sessions: &[(Option<i32>, i32, Option<i32>)],
     capacities: &[usize],
     positions_by_time_slot: &[Vec<(usize, usize)>],
-    current_assignment: &mut Vec<((Option<i32>, i32), (usize, usize))>,
+    current_assignment: &mut ScheduleAssignment,
     used: &mut Vec<bool>,
     time_slot_idx: usize,
-    result: &mut Vec<Vec<((Option<i32>, i32), (usize, usize))>>,
+    result: &mut Vec<ScheduleAssignment>,
 ) {
     // We've assigned sessions to all time slots
     if time_slot_idx >= capacities.len() {
@@ -344,9 +345,9 @@ fn print_brute_force_results(brute_force_results: &BruteForceResults) {
     let avg = sum / num_of_brute_force_scores as f32;
 
     println!("Number of brute force scores: {}", num_of_brute_force_scores.to_formatted_string(&Locale::en));
-    println!("Average score: {:.2}", avg);
-    println!("Minimum score: {:.2}", min);
-    println!("Maximum score: {:.2}", max);
+    println!("Average score: {avg:.2}");
+    println!("Minimum score: {min:.2}");
+    println!("Maximum score: {max:.2}");
 
     println!("Best brute force schedule (score: {:.2}): \n{}", brute_force_results.best_score, brute_force_results.best_schedule);
     println!("Worst brute force schedule (score: {:.2}): \n{}", brute_force_results.worst_score, brute_force_results.worst_schedule);
@@ -357,7 +358,7 @@ fn print_scheduler_results(scheduler_results: &SchedulerResults) {
     let avg = sum / scheduler_results.iterations as f32;
 
     println!("\n\n=== SCHEDULER RESULTS ({} iterations) ===", scheduler_results.iterations);
-    println!("Average score: {:.2}", avg);
+    println!("Average score: {avg:.2}");
     println!("Minimum score: {:.2}", scheduler_results.best_score.unwrap());
     println!("Maximum score: {:.2}\n", scheduler_results.worst_score.unwrap());
 
