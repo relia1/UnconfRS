@@ -1,0 +1,58 @@
+[Unit]
+Description=UnconfRS Web Application
+Documentation=https://github.com/your-username/unconfrs
+Requires=unconfrs-postgres.service
+After=unconfrs-postgres.service
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=exec
+User=bart
+Group=bart
+
+# Set working directory
+WorkingDirectory=/home/bart/unconfrs
+
+# Environment variables
+Environment=RUST_LOG=info
+Environment=PG_DBNAME=db
+Environment=PG_HOST=127.0.0.1
+Environment=DB_HOST=127.0.0.1
+Environment=PG_PORT=5433
+Environment=PG_USER=postgres
+Environment=PG_PASSWORDFILE=/home/bart/unconfrs/secrets/db-password.txt
+Environment=SCRIPTS_DIR=/home/bart/unconfrs/server/web/scripts
+Environment=STYLES_DIR=/home/bart/unconfrs/server/web/styles
+
+# Run the application (assumes it's built in release mode)
+ExecStart=/home/bart/unconfrs/target/release/unconfrs
+
+# Build the application before starting (optional - remove if pre-built)
+ExecStartPre=/usr/bin/cargo build --release --bin unconfrs
+
+# Restart policy
+Restart=always
+RestartSec=10
+
+# Resource limits
+LimitNOFILE=65536
+LimitNPROC=4096
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/home/bart/unconfrs
+
+# Health check (optional - remove if no health endpoint)
+# ExecReload=/bin/kill -HUP $MAINPID
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=unconfrs
+
+[Install]
+WantedBy=multi-user.target

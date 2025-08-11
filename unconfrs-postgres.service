@@ -1,0 +1,37 @@
+[Unit]
+Description=UnconfRS PostgreSQL Database Container
+Documentation=https://docs.docker.com/compose/
+Requires=docker.service
+After=docker.service
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+User=root
+Group=docker
+
+# Set working directory
+WorkingDirectory=/home/bart/unconfrs
+
+# Create secrets directory if it doesn't exist
+ExecStartPre=/bin/mkdir -p /home/bart/unconfrs/secrets
+
+# Start only the PostgreSQL container
+ExecStart=/usr/bin/docker compose up -d db
+
+# Stop the container
+ExecStop=/usr/bin/docker compose down
+
+# Restart policy
+Restart=on-failure
+RestartSec=5
+
+# Ensure proper cleanup on service stop
+KillMode=mixed
+TimeoutStartSec=300
+TimeoutStopSec=60
+
+[Install]
+WantedBy=multi-user.target
