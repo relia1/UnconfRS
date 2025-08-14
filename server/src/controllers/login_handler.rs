@@ -1,10 +1,17 @@
+use crate::config::AppState;
 use crate::middleware::auth::{AuthInfo, AuthSessionLayer};
 use crate::models::auth_model::{Credentials, LoginRequest, LoginResponse, Permission};
 use askama::Template;
-use axum::response::IntoResponse;
-use axum::{http::StatusCode, response::Html, response::Response, Extension, Json};
+use axum::extract::State;
+use axum::response::{IntoResponse, Redirect};
+use axum::{http::StatusCode, response::Html, response::Response, Extension, Form, Json};
 use axum_macros::debug_handler;
+use serde::Deserialize;
+use sqlx::FromRow;
 use std::collections::HashSet;
+use std::sync::Arc;
+use tokio::sync::RwLock;
+use tower_sessions::Session;
 
 #[derive(Template, Debug)]
 #[template(path = "login.html")]
@@ -31,6 +38,16 @@ pub(crate) async fn login_page_handler(Extension(auth_info): Extension<AuthInfo>
     }
 }
 
+/// Login handler
+///
+/// This function handles a user attempting to authenticate.
+///
+/// # Returns
+/// `impl IntoResponse` with the rendered HTML page or an error status code.
+///
+/// # Errors
+/// If the login fails an UNAUTHORIZED error is returned
+/// Otherwise INTERNAL_SERVER_ERROR
 #[debug_handler]
 pub(crate) async fn login_handler(
     mut auth_session: AuthSessionLayer,
@@ -98,5 +115,112 @@ pub async fn logout_handler(mut auth_session: AuthSessionLayer) -> impl IntoResp
                 message: "Failed to logout".to_string(),
             }),
         ),
+    }
+}
+
+
+#[derive(Template)]
+#[template(path = "conference_password.html")]
+pub struct ConferencePasswordTemplate {
+    pub error_message: Option<String>,
+}
+
+#[derive(Deserialize, FromRow)]
+pub struct ConferencePasswordForm {
+    pub password: String,
+}
+
+#[derive(FromRow)]
+pub struct ConferencePassword {
+    pub password: String,
+}
+
+/// Unconference login page handler
+///
+/// This function renders the unconference login page.
+///
+/// # Returns
+/// `impl IntoResponse` with the rendered HTML page or an error status code.
+///
+/// # Errors
+/// If the template fails to render, an internal server error status code is returned.
+#[debug_handler]
+pub async fn conference_password_page_handler() -> impl IntoResponse {
+    let template = ConferencePasswordTemplate {
+        error_message: None,
+    };
+
+    match template.render() {
+        Ok(html) => Html(html).into_response(),
+        Err(e) => {
+            tracing::error!("Error rendering template: {:?}", e);
+            StatusCode::INTERNAL_SERVER_ERROR.into_response()
+        }
+    }
+}
+
+/// Unconference login handler
+///
+/// This function handles a user attempting to authenticate to the unconference login.
+///
+/// # Returns
+/// `Response` with the rendered HTML page (includes error message if there was an error).
+///
+/// # Errors
+/// Failure to query, bcrypt, or render the template lead to INTERNAL_SERVER_ERROR
+#[debug_handler]
+pub async fn conference_password_submit_handler(
+    session: Session,
+    State(app_state): State<Arc<RwLock<AppState>>>,
+    Form(form): Form<ConferencePasswordForm>,
+) -> Response {
+    let app_state_lock = app_state.read().await;
+    let write_lock = &app_state_lock.unconf_data.read().await.unconf_db;
+
+    let conference_password = sqlx::query_as!(
+        ConferencePassword,
+        r"SELECT password FROM conference_password limit 1",
+    )
+        .fetch_optional(write_lock)
+        .await;
+
+    match conference_password {
+        Ok(Some(ConferencePassword { password })) => {
+            if bcrypt::verify(&form.password, &password).is_ok_and(|x| x) {
+                if (session.insert("conference_authenticated", true).await).is_err() {
+                    return StatusCode::INTERNAL_SERVER_ERROR.into_response()
+                }
+
+                Redirect::to("/").into_response()
+            } else {
+                let template = ConferencePasswordTemplate {
+                    error_message: Some("Invalid password".to_string()),
+                };
+
+                match template.render() {
+                    Ok(html) => Html(html).into_response(),
+                    Err(e) => {
+                        tracing::error!("Error rendering template: {:?}", e);
+                        StatusCode::INTERNAL_SERVER_ERROR.into_response()
+                    }
+                }
+            }
+        },
+        Ok(None) => {
+            let template = ConferencePasswordTemplate {
+                error_message: Some("Unconference password not configured".to_string()),
+            };
+
+            match template.render() {
+                Ok(html) => Html(html).into_response(),
+                Err(e) => {
+                    tracing::error!("Error rendering template: {:?}", e);
+                    StatusCode::INTERNAL_SERVER_ERROR.into_response()
+                }
+            }
+        },
+        Err(_) => {
+            StatusCode::INTERNAL_SERVER_ERROR.into_response()
+        }
     }
 }

@@ -1,0 +1,4 @@
+CREATE TABLE conference_password (
+    id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    password TEXT NOT NULL
+);
