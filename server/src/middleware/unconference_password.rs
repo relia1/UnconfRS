@@ -3,7 +3,7 @@ use axum::middleware::Next;
 use axum::response::{IntoResponse, Redirect, Response};
 use tower_sessions::Session;
 
-/// Configures middleware conference access
+/// Configures middleware unconference access
 ///
 /// This function ensures only those who have logged in to the general unconference login can
 /// access the site
@@ -15,13 +15,13 @@ use tower_sessions::Session;
 ///
 /// # Returns
 /// A `Response`
-pub async fn conference_password_middleware(session: Session, req: Request, next: Next) -> Response {
-    match session.get::<bool>("conference_authenticated").await {
+pub async fn unconference_password_middleware(session: Session, req: Request, next: Next) -> Response {
+    match session.get::<bool>("unconference_authenticated").await {
         Ok(Some(true)) => {
             next.run(req).await
         }
         _ => {
-            Redirect::to("/conference_login").into_response()
+            Redirect::to("/unconference_login").into_response()
         }
     }
 }

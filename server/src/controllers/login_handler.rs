@@ -120,18 +120,18 @@ pub async fn logout_handler(mut auth_session: AuthSessionLayer) -> impl IntoResp
 
 
 #[derive(Template)]
-#[template(path = "conference_password.html")]
-pub struct ConferencePasswordTemplate {
+#[template(path = "unconference_password.html")]
+pub struct UnconferencePasswordTemplate {
     pub error_message: Option<String>,
 }
 
 #[derive(Deserialize, FromRow)]
-pub struct ConferencePasswordForm {
+pub struct UnconferencePasswordForm {
     pub password: String,
 }
 
 #[derive(FromRow)]
-pub struct ConferencePassword {
+pub struct UnconferencePassword {
     pub password: String,
 }
 
@@ -145,8 +145,8 @@ pub struct ConferencePassword {
 /// # Errors
 /// If the template fails to render, an internal server error status code is returned.
 #[debug_handler]
-pub async fn conference_password_page_handler() -> impl IntoResponse {
-    let template = ConferencePasswordTemplate {
+pub async fn unconference_password_page_handler() -> impl IntoResponse {
+    let template = UnconferencePasswordTemplate {
         error_message: None,
     };
 
@@ -169,31 +169,31 @@ pub async fn conference_password_page_handler() -> impl IntoResponse {
 /// # Errors
 /// Failure to query, bcrypt, or render the template lead to INTERNAL_SERVER_ERROR
 #[debug_handler]
-pub async fn conference_password_submit_handler(
+pub async fn unconference_password_submit_handler(
     session: Session,
     State(app_state): State<Arc<RwLock<AppState>>>,
-    Form(form): Form<ConferencePasswordForm>,
+    Form(form): Form<UnconferencePasswordForm>,
 ) -> Response {
     let app_state_lock = app_state.read().await;
     let write_lock = &app_state_lock.unconf_data.read().await.unconf_db;
 
-    let conference_password = sqlx::query_as!(
-        ConferencePassword,
+    let unconference_password = sqlx::query_as!(
+        UnconferencePassword,
         r"SELECT password FROM conference_password limit 1",
     )
         .fetch_optional(write_lock)
         .await;
 
-    match conference_password {
-        Ok(Some(ConferencePassword { password })) => {
+    match unconference_password {
+        Ok(Some(UnconferencePassword { password })) => {
             if bcrypt::verify(&form.password, &password).is_ok_and(|x| x) {
-                if (session.insert("conference_authenticated", true).await).is_err() {
+                if (session.insert("unconference_authenticated", true).await).is_err() {
                     return StatusCode::INTERNAL_SERVER_ERROR.into_response()
                 }
 
                 Redirect::to("/").into_response()
             } else {
-                let template = ConferencePasswordTemplate {
+                let template = UnconferencePasswordTemplate {
                     error_message: Some("Invalid password".to_string()),
                 };
 
@@ -207,7 +207,7 @@ pub async fn conference_password_submit_handler(
             }
         },
         Ok(None) => {
-            let template = ConferencePasswordTemplate {
+            let template = UnconferencePasswordTemplate {
                 error_message: Some("Unconference password not configured".to_string()),
             };
 

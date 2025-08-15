@@ -1,1 +1,1 @@
-DROP TABLE conference_config;
+DROP TABLE conference_password;

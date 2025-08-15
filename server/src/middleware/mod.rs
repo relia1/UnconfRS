@@ -1,3 +1,3 @@
 pub mod auth;
 pub mod unauth;
-pub mod conference_password;
+pub mod unconference_password;
