@@ -1,4 +1,4 @@
-use crate::middleware::auth::AuthSessionLayer;
+use crate::middleware::auth::{AuthInfo, AuthSessionLayer};
 use crate::models::sessions_model;
 use crate::models::sessions_model::is_users_resource;
 use crate::models::tags_model::Tag;
@@ -82,22 +82,27 @@ impl SessionTagError {
 }
 
 
-/// Adds a vote to a session
+/// Adds a tag to a session
 ///
 /// # Parameters
-/// - `index`: The ID of the session to update.
-///
+/// - `db_pool`: The database connection pool
+/// - `auth_session`: Authentication session for authorization
+/// - `auth_info` - An instance of `AuthInfo`
+/// - `session_id`: The ID of the session to apply the tag to.
+/// - `tag_id`: The ID of the tag.
 /// # Returns
-/// An empty `Result` if the vote was incremented successfully or an error if the query fails.
+/// `Result<Vec<Tag>, Box<dyn Error>>`
 ///
 /// # Errors
 /// If the query fails, a boxed error is returned.
-pub async fn add_session_tag(db_pool: &Pool<Postgres>, auth_session: AuthSessionLayer, session_id: i32, tag_id: i32) -> Result<Vec<Tag>, Box<dyn Error>> {
-    // The unwrap() here should be fine since by this point they have already been verified valid users
-    let is_staff_or_admin = auth_session
-        .backend
-        .has_superuser_or_staff_perms(&auth_session.user.clone().unwrap())
-        .await?;
+pub(crate) async fn add_session_tag(
+    db_pool: &Pool<Postgres>,
+    auth_session: AuthSessionLayer,
+    auth_info: AuthInfo,
+    session_id: i32,
+    tag_id: i32,
+) -> Result<Vec<Tag>, Box<dyn Error>> {
+    let is_staff_or_admin = auth_info.is_staff_or_admin;
 
     let session = sessions_model::get(db_pool, session_id).await?;
 
@@ -147,17 +152,27 @@ pub async fn add_session_tag(db_pool: &Pool<Postgres>, auth_session: AuthSession
     get_tags_for_session(db_pool, session_id).await
 }
 
-pub async fn remove_session_tag(
+/// Removes a tag from a session
+///
+/// # Parameters
+/// - `db_pool`: The database connection pool
+/// - `auth_session`: Authentication session for authorization
+/// - `auth_info` - An instance of `AuthInfo`
+/// - `session_id`: The ID of the session to remove the tag from.
+/// - `tag_id`: The ID of the tag.
+/// # Returns
+/// `Result<Vec<Tag>, Box<dyn Error>>`
+///
+/// # Errors
+/// If the query fails, a boxed error is returned.
+pub(crate) async fn remove_session_tag(
     db_pool: &Pool<Postgres>,
     auth_session: AuthSessionLayer,
+    auth_info: AuthInfo,
     session_id: i32,
     tag_id: i32,
 ) -> Result<Vec<Tag>, Box<dyn Error>> {
-    // The unwrap() here should be fine since by this point they have already been verified valid users
-    let is_staff_or_admin = auth_session
-        .backend
-        .has_superuser_or_staff_perms(&auth_session.user.clone().unwrap())
-        .await?;
+    let is_staff_or_admin = auth_info.is_staff_or_admin;
 
     let session = sessions_model::get(db_pool, session_id).await?;
 
@@ -202,6 +217,7 @@ pub async fn remove_session_tag(
 /// # Parameters
 /// - `db_pool`: The database connection pool
 /// - `auth_session`: Authentication session for authorization
+/// - `auth_info` - An instance of `AuthInfo`
 /// - `session_id`: The ID of the session to update
 /// - `old_tag_id`: The ID of the tag to replace
 /// - `new_tag_id`: The ID of the new tag
@@ -211,18 +227,15 @@ pub async fn remove_session_tag(
 ///
 /// # Errors
 /// If the operation fails due to authorization, old tag not found, new tag already applied, etc.
-pub async fn update_session_tag(
+pub(crate) async fn update_session_tag(
     db_pool: &Pool<Postgres>,
     auth_session: AuthSessionLayer,
+    auth_info: AuthInfo,
     session_id: i32,
     old_tag_id: i32,
     new_tag_id: i32,
 ) -> Result<Vec<Tag>, Box<dyn Error>> {
-    // The unwrap() here should be fine since by this point they have already been verified valid users
-    let is_staff_or_admin = auth_session
-        .backend
-        .has_superuser_or_staff_perms(&auth_session.user.clone().unwrap())
-        .await?;
+    let is_staff_or_admin = auth_info.is_staff_or_admin;
 
     let session = sessions_model::get(db_pool, session_id).await?;
 

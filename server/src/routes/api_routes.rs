@@ -1,6 +1,7 @@
 use crate::config::AppState;
 use crate::controllers::registration_handler::registration_handler;
 use crate::controllers::schedule_handler::{add_session_to_schedule, remove_session_from_schedule};
+use crate::controllers::sessions_handler::post_session_for_user;
 use crate::controllers::tags_handler::{create_tag, delete_tag, update_tag};
 use crate::controllers::{login_handler::{login_handler, logout_handler}, room_handler::{delete_room, post_rooms, rooms}, schedule_handler::{clear, generate}, session_tags_handler::{add_tag_for_session, remove_tag_for_session, update_tag_for_session}, session_voting_handler::{add_vote_for_session, subtract_vote_for_session}, sessions_handler::{
     delete_session, get_session, post_session, sessions, update_session,
@@ -47,6 +48,10 @@ pub fn get_routes(app_state: &Arc<RwLock<AppState>>) -> Router<Arc<RwLock<AppSta
         .route("/sessions/{id}/tags", post(add_tag_for_session).put(update_tag_for_session).delete(remove_tag_for_session))
         .route_layer(from_fn_with_state(app_state.clone(), auth_middleware));
 
+    let staff_or_admin_routes = Router::new()
+        .route("/sessions/add_for_user", post(post_session_for_user))
+        .route_layer(from_fn_with_state(app_state.clone(), auth_middleware));
+
     let admin_routes = Router::new()
         .route("/rooms/add", post(post_rooms))
         .route("/rooms/{id}", delete(delete_room))
@@ -66,5 +71,8 @@ pub fn get_routes(app_state: &Arc<RwLock<AppState>>) -> Router<Arc<RwLock<AppSta
             "superuser"
         ));
 
-    public_routes.merge(auth_routes.merge(admin_routes))
+    public_routes
+        .merge(auth_routes)
+        .merge(staff_or_admin_routes)
+        .merge(admin_routes)
 }

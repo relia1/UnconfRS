@@ -1,12 +1,12 @@
 use crate::config::AppState;
-use crate::middleware::auth::AuthSessionLayer;
+use crate::middleware::auth::AuthInfo;
 use crate::models::tags_model::{self, Tag, TagError};
 use crate::types::ApiStatusCode;
 use axum::extract::Path;
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
-use axum::Json;
+use axum::{Extension, Json};
 use axum_macros::debug_handler;
 use serde::Deserialize;
 use std::sync::Arc;
@@ -119,15 +119,15 @@ pub async fn get_tag_by_id(
 /// # Errors
 /// If the tag already exists, user is unauthorized, or an error occurs,
 /// an error response is returned.
-pub async fn create_tag(
+pub(crate) async fn create_tag(
     State(app_state): State<Arc<RwLock<AppState>>>,
-    auth_session: AuthSessionLayer,
+    Extension(auth_info): Extension<AuthInfo>,
     Json(request): Json<CreateTagRequest>,
 ) -> Response {
     let app_state_lock = app_state.read().await;
     let db_pool = &app_state_lock.unconf_data.read().await.unconf_db;
 
-    match tags_model::create_tag(db_pool, auth_session, &request.tag_name).await {
+    match tags_model::create_tag(db_pool, &request.tag_name, auth_info).await {
         Ok(tag) => (StatusCode::CREATED, Json(tag)).into_response(),
         Err(e) => {
             let status = if e.to_string().contains("already exists") {
@@ -171,16 +171,16 @@ pub async fn create_tag(
 /// # Errors
 /// If the tag is not found, new name already exists, user is unauthorized,
 /// or an error occurs, an error response is returned.
-pub async fn update_tag(
+pub(crate) async fn update_tag(
     State(app_state): State<Arc<RwLock<AppState>>>,
-    auth_session: AuthSessionLayer,
+    Extension(auth_info): Extension<AuthInfo>,
     Path(tag_id): Path<i32>,
     Json(request): Json<UpdateTagRequest>,
 ) -> Response {
     let app_state_lock = app_state.read().await;
     let db_pool = &app_state_lock.unconf_data.read().await.unconf_db;
 
-    match tags_model::update_tag(db_pool, auth_session, tag_id, &request.tag_name).await {
+    match tags_model::update_tag(db_pool, auth_info, tag_id, &request.tag_name).await {
         Ok(tag) => (StatusCode::OK, Json(tag)).into_response(),
         Err(e) => {
             let status = if e.to_string().contains("not found") {
@@ -224,15 +224,15 @@ pub async fn update_tag(
 /// # Errors
 /// If the tag is not found, user is unauthorized, or an error occurs,
 /// an error response is returned.
-pub async fn delete_tag(
+pub(crate) async fn delete_tag(
     State(app_state): State<Arc<RwLock<AppState>>>,
-    auth_session: AuthSessionLayer,
+    Extension(auth_info): Extension<AuthInfo>,
     Path(tag_id): Path<i32>,
 ) -> Response {
     let app_state_lock = app_state.read().await;
     let db_pool = &app_state_lock.unconf_data.read().await.unconf_db;
 
-    match tags_model::delete_tag(db_pool, auth_session, tag_id).await {
+    match tags_model::delete_tag(db_pool, auth_info, tag_id).await {
         Ok(_) => StatusCode::NO_CONTENT.into_response(),
         Err(e) => {
             let status = if e.to_string().contains("not found") {

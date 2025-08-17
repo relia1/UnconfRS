@@ -21,12 +21,14 @@ pub async fn unauth_middleware(auth_session: AuthSessionLayer, mut req: Request,
 
             AuthInfo {
                 is_authenticated: true,
+                is_staff_or_admin: false,
                 permissions,
             }
         }
         None => {
             AuthInfo {
                 is_authenticated: false,
+                is_staff_or_admin: false,
                 permissions: HashSet::from(Permission { name: String::from("default") }),
             }
         }

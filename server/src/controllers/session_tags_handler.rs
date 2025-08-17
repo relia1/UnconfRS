@@ -1,5 +1,5 @@
 use crate::config::AppState;
-use crate::middleware::auth::AuthSessionLayer;
+use crate::middleware::auth::{AuthInfo, AuthSessionLayer};
 use crate::models::session_tags_model::{add_session_tag, remove_session_tag, update_session_tag, SessionTagError};
 use crate::models::tags_model::Tag;
 use crate::types::ApiStatusCode;
@@ -7,7 +7,7 @@ use axum::extract::Path;
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
-use axum::Json;
+use axum::{Extension, Json};
 use axum_macros::debug_handler;
 use serde::Deserialize;
 use std::sync::Arc;
@@ -50,6 +50,7 @@ pub struct UpdateTagForSessionRequest {
 /// # Parameters
 /// - `app_state` - Thread-safe shared state wrapped in an Arc and RwLock
 /// - `auth_session` - Authentication session for authorization
+/// - `auth_info` - An instance of `AuthInfo`
 /// - `session_id` - The id of the session to add the tag to
 /// - `tag_id` - JSON body containing the tag ID to add
 ///
@@ -60,16 +61,17 @@ pub struct UpdateTagForSessionRequest {
 /// # Errors
 /// If an error occurs while adding the tag (tag already applied, unauthorized access, etc.),
 /// a session tag error response is returned.
-pub async fn add_tag_for_session(
+pub(crate) async fn add_tag_for_session(
     State(app_state): State<Arc<RwLock<AppState>>>,
     auth_session: AuthSessionLayer,
+    Extension(auth_info): Extension<AuthInfo>,
     Path(session_id): Path<i32>,
     Json(request): Json<AddTagToSessionRequest>,
 ) -> Response {
     let app_state_lock = app_state.read().await;
     let db_pool = &app_state_lock.unconf_data.read().await.unconf_db;
 
-    match add_session_tag(db_pool, auth_session, session_id, request.tag_id).await {
+    match add_session_tag(db_pool, auth_session, auth_info, session_id, request.tag_id).await {
         Ok(session_tags) => (StatusCode::OK, Json(session_tags)).into_response(),
         Err(e) => {
             let status = if e.to_string().contains("already applied") {
@@ -105,6 +107,7 @@ pub async fn add_tag_for_session(
 /// # Parameters
 /// - `app_state` - Thread-safe shared state wrapped in an Arc and RwLock
 /// - `auth_session` - Authentication session for authorization
+/// - `auth_info` - An instance of `AuthInfo`
 /// - `session_id` - The id of the session to remove the tag from
 /// - `tag_id` - JSON body containing the tag ID to remove
 ///
@@ -115,16 +118,17 @@ pub async fn add_tag_for_session(
 /// # Errors
 /// If an error occurs while removing the tag (tag not found on session, unauthorized access, etc.),
 /// a session tag error response is returned.
-pub async fn remove_tag_for_session(
+pub(crate) async fn remove_tag_for_session(
     State(app_state): State<Arc<RwLock<AppState>>>,
     auth_session: AuthSessionLayer,
+    Extension(auth_info): Extension<AuthInfo>,
     Path(session_id): Path<i32>,
     Json(request): Json<RemoveTagFromSessionRequest>,
 ) -> Response {
     let app_state_lock = app_state.read().await;
     let db_pool = &app_state_lock.unconf_data.read().await.unconf_db;
 
-    match remove_session_tag(db_pool, auth_session, session_id, request.tag_id).await {
+    match remove_session_tag(db_pool, auth_session, auth_info, session_id, request.tag_id).await {
         Ok(session_tags) => (StatusCode::OK, Json(session_tags)).into_response(),
         Err(e) => {
             let status = if e.to_string().contains("NonExistentTag") || e.to_string().contains("not found") {
@@ -159,6 +163,7 @@ pub async fn remove_tag_for_session(
 /// # Parameters
 /// - `app_state` - Thread-safe shared state wrapped in an Arc and RwLock
 /// - `auth_session` - Authentication session for authorization
+/// - `auth_info` - An instance of `AuthInfo`
 /// - `session_id` - The id of the session to update the tag for
 /// - `request` - JSON body containing the old and new tag IDs
 ///
@@ -169,16 +174,17 @@ pub async fn remove_tag_for_session(
 /// # Errors
 /// If an error occurs while updating the tag (old tag not found, new tag already applied, 
 /// unauthorized access, etc.), a session tag error response is returned.
-pub async fn update_tag_for_session(
+pub(crate) async fn update_tag_for_session(
     State(app_state): State<Arc<RwLock<AppState>>>,
     auth_session: AuthSessionLayer,
+    Extension(auth_info): Extension<AuthInfo>,
     Path(session_id): Path<i32>,
     Json(request): Json<UpdateTagForSessionRequest>,
 ) -> Response {
     let app_state_lock = app_state.read().await;
     let db_pool = &app_state_lock.unconf_data.read().await.unconf_db;
 
-    match update_session_tag(db_pool, auth_session, session_id, request.old_tag_id, request.new_tag_id).await {
+    match update_session_tag(db_pool, auth_session, auth_info, session_id, request.old_tag_id, request.new_tag_id).await {
         Ok(session_tags) => (StatusCode::OK, Json(session_tags)).into_response(),
         Err(e) => {
             let status = if e.to_string().contains("not found") {

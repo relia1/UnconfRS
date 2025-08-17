@@ -1,4 +1,4 @@
-use crate::middleware::auth::AuthSessionLayer;
+use crate::middleware::auth::AuthInfo;
 use crate::types::ApiStatusCode;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
@@ -176,8 +176,8 @@ pub async fn get_tag_by_name(db_pool: &Pool<Postgres>, tag_name: &str) -> Result
 ///
 /// # Parameters
 /// - `db_pool`: Database connection pool
-/// - `auth_session`: Authentication session containing user information
 /// - `tag_name`: The name of the tag to create
+/// - `auth_info`: An instance of `AuthInfo`
 ///
 /// # Returns
 /// The newly created `Tag`
@@ -187,12 +187,12 @@ pub async fn get_tag_by_name(db_pool: &Pool<Postgres>, tag_name: &str) -> Result
 /// - User isn't authorized to create tags
 /// - The tag being created already exists
 /// - Database query fails
-pub async fn create_tag(db_pool: &Pool<Postgres>, auth_session: AuthSessionLayer, tag_name: &str) -> Result<Tag, Box<dyn Error>> {
-    // The unwrap() here should be fine since by this point they have already been verified valid users
-    let is_staff_or_admin = auth_session
-        .backend
-        .has_superuser_or_staff_perms(&auth_session.user.clone().unwrap())
-        .await?;
+pub(crate) async fn create_tag(
+    db_pool: &Pool<Postgres>,
+    tag_name: &str,
+    auth_info: AuthInfo,
+) -> Result<Tag, Box<dyn Error>> {
+    let is_staff_or_admin = auth_info.is_staff_or_admin;
 
     if !is_staff_or_admin {
         return Err(Box::new(TagErr::UnAuthorizedAccess(
@@ -234,17 +234,13 @@ pub async fn create_tag(db_pool: &Pool<Postgres>, auth_session: AuthSessionLayer
 /// - Tag with the given ID doesn't exist
 /// - New tag name already exists
 /// - Database query fails
-pub async fn update_tag(
+pub(crate) async fn update_tag(
     db_pool: &Pool<Postgres>,
-    auth_session: AuthSessionLayer,
+    auth_info: AuthInfo,
     tag_id: i32,
     new_tag_name: &str,
 ) -> Result<Tag, Box<dyn Error>> {
-    // The unwrap() here should be fine since by this point they have already been verified valid users
-    let is_staff_or_admin = auth_session
-        .backend
-        .has_superuser_or_staff_perms(&auth_session.user.clone().unwrap())
-        .await?;
+    let is_staff_or_admin = auth_info.is_staff_or_admin;
 
     if !is_staff_or_admin {
         return Err(Box::new(TagErr::UnAuthorizedAccess(
@@ -294,16 +290,12 @@ pub async fn update_tag(
 ///
 /// # Note
 /// This will also remove all session_tags relationships due to CASCADE DELETE
-pub async fn delete_tag(
+pub(crate) async fn delete_tag(
     db_pool: &Pool<Postgres>,
-    auth_session: AuthSessionLayer,
+    auth_info: AuthInfo,
     tag_id: i32,
 ) -> Result<(), Box<dyn Error>> {
-    // The unwrap() here should be fine since by this point they have already been verified valid users
-    let is_staff_or_admin = auth_session
-        .backend
-        .has_superuser_or_staff_perms(&auth_session.user.clone().unwrap())
-        .await?;
+    let is_staff_or_admin = auth_info.is_staff_or_admin;
 
     if !is_staff_or_admin {
         return Err(Box::new(TagErr::UnAuthorizedAccess(

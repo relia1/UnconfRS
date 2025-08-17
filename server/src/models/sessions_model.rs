@@ -1,4 +1,4 @@
-use crate::middleware::auth::AuthSessionLayer;
+use crate::middleware::auth::{AuthInfo, AuthSessionLayer};
 use crate::types::ApiStatusCode;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
@@ -18,6 +18,8 @@ pub enum SessionErr {
     DoesNotExist(String),
     #[error("Session does not belong to user")]
     UnAuthorizedMutableAccess(String),
+    #[error("Cannot add session on behalf of user that doesn't have an account using email: {0}")]
+    UnableToAddSessionForUser(String),
 }
 
 /// Struct representing an error that occurred when working with sessions.
@@ -79,11 +81,12 @@ impl SessionError {
 /// Struct representing a session.
 ///
 /// # Fields
-/// - `Option<id>` - The ID of the session (optional)
+/// - `id` - The ID of the session (optional)
+/// - `user_id` - The user id of the session
 /// - `title` - The title of the session
 /// - `content` - The content of the session
 /// - `votes` - The number of votes the session has
-/// - `tag_id` - Optional tag ID for the session
+/// - `tag_id` - The tag ID for the session (optional)
 pub struct Session {
     pub id: Option<i32>,
     #[serde(skip_deserializing)]
@@ -93,6 +96,22 @@ pub struct Session {
     #[serde(skip_deserializing)]
     pub votes: i32,
     pub tag_id: Option<i32>,
+}
+
+/// Struct representing a session submitted on a user's behalf.
+///
+/// # Fields
+/// - `title` - The title of the session
+/// - `content` - The content of the session
+/// - `votes` - The number of votes the session has
+/// - `tag_id` - Optional tag ID for the session
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, FromRow)]
+
+pub struct SessionAddedForUser {
+    pub title: String,
+    pub content: String,
+    pub tag_id: Option<i32>,
+    pub email: String,
 }
 
 impl Session {
@@ -195,7 +214,12 @@ pub async fn get(db_pool: &Pool<Postgres>, index: i32) -> Result<Session, Box<dy
 ///
 /// # Errors
 /// If the query fails, a Box error is returned.
-pub async fn add(db_pool: &Pool<Postgres>, session: Session, auth_session: AuthSessionLayer) -> Result<i32, Box<dyn Error>> {
+pub(crate) async fn add(
+    db_pool: &Pool<Postgres>,
+    session: Session,
+    auth_session: AuthSessionLayer,
+    auth_info: AuthInfo,
+) -> Result<i32, Box<dyn Error>> {
     let session_id = sqlx::query_scalar!(
         "INSERT INTO sessions (user_id, title, content, votes) VALUES ($1, $2, $3, $4) RETURNING id",
         auth_session.user.as_ref().unwrap().id,
@@ -209,10 +233,58 @@ pub async fn add(db_pool: &Pool<Postgres>, session: Session, auth_session: AuthS
     // If a tag was provided, add it to the session
     if let Some(tag_id) = session.tag_id {
         use crate::models::session_tags_model::add_session_tag;
-        add_session_tag(db_pool, auth_session, session_id, tag_id).await?;
+        add_session_tag(db_pool, auth_session, auth_info, session_id, tag_id).await?;
     }
 
     Ok(session_id)
+}
+
+/// Adds a new session on behalf of a user.
+///
+/// # Parameters
+/// - `db_pool`: The database connection pool
+/// - `session`: The `SessionAddedForUser` instance to add
+/// - `auth_session`: Authentication session for authorization
+///
+/// # Returns
+/// The ID of the newly added session or an error if the query fails.
+///
+/// # Errors
+/// If the query fails, a Box error is returned.
+pub(crate) async fn add_for_user(
+    db_pool: &Pool<Postgres>,
+    session: SessionAddedForUser,
+    auth_session: AuthSessionLayer,
+    auth_info: AuthInfo,
+) -> Result<i32, Box<dyn Error>> {
+    let user = sqlx::query_scalar!(
+        "SELECT id FROM users WHERE email = $1",
+        session.email,
+    )
+        .fetch_optional(db_pool)
+        .await?;
+
+    if let Some(user_id) = user {
+        let session_id = sqlx::query_scalar!(
+            "INSERT INTO sessions (user_id, title, content, votes) VALUES ($1, $2, $3, $4) RETURNING id",
+            user_id,
+            session.title,
+            session.content,
+            0,
+        )
+            .fetch_one(db_pool)
+            .await?;
+
+        // If a tag was provided, add it to the session
+        if let Some(tag_id) = session.tag_id {
+            use crate::models::session_tags_model::add_session_tag;
+            add_session_tag(db_pool, auth_session, auth_info, session_id, tag_id).await?;
+        }
+
+        Ok(session_id)
+    } else {
+        Err(Box::new(SessionErr::UnableToAddSessionForUser(session.email)))
+    }
 }
 
 pub(crate) async fn is_users_resource(session: &Session, auth_session: &AuthSessionLayer) -> Result<bool, Box<dyn Error>> {
@@ -235,7 +307,12 @@ pub(crate) async fn is_users_resource(session: &Session, auth_session: &AuthSess
 ///
 /// # Errors
 /// If the query fails, a Box error is returned.
-pub async fn delete(db_pool: &Pool<Postgres>, index: i32, auth_session: AuthSessionLayer) -> Result<(), Box<dyn Error>> {
+pub(crate) async fn delete(
+    db_pool: &Pool<Postgres>,
+    index: i32,
+    auth_session: AuthSessionLayer,
+    auth_info: AuthInfo,
+) -> Result<(), Box<dyn Error>> {
     let session = sqlx::query_as!(
         Session,
         "SELECT id, user_id, title, content, votes, NULL::INTEGER as tag_id FROM sessions where id = $1",
@@ -244,8 +321,7 @@ pub async fn delete(db_pool: &Pool<Postgres>, index: i32, auth_session: AuthSess
         .fetch_optional(db_pool)
         .await?;
 
-    // The unwrap() here should be fine since by this point they have already been verified valid users
-    let is_staff_or_admin = auth_session.backend.has_superuser_or_staff_perms(&auth_session.user.clone().unwrap()).await?;
+    let is_staff_or_admin = auth_info.is_staff_or_admin;
     tracing::info!("Removing session: {:?}, is_staff_or_admin: {:?}", session, is_staff_or_admin);
 
     match session {
@@ -289,11 +365,12 @@ pub async fn delete(db_pool: &Pool<Postgres>, index: i32, auth_session: AuthSess
 ///
 /// # Errors
 /// If the query fails, a Box error is returned.
-pub async fn update(
+pub(crate) async fn update(
     db_pool: &Pool<Postgres>,
     index: i32,
     session: Session,
     auth_session: AuthSessionLayer,
+    auth_info: AuthInfo
 ) -> Result<Session, Box<dyn Error>> {
     let session_to_update = sqlx::query_as!(
         Session,
@@ -303,8 +380,7 @@ pub async fn update(
         .fetch_optional(db_pool)
         .await?;
 
-    // The unwrap() here should be fine since by this point they have already been verified valid users
-    let is_staff_or_admin = auth_session.backend.has_superuser_or_staff_perms(&auth_session.user.clone().unwrap()).await?;
+    let is_staff_or_admin = auth_info.is_staff_or_admin;
     tracing::info!("Updating session: {:?}, is_staff_or_admin: {:?}", session_to_update, is_staff_or_admin);
 
     match session_to_update {

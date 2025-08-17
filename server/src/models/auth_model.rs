@@ -113,9 +113,10 @@ impl Backend {
         Self { db_pool }
     }
 
-    pub async fn has_superuser_or_staff_perms(&self, user: &User) -> Result<bool, sqlx::Error> {
+    pub async fn has_superuser_or_staff_perms(&self, user: &User) -> Result<(bool, HashSet<Permission>), sqlx::Error> {
         let permissions = self.get_group_permissions(user).await?;
-        Ok(permissions.contains(&Permission { name: "superuser".to_string() }) || permissions.contains(&Permission { name: "staff".to_string() }))
+        let has_superuser_or_staff_perms = permissions.contains(&Permission { name: "superuser".to_string() }) || permissions.contains(&Permission { name: "staff".to_string() });
+        Ok((has_superuser_or_staff_perms, permissions))
     }
 
     pub async fn register(&self, new_user: RegistrationRequest) -> Result<(), Box<dyn Error>> {

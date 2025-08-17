@@ -2,18 +2,15 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 
 use crate::config::AppState;
-use crate::middleware::auth::AuthSessionLayer;
-use crate::models::sessions_model::{
-    add, delete, get, get_all_sessions, update, Session, SessionErr,
-    SessionError,
-};
+use crate::middleware::auth::{AuthInfo, AuthSessionLayer};
+use crate::models::sessions_model::{add, add_for_user, delete, get, get_all_sessions, update, Session, SessionAddedForUser, SessionErr, SessionError};
 use crate::types::ApiStatusCode;
-use axum::debug_handler;
 use axum::extract::Path;
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::Json;
+use axum::{debug_handler, Extension};
 use serde_json::json;
 
 #[utoipa::path(
@@ -122,14 +119,59 @@ pub async fn get_session(
 /// # Errors
 /// If an error occurs while adding the session, a session error response with a status code of 400
 /// Bad Request is returned.
-pub async fn post_session(
+pub(crate) async fn post_session(
     State(app_state): State<Arc<RwLock<AppState>>>,
     auth_session: AuthSessionLayer,
+    Extension(auth_info): Extension<AuthInfo>,
     Json(session): Json<Session>,
 ) -> Response {
     let app_state_lock = app_state.read().await;
     let write_lock = &app_state_lock.unconf_data.read().await.unconf_db;
-    match add(write_lock, session, auth_session).await {
+    match add(write_lock, session, auth_session, auth_info).await {
+        Ok(_) => StatusCode::CREATED.into_response(),
+        Err(e) => SessionError::response(ApiStatusCode::from(StatusCode::BAD_REQUEST), e),
+    }
+}
+
+#[utoipa::path(
+    post,
+    path = "/api/v1/sessions/add_for_user",
+    request_body(
+        content = inline(SessionAddedForUser),
+        description = "Session to add"
+    ),
+    responses(
+        (status = 201, description = "Added session", body = ()),
+        (status = 400, description = "Bad request", body = SessionError)
+    )
+)]
+#[debug_handler]
+/// Adds a new session on behalf of a user.
+///
+/// This function is a handler for the route `POST /api/v1/sessions/add_for_user`. It adds allows
+/// staff or admin to add a new session to the database on behalf of a user
+///
+/// # Parameters
+/// - `app_state` - Thread-safe shared state wrapped in an Arc and RwLock
+/// - `session`: The `SessionAddedForUser` instance to add
+/// - `auth_session`: Authentication session for authorization
+///
+/// # Returns
+/// `Response` with a status code of 201 Created and an empty body if the session was added or an
+/// error response if the session could not be added.
+///
+/// # Errors
+/// If an error occurs while adding the session, a session error response with a status code of 400
+/// Bad Request is returned.
+pub(crate) async fn post_session_for_user(
+    State(app_state): State<Arc<RwLock<AppState>>>,
+    auth_session: AuthSessionLayer,
+    Extension(auth_info): Extension<AuthInfo>,
+    Json(session): Json<SessionAddedForUser>,
+) -> Response {
+    let app_state_lock = app_state.read().await;
+    let write_lock = &app_state_lock.unconf_data.read().await.unconf_db;
+    match add_for_user(write_lock, session, auth_session, auth_info).await {
         Ok(_) => StatusCode::CREATED.into_response(),
         Err(e) => SessionError::response(ApiStatusCode::from(StatusCode::BAD_REQUEST), e),
     }
@@ -160,14 +202,15 @@ pub async fn post_session(
 /// # Errors
 /// If an error occurs while deleting the session, a session error response with a status code of
 /// 400 Bad Request is returned.
-pub async fn delete_session(
+pub(crate) async fn delete_session(
     State(app_state): State<Arc<RwLock<AppState>>>,
     Path(session_id): Path<i32>,
     auth_session: AuthSessionLayer,
+    Extension(auth_info): Extension<AuthInfo>,
 ) -> Response {
     let app_state_lock = app_state.read().await;
     let write_lock = &app_state_lock.unconf_data.read().await.unconf_db;
-    match delete(write_lock, session_id, auth_session).await {
+    match delete(write_lock, session_id, auth_session, auth_info).await {
         Ok(()) => {
             let success_response = json!({
                 "status": "success",
@@ -211,15 +254,16 @@ pub async fn delete_session(
 /// # Errors
 /// If an error occurs while updating the session, a session error response with a status code of
 /// 400 Bad Request is returned.
-pub async fn update_session(
+pub(crate) async fn update_session(
     State(app_state): State<Arc<RwLock<AppState>>>,
     Path(session_id): Path<i32>,
     auth_session: AuthSessionLayer,
+    Extension(auth_info): Extension<AuthInfo>,
     Json(session): Json<Session>,
 ) -> Response {
     let app_state_lock = app_state.read().await;
     let write_lock = &app_state_lock.unconf_data.read().await.unconf_db;
-    match update(write_lock, session_id, session, auth_session).await {
+    match update(write_lock, session_id, session, auth_session, auth_info).await {
         Ok(_) => StatusCode::OK.into_response(),
         Err(e) => SessionError::response(ApiStatusCode::from(StatusCode::BAD_REQUEST), e),
     }
