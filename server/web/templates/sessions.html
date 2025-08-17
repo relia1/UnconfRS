@@ -74,12 +74,20 @@
             z-index: 999;
         }
 
+        #emailField {
+            display: none;
+        }
+
     </style>
     <script src="https://cdn.jsdelivr.net/npm/idb-keyval@6/dist/umd.js"></script>
     <script src="https://cdn.datatables.net/v/dt/jq-3.7.0/dt-2.1.5/r-3.0.3/sl-2.0.5/datatables.min.js"></script>
     <script>
         let current_users_voted_sessions = {{ current_users_voted_sessions|json }};
-        {% include "scripts/sessions.js" %}
+        {% if permissions.contains(&Permission::from("superuser")) || permissions.contains(&Permission::from("staff")) %}
+            {% include "scripts/admin/admin_or_staff_sessions.js" %}
+        {% else %}
+            {% include "scripts/sessions.js" %}
+        {% endif %}
     </script>
 
     {% endblock %}
@@ -124,10 +132,7 @@
                                     {{ self.resolve_tag_names(session.tag_ids)|join(", ") }}
                                 {% endif %}
                             </td>
-                            <td class="action-buttons">
-                                <button class="del-btn btn-action" data-session-id="{{ session.session_id }}">Delete</button>
-                                <button class="edit-btn btn-action" data-session-id="{{ session.session_id }}">Edit</button>
-                                <button class="upvote-btn btn-action" data-session-id="{{ session.session_id }}">Upvote</button>
+                            <td>
                             </td>
                             <td>
                                 {{ session.content }}

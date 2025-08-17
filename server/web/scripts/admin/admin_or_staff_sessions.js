@@ -1,18 +1,18 @@
 const {get, set, update} = idbKeyval;
 set('sessions_voted_for', current_users_voted_sessions);
 
-let currentUserId = null;
+let currentUserId    = null;
 let currentSessionId = null;
-let currentTagId  = null;
+let currentTagId     = null;
 
 document.addEventListener('DOMContentLoaded', function() {
     let table = new DataTable('.sessionsTable', {
-        columns:   [
+        columns:    [
             {
-                data:      null,
-                className: 'dt-control',
+                data:           null,
+                className:      'dt-control',
                 defaultContent: '',
-                orderable: false,
+                orderable:      false,
             },
             {data: 'session_id', visible: false},
             {data: 'title'},
@@ -20,26 +20,26 @@ document.addEventListener('DOMContentLoaded', function() {
             {data: 'email'},
             {data: 'tags'},
             {
-                data:      null,
+                data:           null,
                 defaultContent: '<button class="del-btn btn-action"' +
                                     ' id="deleteSessionButton">Delete</button><button class="edit-btn btn-action"' +
                                     ' id="editSessionButton">Edit</button><button class="upvote-btn btn-action"' +
                                     ' id="upvoteSessionButton">Upvote</button>',
-                orderable: false,
+                orderable:      false,
             },
             {data: 'content', visible: false},
             {data: 'user_id', visible: false},
         ],
-        searching: true,
-        ordering:  true,
-        paging:    true,
+        searching:  true,
+        ordering:   true,
+        paging:     true,
         responsive: true,
-        order:     [[1, 'asc']],
+        order:      [[1, 'asc']],
     });
 
     // Add event listener for opening and closing details
     table.on('click', 'td.dt-control', function(e) {
-        let tr = e.target.closest('tr');
+        let tr  = e.target.closest('tr');
         let row = table.row(tr);
 
         if (row.child.isShown()) {
@@ -53,7 +53,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     table.on('click', '.del-btn', async function(e) {
         if (confirm('Are you sure you want to delete this session?')) {
-            let row = table.row($(this).closest('tr'));
+            let row  = table.row($(this).closest('tr'));
             let data = row.data();
             console.log('Deleting session with id: ' + data.session_id);
             try {
@@ -87,15 +87,15 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     table.on('click', '.edit-btn', async function(e) {
-        var data      = table.row($(this).closest('tr')).data();
+        var data         = table.row($(this).closest('tr')).data();
         currentSessionId = data.session_id;
-        currentUserId = data.user_id;
+        currentUserId    = data.user_id;
         console.log('Editing session with id: ' + data.session_id);
         showPopup(true, data);
     });
 
     table.on('click', '.upvote-btn', async function(e) {
-        var data = table.row($(this).closest('tr')).data();
+        var data         = table.row($(this).closest('tr')).data();
         currentSessionId = Number(data.session_id);
         currentUserId    = Number(data.user_id);
         let response;
@@ -145,10 +145,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
     document.getElementById('sessionForm').addEventListener('submit', async function(event) {
         event.preventDefault();
-        const title    = document.getElementById('title').value;
-        const content  = document.getElementById('sessionContent').value;
-        const newTagId = parseInt(document.getElementById('tagSelect').value) ?? null;
-        const isEdit   = currentSessionId !== null;
+        const title           = document.getElementById('title').value;
+        const content         = document.getElementById('sessionContent').value;
+        const addOnUserBehalf = document.getElementById('onBehalfOfUserCheckbox').checked;
+        const newTagId        = parseInt(document.getElementById('tagSelect').value) ?? null;
+        const isEdit          = currentSessionId !== null;
 
         let response;
         if (isEdit) {
@@ -159,7 +160,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({user_id: currentUserId, title, content}),
+                    body:    JSON.stringify({user_id: currentUserId, title, content}),
                 });
 
                 if (!response.ok) {
@@ -218,27 +219,66 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             location.reload();
         } else {
-            try {
-                const requestBody = {title, content};
-                if (newTagId) {
-                    requestBody.tag_id = parseInt(newTagId);
-                }
+            if (addOnUserBehalf) {
+                const email = document.getElementById('email').value;
+                try {
+                    const requestBody = {title, content, email};
+                    if (newTagId) {
+                        requestBody.tag_id = parseInt(newTagId);
+                    }
 
-                response = await fetch('/api/v1/sessions/add', {
-                    method:  'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(requestBody),
-                });
+                    response = await fetch('/api/v1/sessions/add_for_user', {
+                        method:  'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body:    JSON.stringify(requestBody),
+                    });
 
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                } catch (error) {
+                    console.log('Error submitting session: ', error);
                 }
-            } catch (error) {
-                console.log('Error submitting session: ', error);
+                location.reload();
+            } else {
+                try {
+                    const requestBody = {title, content};
+                    if (newTagId) {
+                        requestBody.tag_id = parseInt(newTagId);
+                    }
+
+                    response = await fetch('/api/v1/sessions/add', {
+                        method:  'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body:    JSON.stringify(requestBody),
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                } catch (error) {
+                    console.log('Error submitting session: ', error);
+                }
+                location.reload();
             }
-            location.reload();
+        }
+    });
+
+    document.getElementById('onBehalfOfUserCheckbox').addEventListener('change', function() {
+        const emailField = document.getElementById('emailField');
+        const emailInput = document.getElementById('email');
+
+        if (this.checked) {
+            emailField.style.display = 'block';
+            emailInput.setAttribute('required', 'required');
+        } else {
+            emailField.style.display = 'none';
+            emailInput.removeAttribute('required');
+            emailInput.value = '';
         }
     });
 
@@ -256,16 +296,16 @@ function format(data) {
 
 /* Popup functions */
 async function showPopup(isEdit, data = null) {
-    const popup         = document.getElementById('popup');
-    const overlay       = document.getElementById('overlay');
-    popup.style.display = 'block';
+    const popup           = document.getElementById('popup');
+    const overlay         = document.getElementById('overlay');
+    popup.style.display   = 'block';
     overlay.style.display = 'block';
 
     if (isEdit && data) {
-        document.getElementById('title').value = data.title;
+        document.getElementById('title').value          = data.title;
         document.getElementById('sessionContent').value = data.content;
-        currentSessionId                       = data.session_id;
-        currentUserId                          = data.user_id;
+        currentSessionId                                = data.session_id;
+        currentUserId                                   = data.user_id;
 
         // Set current tag in dropdown
         const tagSelect = document.getElementById('tagSelect');
@@ -280,8 +320,8 @@ async function showPopup(isEdit, data = null) {
     } else {
         document.getElementById('sessionForm').reset();
         currentSessionId = null;
-        currentUserId = null;
-        currentTagId  = null;
+        currentUserId    = null;
+        currentTagId     = null;
     }
 
     document.querySelector('#cancelButton').addEventListener('click', closePopup);
@@ -289,11 +329,15 @@ async function showPopup(isEdit, data = null) {
 }
 
 function closePopup() {
-    const popup   = document.getElementById('popup');
-    const overlay = document.getElementById('overlay');
+    const popup      = document.getElementById('popup');
+    const overlay    = document.getElementById('overlay');
+    const emailField = document.getElementById('emailField');
+    const emailInput = document.getElementById('email');
 
-    popup.style.display   = 'none';
-    overlay.style.display = 'none';
+    popup.style.display      = 'none';
+    overlay.style.display    = 'none';
+    emailField.style.display = 'none';
+    emailInput.removeAttribute('required');
 
     document.querySelector('#cancelButton').removeEventListener('click', closePopup);
     document.querySelector('#overlay').removeEventListener('click', closePopup);
