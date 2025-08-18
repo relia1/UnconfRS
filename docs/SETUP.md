@@ -38,7 +38,7 @@ docker compose up --build
     ```sh
     cargo run --bin unconfrs --release
     ```
-3. Navigate to `http://localhost:3000`
+3. Navigate to `http://localhost:3039`
 
 ## Troubleshooting
 
@@ -63,7 +63,7 @@ docker compose up --build
 ## Common Issues
 
 - Port Conflicts:
-    - If port 3000 is in use, modify the port or stop the thing using port 3000
+    - If port 3039 is in use, modify the port or stop the thing using port 3039
     - Database port may already be in use, you'll need to update the port in either `compose.yaml` or `.env` in the root
       directory of the project
 - Missing `password.txt`: The application expects `db/password.txt` to exist

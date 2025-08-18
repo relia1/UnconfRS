@@ -65,7 +65,7 @@ RUN ls -l
 # COPY --chown=appuser:appuser ./assets ./assets
 #COPY --chown=appuser:appuser migrations/ /migrations/
 # Expose the port that the application listens on.
-EXPOSE 3000
+EXPOSE 3039
 
 # What the container should run when it is started.
 CMD ["/bin/unconfrs"]

@@ -11,7 +11,7 @@ to attend and allows an admin to create/update a schedule based on the submitted
 
 ```sh
 docker compose up --build
-# Navigate to http://localhost:3000
+# Navigate to http://localhost:3039
 
 ```
 
@@ -37,7 +37,7 @@ docker compose up --build
     ```sh
     docker compose up --build
     ```
-2. Open your web browser and navigate to `http://localhost:3000`
+2. Open your web browser and navigate to `http://localhost:3039`
 
 ### Running the Application Using Docker for Just Postgres
 
@@ -46,7 +46,7 @@ docker compose up --build
    docker compose up --build db
    cargo run --bin unconfrs --release
     ```
-2. Open your web browser and navigate to `http://localhost:3000`
+2. Open your web browser and navigate to `http://localhost:3039`
 
 ## Production Deployment
 
