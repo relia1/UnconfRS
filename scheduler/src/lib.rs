@@ -425,6 +425,33 @@ impl SchedulerData {
         self.unassigned_sessions[unassigned_idx].session_id = session1;
         self.unassigned_sessions[unassigned_idx].num_votes = votes1;
         self.unassigned_sessions[unassigned_idx].tag_id = tag1;
+        self.unassigned_sessions[unassigned_idx].speaker_id = speaker1;
+        self.unassigned_sessions[unassigned_idx].speaker_votes = speaker_votes1;
+    }
+
+    /// Runs the scheduler with multiple restarts to find the best solution
+    ///
+    /// # Parameters
+    /// - `restarts`: Number of times to restart the improvement process
+    ///
+    /// # Returns
+    /// The best score found across all restarts
+    pub fn improve_with_restarts(&mut self, restarts: usize) -> f32 {
+        let unmodified_data = self.clone();
+        let mut best_score = self.improve();
+        let mut best_data = self.clone();
+
+        for _ in 0..restarts {
+            *self = unmodified_data.clone();
+            let new_score = self.improve();
+            if new_score < best_score {
+                best_score = new_score;
+                best_data = self.clone();
+            }
+        }
+
+        *self = best_data;
+        best_score
     }
 }
 
