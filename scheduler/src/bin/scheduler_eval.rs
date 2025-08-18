@@ -148,6 +148,9 @@ impl BruteForceScheduler for scheduler::SchedulerData {
                     for (session, (row, col)) in assignment.iter() {
                         test_data.schedule_rows[*row].schedule_items[*col].session_id = session.0;
                         test_data.schedule_rows[*row].schedule_items[*col].num_votes = session.1;
+                        test_data.schedule_rows[*row].schedule_items[*col].tag_id = session.2;
+                        test_data.schedule_rows[*row].schedule_items[*col].speaker_id = None;
+                        test_data.schedule_rows[*row].schedule_items[*col].speaker_votes = vec![];
                     }
 
                     // Add unused sessions to unassigned
@@ -161,6 +164,8 @@ impl BruteForceScheduler for scheduler::SchedulerData {
                                 session_id: session.0,
                                 num_votes: session.1,
                                 tag_id: session.2,
+                                speaker_id: None,
+                                speaker_votes: vec![],
                             });
                         }
                     }
