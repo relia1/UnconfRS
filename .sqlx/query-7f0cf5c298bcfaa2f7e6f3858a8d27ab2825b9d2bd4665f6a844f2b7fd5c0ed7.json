@@ -1,0 +1,44 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT uv.session_id, COALESCE(COUNT(*)::INTEGER, 0) as \"num_votes!\", st.tag_id, s.user_id as speaker_id, ARRAY[]::INTEGER[] as \"speaker_votes!\" from user_votes uv LEFT JOIN session_tags st ON st.session_id = uv.session_id LEFT JOIN sessions s ON s.id = uv.session_id GROUP BY uv.session_id, st.tag_id, s.user_id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "session_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "num_votes!",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 2,
+        "name": "tag_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 3,
+        "name": "speaker_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 4,
+        "name": "speaker_votes!",
+        "type_info": "Int4Array"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      null,
+      false,
+      false,
+      null
+    ]
+  },
+  "hash": "7f0cf5c298bcfaa2f7e6f3858a8d27ab2825b9d2bd4665f6a844f2b7fd5c0ed7"
+}

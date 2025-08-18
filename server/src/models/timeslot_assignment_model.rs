@@ -145,11 +145,14 @@ pub async fn assign_sessions_to_timeslots(
             ta.room_id as "room_id!",
             true as "already_assigned!",
             COALESCE(COUNT(uv.session_id), 0)::INTEGER as "num_votes!",
-            st.tag_id
+            st.tag_id,
+            s.user_id as speaker_id,
+            ARRAY[]::INTEGER[] as "speaker_votes!"
         FROM timeslot_assignments ta
         JOIN user_votes uv ON ta.session_id = uv.session_id
         LEFT JOIN session_tags st ON st.session_id = ta.session_id
-        GROUP BY ta.id, ta.time_slot_id, ta.session_id, ta.room_id, st.tag_id"#
+        LEFT JOIN sessions s ON s.id = ta.session_id
+        GROUP BY ta.id, ta.time_slot_id, ta.session_id, ta.room_id, st.tag_id, s.user_id"#
     )
         .fetch_all(db_pool)
         .await?;
@@ -231,10 +234,11 @@ pub async fn local_search_scheduling(db_pool: &Pool<Postgres>, scheduling_data: 
 
     let session_and_votes: Vec<SessionData> = sqlx::query_as!(
         SessionData,
-        "SELECT uv.session_id, COALESCE(COUNT(*)::INTEGER, 0) as \"num_votes!\", st.tag_id \
+        "SELECT uv.session_id, COALESCE(COUNT(*)::INTEGER, 0) as \"num_votes!\", st.tag_id, s.user_id as speaker_id, ARRAY[]::INTEGER[] as \"speaker_votes!\" \
          from user_votes uv \
          LEFT JOIN session_tags st ON st.session_id = uv.session_id \
-         GROUP BY uv.session_id, st.tag_id"
+         LEFT JOIN sessions s ON s.id = uv.session_id \
+         GROUP BY uv.session_id, st.tag_id, s.user_id"
     )
         .fetch_all(db_pool)
         .await?;
@@ -242,16 +246,20 @@ pub async fn local_search_scheduling(db_pool: &Pool<Postgres>, scheduling_data: 
     let unassigned_sessions: Vec<SessionData> = scheduling_data.unassigned_sessions
         .iter()
         .map(|&UnassignedSession { session_id, tag_id }| {
-            let num_votes = session_and_votes
+            let session_data = session_and_votes
                 .iter()
-                .find(|sv| sv.session_id.is_some() && sv.session_id.unwrap() == session_id)
-                .map(|sv| sv.num_votes)
-                .unwrap_or(0);
+                .find(|session_data| session_data.session_id.is_some() && session_data.session_id.unwrap() == session_id);
+
+            let (num_votes, speaker_id, speaker_votes) = session_data
+                .map(|session_data| (session_data.num_votes, session_data.speaker_id, session_data.speaker_votes.clone()))
+                .unwrap_or((0, None, vec![]));
 
             SessionData {
                 session_id: Some(session_id),
                 num_votes,
                 tag_id,
+                speaker_id,
+                speaker_votes,
             }
         })
         .collect();
@@ -275,6 +283,8 @@ pub async fn local_search_scheduling(db_pool: &Pool<Postgres>, scheduling_data: 
                 id: None,
                 already_assigned: false,
                 tag_id: None,
+                speaker_id: None,
+                speaker_votes: vec![],
             };
 
             schedule_row.schedule_items.push(item);
@@ -296,8 +306,8 @@ pub async fn local_search_scheduling(db_pool: &Pool<Postgres>, scheduling_data: 
             if let Some(session_id) = room_time_assgn.session_id {
                 schedule_item.num_votes = session_and_votes
                     .iter()
-                    .find(|sv| sv.session_id.is_some() && sv.session_id.unwrap() == session_id)
-                    .map(|sv| sv.num_votes)
+                    .find(|session_data| session_data.session_id.is_some() && session_data.session_id.unwrap() == session_id)
+                    .map(|session_data| session_data.num_votes)
                     .unwrap_or(0);
             }
         }
