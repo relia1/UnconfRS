@@ -34,8 +34,8 @@ async fn main() {
     // Configure the application router
     let app = configure_app_router(app_state).await;
 
-    // start up webserver on localhost:3000
-    let ip = SocketAddr::new([0, 0, 0, 0].into(), 3000);
+    // start up webserver on localhost:3039
+    let ip = SocketAddr::new([127, 0, 0, 1].into(), 3039);
     let listener = tokio::net::TcpListener::bind(ip).await.unwrap();
     tracing::info!("serving {}", listener.local_addr().unwrap());
     axum::serve(listener, app)

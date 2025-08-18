@@ -15,7 +15,7 @@ services:
       args:
         BUILD_TYPE: ${BUILD_TYPE:-release}
     ports:
-      - 3000:3000
+      - 3039:3039
     environment:
       - PG_DBNAME=db
       - PG_HOST=db
@@ -41,6 +41,7 @@ services:
 # a password of your choosing to it before running `docker compose up`.
   db:
     image: docker.io/postgres
+    container_name: unconfrs-db
     restart: always
     user: postgres
     secrets:
