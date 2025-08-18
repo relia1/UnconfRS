@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block title %}Users{% endblock %}
+
+{% block content %}
+    <form id="register" style="margin-top: 10px">
+        <div class="form-field">
+            <div>
+                <label for="fname">First Name:</label>
+                <input type="text" id="fname" name="fname" required/>
+            </div>
+
+            <div>
+                <label for="lname">Last Name:</label>
+                <input type="text" id="lname" name="lname" required/>
+            </div>
+
+            <div>
+                <label for="email">Email:</label>
+                <input type="text" id="email" name="email" required/>
+            </div>
+
+            <div>
+                <label for="password">Password:</label>
+                <input type="password" id="password" name="password" required/>
+            </div>
+
+            <div>
+                <label for="confirm-password">Confirm Password</label>
+                <input type="password" id="confirm-password" name="confirm-password" required/>
+            </div>
+        </div>
+        <button type="submit">Submit</button>
+    </form>
+<script>
+    document.getElementById('register').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const fname = document.getElementById('fname').value;
+        const lname = document.getElementById('lname').value;
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+        const confirmPassword = document.getElementById('confirm-password').value;
+
+        if (password !== confirmPassword) {
+            alert('Passwords must match');
+            return;
+        }
+
+        const payload = {
+            fname,
+            lname,
+            email,
+            password,
+        };
+
+        fetch('/api/v1/registration_on_user_behalf', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        })
+        .then(response => response)
+        .then(data => {
+            if (data.ok) {
+                alert('Registration successful');
+            } else {
+                alert('Invalid Registration');
+            }
+        });
+    });
+</script>
+{% endblock %}

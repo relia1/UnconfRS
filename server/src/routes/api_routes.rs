@@ -1,5 +1,5 @@
 use crate::config::AppState;
-use crate::controllers::registration_handler::registration_handler;
+use crate::controllers::registration_handler::{registration_handler, staff_registers_user_handler};
 use crate::controllers::schedule_handler::{add_session_to_schedule, remove_session_from_schedule};
 use crate::controllers::sessions_handler::post_session_for_user;
 use crate::controllers::tags_handler::{create_tag, delete_tag, update_tag};
@@ -50,6 +50,7 @@ pub fn get_routes(app_state: &Arc<RwLock<AppState>>) -> Router<Arc<RwLock<AppSta
 
     let staff_or_admin_routes = Router::new()
         .route("/sessions/add_for_user", post(post_session_for_user))
+        .route("/registration_on_user_behalf", post(staff_registers_user_handler))
         .route_layer(from_fn_with_state(app_state.clone(), auth_middleware));
 
     let admin_routes = Router::new()

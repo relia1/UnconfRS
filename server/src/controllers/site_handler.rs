@@ -389,6 +389,7 @@ struct ConfigTemplate {
     is_authenticated: bool,
     tags: Vec<Tag>,
 }
+
 #[debug_handler]
 pub(crate) async fn config_handler(State(app_state): State<Arc<RwLock<AppState>>>, Extension(auth_info): Extension<AuthInfo>) -> Response {
     let app_state_lock = app_state.read().await;
@@ -406,6 +407,29 @@ pub(crate) async fn config_handler(State(app_state): State<Arc<RwLock<AppState>>
         permissions: auth_info.permissions,
         is_authenticated: auth_info.is_authenticated,
         tags,
+    };
+
+    match template.render() {
+        Ok(html) => Html(html).into_response(),
+        Err(e) => {
+            tracing::error!("Error rendering template: {:?}", e);
+            StatusCode::INTERNAL_SERVER_ERROR.into_response()
+        }
+    }
+}
+
+#[derive(Template, Clone, Deserialize, FromRow)]
+#[template(path = "users.html")]
+struct UsersTemplate {
+    permissions: HashSet<Permission>,
+    is_authenticated: bool,
+}
+
+#[debug_handler]
+pub(crate) async fn users_handler(Extension(auth_info): Extension<AuthInfo>) -> Response {
+    let template = UsersTemplate {
+        permissions: auth_info.permissions,
+        is_authenticated: auth_info.is_authenticated,
     };
 
     match template.render() {

@@ -1,7 +1,7 @@
 use crate::config::AppState;
 use crate::controllers::login_handler::{login_page_handler, unconference_password_page_handler, unconference_password_submit_handler};
 use crate::controllers::registration_handler::registration_page_handler;
-use crate::controllers::site_handler::{config_handler, index_handler, schedule_handler, session_handler, unconf_timeslots_handler};
+use crate::controllers::site_handler::{config_handler, index_handler, schedule_handler, session_handler, unconf_timeslots_handler, users_handler};
 use crate::middleware::auth::auth_middleware;
 use crate::middleware::unauth::unauth_middleware;
 use crate::middleware::unconference_password::unconference_password_middleware;
@@ -50,6 +50,10 @@ pub fn get_routes(app_state: Arc<RwLock<AppState>>) -> Router<Arc<RwLock<AppStat
         .nest_service("/styles", ServeDir::new(&styles_dir))
         .with_state(app_state.clone());
 
+    let staff_or_admin_routes = Router::new()
+        .route("/users", get(users_handler))
+        .route_layer(from_fn_with_state(app_state.clone(), auth_middleware));
+
     let admin_site_routes = Router::new()
         .route("/config", get(config_handler))
         .route_layer(from_fn_with_state(app_state.clone(), unconference_password_middleware))
@@ -61,5 +65,6 @@ pub fn get_routes(app_state: Arc<RwLock<AppState>>) -> Router<Arc<RwLock<AppStat
 
     unconference_auth_routes
         .merge(site_routes)
+        .merge(staff_or_admin_routes)
         .merge(admin_site_routes)
 }

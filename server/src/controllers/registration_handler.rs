@@ -58,3 +58,42 @@ pub async fn registration_handler(
         }
     }
 }
+
+#[debug_handler]
+pub(crate) async fn staff_registers_user_handler(
+    auth_session: AuthSessionLayer,
+    Extension(auth_info): Extension<AuthInfo>,
+    Json(user_info): Json<RegistrationRequest>,
+) -> impl IntoResponse {
+    let is_staff_or_admin = auth_info.is_staff_or_admin;
+    if !is_staff_or_admin {
+        return (
+            StatusCode::FORBIDDEN,
+            Json(RegistrationResponse {
+                success: false,
+                message: "Only staff or admin allowed to register users other than themselves".to_string(),
+            }),
+        );
+    }
+    tracing::debug!("user_info: {:?}", user_info.fname);
+    match auth_session.backend.register(user_info).await {
+        Ok(()) => {
+            (
+                StatusCode::CREATED,
+                Json(RegistrationResponse {
+                    success: true,
+                    message: "User created".to_string(),
+                }),
+            )
+        }
+        Err(_) => {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(RegistrationResponse {
+                    success: false,
+                    message: "Internal server error".to_string(),
+                }),
+            )
+        }
+    }
+}

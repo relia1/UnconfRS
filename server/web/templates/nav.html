@@ -18,6 +18,11 @@
                 <a href="/config">Config</a>
             </li>
             {% endif %}
+            {% if permissions.contains(&Permission::from("superuser")) %}
+            <li>
+                <a href="/users">Users</a>
+            </li>
+            {% endif %}
             <li>
             {% if is_authenticated %}
                 <a id="logout" href="#">Logout</a>
