@@ -2,8 +2,8 @@
 
 # Displays how to use the script
 usage() {
-  echo "Usage: $0 <email>"
-  echo "Updates the password for the specified email in the database"
+  echo "Usage: $0"
+  echo "Updates the password for the unconference in the database"
   exit 1
 }
 
@@ -17,25 +17,17 @@ check_db_container() {
 
 # Update password in database
 update_password() {
-  local email="$1"
-  local password="$2"
+  local password="$1"
 
   check_db_container
 
-  sql="UPDATE users SET password = '$password' WHERE email = '$email'"
+  sql="DELETE FROM conference_password; INSERT INTO conference_password (password) VALUES ('$password')"
   docker exec -i unconfrs-db psql -d db -c "$sql"
 }
-
-# Make sure email was provided
-if [ $# -ne 1 ]; then
-  usage
-fi
-
-email="$1"
 
 # Use htpasswd to generate bcrypt hash
 # Default cost is 12
 # Default version is 2b
 hashed_pw=$(htpasswd -nBC 12 "" | tr -d ':')
 
-update_password "$email" "$hashed_pw"
+update_password "$hashed_pw"

@@ -35,11 +35,11 @@ pub async fn db_setup() -> Result<Pool<Postgres>, Box<dyn Error>> {
     let password_expr = password_var.trim().split_once('=');
     let password = if let Some((password_var, password)) = password_expr {
         if password_var != "POSTGRES_PASSWORD" {
-            return DbSetupError::BadPwVariable(password_var.to_owned()).into();
+            return Err(DbSetupError::BadPwVariable(password_var.to_owned()))?;
         }
         password
     } else {
-        return DbSetupError::NoPwVariable.into();
+        return Err(DbSetupError::NoPwVariable)?;
     };
     let pg_host = var("PG_HOST")?;
     let pg_port = var("PG_PORT")?;
