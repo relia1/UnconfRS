@@ -9,14 +9,14 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Cache downloaded+built dependencies
-COPY *.toml /app/
+COPY server/*.toml /app/
 RUN if [ "$BUILD_TYPE" = "release" ]; then \
     mkdir /app/src && \
     mkdir /app/src/bin && \
     mkdir /app/web && \
     echo 'fn main() {}' > /app/src/main.rs && \
     echo 'fn main() {}' > /app/src/bin/main && \
-    cargo build --release && \
+    cargo build --release -p server && \
     rm -Rvf /app/src target/${BUILD_TYPE}/deps/unconfrs*; \
 else \
     mkdir /app/src && \
@@ -24,20 +24,20 @@ else \
     mkdir /app/web && \
     echo 'fn main() {}' > /app/src/main.rs && \
     echo 'fn main() {}' > /app/src/bin/main && \
-    cargo build && \
+    cargo build -p server && \
     rm -Rvf /app/src target/${BUILD_TYPE}/deps/unconfrs*; \
 fi
 
 # Build our actual code
-COPY src /app/src
+COPY server/src /app/src
 COPY server/web /app/web
 COPY server/migrations /app/migrations
 RUN if [ "$BUILD_TYPE" = "release" ]; then \
-    touch src/main.rs && \
-    cargo build --release; \
+    touch server/src/main.rs && \
+    cargo build --release -p server; \
 else \
-    touch src/main.rs && \
-    cargo build; \
+    touch server/src/main.rs && \
+    cargo build -p server; \
 fi
 
 FROM debian:bookworm-slim AS final
