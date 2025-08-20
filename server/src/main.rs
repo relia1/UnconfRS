@@ -20,11 +20,14 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[tokio::main]
 async fn main() {
+    // Check if we are running in a container
+    let is_container = var("CONTAINER").is_ok();
+
     // load .env file if we aren't running from container
-    if var("CONTAINER").is_err() {
+    if !is_container {
         dotenv().ok();
     }
-    
+
     // Setup formatting and environment for trace
     setup_tracing().await;
 
@@ -34,8 +37,13 @@ async fn main() {
     // Configure the application router
     let app = configure_app_router(app_state).await;
 
-    // start up webserver on localhost:3039
-    let ip = SocketAddr::new([127, 0, 0, 1].into(), 3039);
+    // start up webserver and bind based on environment
+    let ip = if is_container {
+        SocketAddr::new([0, 0, 0, 0].into(), 3039)
+    } else {
+        SocketAddr::new([127, 0, 0, 1].into(), 3039)
+    };
+
     let listener = tokio::net::TcpListener::bind(ip).await.unwrap();
     tracing::info!("serving {}", listener.local_addr().unwrap());
     axum::serve(listener, app)
