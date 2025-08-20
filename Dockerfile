@@ -9,34 +9,42 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Cache downloaded+built dependencies
-COPY server/*.toml /app/
+COPY Cargo.toml /app/
+COPY server/*.toml /app/server/
+COPY scheduler/Cargo.toml /app/scheduler/
+COPY test_unconf/Cargo.toml /app/test_unconf/
+COPY .sqlx /app/.sqlx
+
+RUN mkdir -p /app/server/src && \
+    mkdir -p /app/scheduler/src && \
+    mkdir -p /app/scheduler/src/bin && \
+    mkdir -p /app/test_unconf/src && \
+    echo 'fn main() {}' > /app/server/src/main.rs && \
+    echo 'pub fn main() {}' > /app/scheduler/src/lib.rs && \
+    echo 'fn main() {}' > /app/scheduler/src/bin/scheduler_eval.rs && \
+    echo 'fn main() {}' > /app/test_unconf/src/main.rs
+
 RUN if [ "$BUILD_TYPE" = "release" ]; then \
-    mkdir /app/src && \
-    mkdir /app/src/bin && \
-    mkdir /app/web && \
-    echo 'fn main() {}' > /app/src/main.rs && \
-    echo 'fn main() {}' > /app/src/bin/main && \
-    cargo build --release -p server && \
-    rm -Rvf /app/src target/${BUILD_TYPE}/deps/unconfrs*; \
+    cargo build --release -p server; \
 else \
-    mkdir /app/src && \
-    mkdir /app/src/bin && \
-    mkdir /app/web && \
-    echo 'fn main() {}' > /app/src/main.rs && \
-    echo 'fn main() {}' > /app/src/bin/main && \
-    cargo build -p server && \
-    rm -Rvf /app/src target/${BUILD_TYPE}/deps/unconfrs*; \
+    cargo build -p server; \
 fi
 
-# Build our actual code
-COPY server/src /app/src
-COPY server/web /app/web
-COPY server/migrations /app/migrations
+RUN rm -rf /app/server/src /app/scheduler/src /app/test_unconf/src;
+
+COPY server/src /app/server/src
+COPY test_unconf/src /app/test_unconf/src
+COPY scheduler/src /app/scheduler/src
+COPY server/web /app/server/web
+COPY server/migrations /app/server/migrations
+
 RUN if [ "$BUILD_TYPE" = "release" ]; then \
     touch server/src/main.rs && \
+    touch scheduler/src/lib.rs && \
     cargo build --release -p server; \
 else \
     touch server/src/main.rs && \
+    touch scheduler/src/lib.rs && \
     cargo build -p server; \
 fi
 
@@ -44,7 +52,7 @@ FROM debian:bookworm-slim AS final
 ARG BUILD_TYPE
 RUN apt-get update && apt-get install -y \
     ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/*;
 # Create a non-privileged user that the app will run under.
 # See https://docs.docker.com/go/dockerfile-user-best-practices/
 ARG UID=10001
@@ -55,12 +63,12 @@ RUN adduser \
     --shell "/sbin/nologin" \
     --no-create-home \
     --uid "${UID}" \
-    appuser
+    appuser;
 USER appuser
 
 # Copy the executable from the "build" stage.
-COPY --from=build /app/target/${BUILD_TYPE}/unconfrs /bin/
-COPY --from=build /app/web/ /
+COPY --from=build /app/target/${BUILD_TYPE}/server /bin/
+COPY --from=build /app/server/web/ /
 RUN ls -l
 # COPY --chown=appuser:appuser ./assets ./assets
 #COPY --chown=appuser:appuser migrations/ /migrations/
@@ -68,4 +76,4 @@ RUN ls -l
 EXPOSE 3039
 
 # What the container should run when it is started.
-CMD ["/bin/unconfrs"]
+CMD ["/bin/server"]
