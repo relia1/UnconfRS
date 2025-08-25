@@ -28,6 +28,7 @@ services:
       - SCRIPTS_DIR=/scripts
       - STYLES_DIR=/styles
       - CONTAINER=true
+      - POSTGRES_PASSWORD
     secrets:
       - db-password
     depends_on:
@@ -52,7 +53,7 @@ services:
     environment:
       - POSTGRES_DB=db
       - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD_FILE=/run/secrets/db-password
+      - POSTGRES_PASSWORD
       - POSTGRES_LOGGING_COLLECTOR=on
       - POSTGRES_LOG_STATEMENT=all
     expose:

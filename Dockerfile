@@ -52,28 +52,34 @@ FROM debian:bookworm-slim AS final
 ARG BUILD_TYPE
 RUN apt-get update && apt-get install -y \
     ca-certificates \
+    postgresql \
+    postgresql-contrib \
+    sudo \
     && rm -rf /var/lib/apt/lists/*;
-# Create a non-privileged user that the app will run under.
-# See https://docs.docker.com/go/dockerfile-user-best-practices/
+# Create app user and postgres data directory
 ARG UID=10001
 RUN adduser \
     --disabled-password \
     --gecos "" \
-    --home "/nonexistent" \
-    --shell "/sbin/nologin" \
-    --no-create-home \
+    --home "/home/appuser" \
+    --shell "/bin/bash" \
     --uid "${UID}" \
-    appuser;
-USER appuser
+    appuser && \
+    mkdir -p /var/lib/postgresql/data /var/run/postgresql && \
+    chown -R appuser:appuser /var/lib/postgresql /var/run/postgresql /etc/postgresql
 
-# Copy the executable from the "build" stage.
-COPY --from=build /app/target/${BUILD_TYPE}/server /bin/
+# Copy the executable and migrations from the "build" stage.
+COPY --from=build /app/target/release/server /bin/
 COPY --from=build /app/server/web/ /
-RUN ls -l
-# COPY --chown=appuser:appuser ./assets ./assets
-#COPY --chown=appuser:appuser migrations/ /migrations/
+COPY --from=build /app/server/migrations/ /migrations/
+
+# Create startup script
+COPY startup.sh /startup.sh
+RUN chmod +x /startup.sh
+
+USER appuser
 # Expose the port that the application listens on.
 EXPOSE 3039
 
 # What the container should run when it is started.
-CMD ["/bin/server"]
+CMD ["/startup.sh"]
