@@ -34,6 +34,15 @@ async fn main() {
     // Connect to database and setup app state
     let app_state = Arc::new(RwLock::new(AppState::new().await.unwrap()));
 
+    // Initialize defaults from environment variables
+    {
+        let state_read = app_state.read().await;
+        let pool = &state_read.unconf_data.read().await.unconf_db;
+        if let Err(e) = init::initialize_defaults(pool).await {
+            tracing::error!("Failed to initialize defaults: {:?}", e);
+        }
+    }
+
     // Configure the application router
     let app = configure_app_router(app_state).await;
 

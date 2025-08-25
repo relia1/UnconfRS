@@ -1,12 +1,11 @@
 #!/bin/bash
 set -e
 
-# Set default password if not provided
-POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-changeme123}
-
-# Write password to expected file location
-mkdir -p /tmp
-echo "POSTGRES_PASSWORD=${POSTGRES_PASSWORD}" > /tmp/db-password.txt
+# Set default unconference password and admin credentials
+UNCONFERENCE_PASSWORD=${UNCONFERENCE_PASSWORD:-unconference123}
+ADMIN_EMAIL=${ADMIN_EMAIL:-admin@example.com}
+ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin123}
+ADMIN_NAME=${ADMIN_NAME:-Admin User}
 
 # Initialize PostgreSQL if not already done
 if [ ! -d "/var/lib/postgresql/data/base" ]; then
@@ -19,12 +18,9 @@ if [ ! -d "/var/lib/postgresql/data/base" ]; then
     # Wait for PostgreSQL to start
     sleep 3
     
-    # Create postgres user and database
-    /usr/lib/postgresql/*/bin/psql -h localhost -d template1 -c "CREATE USER postgres SUPERUSER PASSWORD '${POSTGRES_PASSWORD}';"
+    # Create postgres user and database (no password needed with trust auth)
+    /usr/lib/postgresql/*/bin/psql -h localhost -d template1 -c "CREATE USER postgres SUPERUSER;"
     /usr/lib/postgresql/*/bin/createdb -h localhost -O postgres db
-    
-    # Update pg_hba.conf to require password for host connections
-    echo "host all all 0.0.0.0/0 md5" >> /var/lib/postgresql/data/pg_hba.conf
     
     # Stop PostgreSQL
     /usr/lib/postgresql/*/bin/pg_ctl -D /var/lib/postgresql/data stop
@@ -37,9 +33,10 @@ echo "Starting PostgreSQL..."
 # Wait for PostgreSQL to be ready
 sleep 3
 
-# Set environment variables for the app
+# The application will handle password and admin user initialization automatically
+
+# Set environment variables for the app (no password needed with trust auth)
 export PG_USER=postgres
-export PG_PASSWORDFILE=/tmp/db-password.txt
 export PG_HOST=localhost
 export PG_PORT=5432
 export PG_DBNAME=db
@@ -47,6 +44,12 @@ export CONTAINER=true
 export RUST_LOG=info
 export SCRIPTS_DIR=/scripts
 export STYLES_DIR=/styles
+
+# Export initialization variables so the app can use them
+export UNCONFERENCE_PASSWORD
+export ADMIN_EMAIL
+export ADMIN_PASSWORD
+export ADMIN_NAME
 
 # Start the application
 echo "Starting application..."

@@ -1,15 +1,6 @@
 use sqlx::{postgres::PgPoolOptions, Pool, Postgres};
 use std::error::Error;
-extern crate thiserror;
 use tracing::info;
-
-#[derive(Debug, thiserror::Error)]
-enum DbSetupError {
-     #[error("bad password variable: expected POSTGRES_PASSWORD, got {0}")]
-     BadPwVariable(String),
-     #[error("no password variable: expected POSTGRES_PASSWORD")]
-     NoPwVariable,
-}
 
 /// Sets up the database connection pool
 ///
@@ -22,28 +13,18 @@ enum DbSetupError {
 /// # Errors
 /// This function will return an error if:
 /// - The environment variables are not set
-/// - The password file cannot be read
 /// - The connection to the database cannot be established
 /// - The migrations cannot be run
 pub async fn db_setup() -> Result<Pool<Postgres>, Box<dyn Error>> {
     use std::env::var;
-    use std::fs;
 
     let pg_user = var("PG_USER")?;
-    let password_file = var("PG_PASSWORDFILE")?;
-    let password_var = fs::read_to_string(password_file)?;
-    let password_expr = password_var.trim().split_once('=');
-    let password = if let Some((password_var, password)) = password_expr {
-        if password_var != "POSTGRES_PASSWORD" {
-            return Err(DbSetupError::BadPwVariable(password_var.to_owned()))?;
-        }
-        password
-    } else {
-        return Err(DbSetupError::NoPwVariable)?;
-    };
     let pg_host = var("PG_HOST")?;
     let pg_port = var("PG_PORT")?;
     let pg_dbname = var("PG_DBNAME")?;
+
+    // Use trust-based authentication (no password required)
+    let password = "";
 
     let connection = db_connect(&pg_user, password, &pg_host, &pg_port, &pg_dbname).await?;
     info!("Connected to: {:?}", connection);

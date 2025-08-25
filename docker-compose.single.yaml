@@ -1,0 +1,18 @@
+services:
+  unconfrs:
+    image: unconfrs-single
+    container_name: unconfrs-app
+    ports:
+      - "3039:3039"
+    volumes:
+      - unconfrs-data:/var/lib/postgresql/data
+    environment:
+      # Optional: Unconference and admin setup (only used on first run)
+      - UNCONFERENCE_PASSWORD=${UNCONFERENCE_PASSWORD:-unconference123}
+      - ADMIN_EMAIL=${ADMIN_EMAIL:-admin@example.com}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin123}
+      - ADMIN_NAME=${ADMIN_NAME:-Admin User}
+    restart: unless-stopped
+
+volumes:
+  unconfrs-data:
