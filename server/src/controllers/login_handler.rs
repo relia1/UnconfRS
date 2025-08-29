@@ -198,7 +198,7 @@ pub async fn unconference_password_submit_handler(
                 };
 
                 match template.render() {
-                    Ok(html) => Html(html).into_response(),
+                    Ok(html) => (StatusCode::UNAUTHORIZED, Html(html)).into_response(),
                     Err(e) => {
                         tracing::error!("Error rendering template: {:?}", e);
                         StatusCode::INTERNAL_SERVER_ERROR.into_response()
@@ -212,7 +212,7 @@ pub async fn unconference_password_submit_handler(
             };
 
             match template.render() {
-                Ok(html) => Html(html).into_response(),
+                Ok(html) => (StatusCode::SERVICE_UNAVAILABLE, Html(html)).into_response(),
                 Err(e) => {
                     tracing::error!("Error rendering template: {:?}", e);
                     StatusCode::INTERNAL_SERVER_ERROR.into_response()
