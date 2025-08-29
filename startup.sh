@@ -13,25 +13,19 @@ if [ ! -d "/var/lib/postgresql/data/base" ]; then
     /usr/lib/postgresql/*/bin/initdb -D /var/lib/postgresql/data --auth-local=trust --auth-host=trust --username=appuser
     
     # Start PostgreSQL temporarily to set up database
-    /usr/lib/postgresql/*/bin/pg_ctl -D /var/lib/postgresql/data -l /var/lib/postgresql/data/logfile start
-    
-    # Wait for PostgreSQL to start
-    sleep 3
-    
+    /usr/lib/postgresql/*/bin/pg_ctl -D /var/lib/postgresql/data -l /var/lib/postgresql/data/logfile -w start
+
     # Create postgres user and database (no password needed with trust auth)
     /usr/lib/postgresql/*/bin/psql -h localhost -d template1 -c "CREATE USER postgres SUPERUSER;"
     /usr/lib/postgresql/*/bin/createdb -h localhost -O postgres db
     
     # Stop PostgreSQL
-    /usr/lib/postgresql/*/bin/pg_ctl -D /var/lib/postgresql/data stop
+    /usr/lib/postgresql/*/bin/pg_ctl -D /var/lib/postgresql/data -w stop
 fi
 
-# Start PostgreSQL
+# Start PostgreSQL and wait for it to be ready
 echo "Starting PostgreSQL..."
-/usr/lib/postgresql/*/bin/pg_ctl -D /var/lib/postgresql/data -l /var/lib/postgresql/data/logfile start
-
-# Wait for PostgreSQL to be ready
-sleep 3
+/usr/lib/postgresql/*/bin/pg_ctl -D /var/lib/postgresql/data -l /var/lib/postgresql/data/logfile -w start
 
 # The application will handle password and admin user initialization automatically
 
