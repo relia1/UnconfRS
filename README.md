@@ -1,19 +1,12 @@
+# unconfrs: Unconference Webapp in Rust
+Robert Elia 2025
 
-# Thesis
-
-## Overview
-
-This project is a web application built using Rust, HTML, JavaScript, and Postgres. It assists in the organizing of an
-unconference by allowing users to submit sessions, view a list of submitted sessions, vote on sessions they would like
-to attend and allows an admin to create/update a schedule based on the submitted sessions.
-
-## Quick Start
-
-```sh
-docker compose up --build
-# Navigate to http://localhost:3039
-
-```
+This project is a web application built using Rust, HTML,
+JavaScript, and Postgres. It assists in the organizing of an
+unconference by allowing users to submit sessions, view a
+list of submitted sessions, vote on sessions they would like
+to attend and allows an admin to create/update a schedule
+based on the submitted sessions.
 
 ## Quick Links
 
@@ -33,6 +26,7 @@ docker compose up --build
 
 
 ### Running the Application Using Docker
+
 1. Start the Rust server:
     ```sh
     docker compose up --build
