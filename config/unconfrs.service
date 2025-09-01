@@ -1,0 +1,35 @@
+[Unit]
+Description=UnconfRS Web Application Server (Docker)
+Documentation=https://github.com/relia1/unconfrs
+After=network-online.target docker.service
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=exec
+User=unconfrs
+Group=unconfrs
+
+# Set working directory
+WorkingDirectory=/var/www/unconfrs
+
+# Build and run Docker container
+ExecStart=/usr/bin/docker run --name unconfrs-app \
+  -v unconfrs-data:/var/lib/postgresql/data \
+  -p 3039:3039 \
+  unconfrs
+
+# Cleanup on stop
+ExecStop=/usr/bin/docker stop unconfrs-app
+
+# Restart policy
+Restart=always
+RestartSec=30
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=unconfrs
+
+[Install]
+WantedBy=multi-user.target
