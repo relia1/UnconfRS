@@ -48,7 +48,7 @@ else \
     cargo build -p server; \
 fi
 
-FROM debian:bookworm-slim AS final
+FROM debian:stable-slim AS final
 ARG BUILD_TYPE
 RUN apt-get update && apt-get install -y \
     ca-certificates \

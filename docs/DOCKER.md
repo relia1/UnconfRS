@@ -9,11 +9,11 @@ This setup runs the entire application (web server + PostgreSQL) in a single con
 # First run - creates volume and initializes database
 docker run \
   -v unconfrs-data:/var/lib/postgresql/data \
-  -e UNCONFERENCE_PASSWORD=conference2024 \
-  -e ADMIN_EMAIL=admin@company.com \
-  -e ADMIN_PASSWORD=securepass \
+  -e UNCONFERENCE_PASSWORD=fixme \
+  -e ADMIN_EMAIL=fixme@example.com \
+  -e ADMIN_PASSWORD=fixme \
   -p 3039:3039 \
-  unconfrs-single
+  unconfrs
 
 # Subsequent runs - no environment variables needed
 docker run \
