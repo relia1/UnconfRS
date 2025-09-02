@@ -32,3 +32,4 @@ async-trait.workspace = true
 utoipa-rapidoc.workspace = true
 utoipa-redoc.workspace = true
 utoipa-swagger-ui.workspace = true
+pulldown-cmark = "0.13.0"

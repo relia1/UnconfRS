@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO index_markdown (markdown, markdown_converted_to_html)\n        VALUES ($1, $2)\n        ON CONFLICT (id) DO UPDATE SET\n            markdown = $1,\n            markdown_converted_to_html = $2\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "4637da42c543efc51ea265109d77cbab7aad1cf33d22095f327d962001043a4e"
+}

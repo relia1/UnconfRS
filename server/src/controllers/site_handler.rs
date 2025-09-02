@@ -1,6 +1,7 @@
 use crate::config::AppState;
 use crate::middleware::auth::{AuthInfo, AuthSessionLayer};
 use crate::models::auth_model::Permission;
+use crate::models::index_model::IndexContent;
 use crate::models::room_model::{rooms_get, Room};
 use crate::models::schedule_model::{schedules_get, Schedule};
 use crate::models::session_voting_model::get_sessions_user_voted_for;
@@ -34,9 +35,11 @@ pub async fn handler_404() -> Response {
 #[derive(Template, Debug)]
 #[template(path = "index.html")]
 /// Index template
-struct IndexTemplate {
-    is_authenticated: bool,
-    permissions: HashSet<Permission>,
+pub(crate) struct IndexTemplate {
+    pub(crate) is_authenticated: bool,
+    pub(crate) permissions: HashSet<Permission>,
+    pub(crate) markdown: Option<String>,
+    pub(crate) markdown_converted_to_html: Option<String>,
 }
 
 #[debug_handler]
@@ -49,10 +52,45 @@ struct IndexTemplate {
 ///
 /// # Errors
 /// If the template fails to render, an internal server error status code is returned.
-pub(crate) async fn index_handler(Extension(auth_info): Extension<AuthInfo>) -> Response {
+pub(crate) async fn index_handler(State(app_state): State<Arc<RwLock<AppState>>>, Extension(auth_info): Extension<AuthInfo>) -> Response {
+    let app_state_lock = app_state.read().await;
+    let read_lock = &app_state_lock.unconf_data.read().await.unconf_db;
     let is_authenticated = auth_info.is_authenticated;
     let permissions = auth_info.permissions;
-    let template = IndexTemplate { is_authenticated, permissions };
+    let index_markdown = sqlx::query_as!(
+        IndexContent,
+        "SELECT markdown, markdown_converted_to_html FROM index_markdown"
+    )
+        .fetch_optional(read_lock)
+        .await;
+
+    let is_admin = permissions.contains(&Permission::from("superuser"));
+
+    let template: IndexTemplate = match index_markdown {
+        Ok(Some(IndexContent { markdown, markdown_converted_to_html })) => {
+            if is_admin {
+                IndexTemplate {
+                    is_authenticated,
+                    permissions,
+                    markdown: Some(markdown),
+                    markdown_converted_to_html: Some(markdown_converted_to_html),
+                }
+            } else {
+                IndexTemplate {
+                    is_authenticated,
+                    permissions,
+                    markdown: None,
+                    markdown_converted_to_html: Some(markdown_converted_to_html),
+                }
+            }
+        },
+        Ok(None) => {
+            IndexTemplate { is_authenticated, permissions, markdown: None, markdown_converted_to_html: None }
+        },
+        Err(_) => {
+            return (StatusCode::INTERNAL_SERVER_ERROR, "Internal Server Error").into_response();
+        }
+    };
 
     match template.render() {
         Ok(html) => Html(html).into_response(),

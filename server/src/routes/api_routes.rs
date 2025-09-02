@@ -1,4 +1,5 @@
 use crate::config::AppState;
+use crate::controllers::index_handler::add_index_markdown;
 use crate::controllers::registration_handler::{registration_handler, staff_registers_user_handler};
 use crate::controllers::schedule_handler::{add_session_to_schedule, remove_session_from_schedule};
 use crate::controllers::sessions_handler::post_session_for_user;
@@ -66,6 +67,7 @@ pub fn get_routes(app_state: &Arc<RwLock<AppState>>) -> Router<Arc<RwLock<AppSta
         .route("/tags", post(create_tag))
         .route("/tags/{id}", put(update_tag))
         .route("/tags/{id}", delete(delete_tag))
+        .route("/index/markdown", post(add_index_markdown))
         .route_layer(from_fn_with_state(app_state.clone(), auth_middleware))
         .route_layer(permission_required!(
             Backend,

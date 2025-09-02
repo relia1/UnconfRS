@@ -8,3 +8,4 @@ pub mod registration_handler;
 pub mod session_voting_handler;
 pub mod session_tags_handler;
 pub mod tags_handler;
+pub mod index_handler;

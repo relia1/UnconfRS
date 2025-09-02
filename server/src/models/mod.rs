@@ -7,3 +7,4 @@ pub mod sessions_model;
 pub mod session_voting_model;
 pub mod session_tags_model;
 pub mod tags_model;
+pub mod index_model;
