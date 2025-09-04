@@ -67,28 +67,57 @@
         justify-content: center;
         align-items: center;
     }
+
+    #schedule-operations {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .modal .form-label {
+        display: block;
+        font-weight: 500;
+        margin-bottom: 0.5rem;
+        color: #212529;
+    }
 </style>
 <div id="eventSchedule">
-    <h1>Event Schedule</h1>
-    {% if permissions.contains(&Permission::from("superuser")) %}
-    <div id="schedule-operations">
-        <button type="button" id="populate-schedule">Populate Schedule</button><br/>
-        <button type="button" id="clear-schedule">Clear Schedule</button><br/>
-        <button type="button" id="add-room">Add Room</button><br/>
-        <button type="button" id="add-session">Add Session</button><br/>
-        <a href="/unconf_timeslots" id="config-timeslots"><button type="button">Timeslot Configuration</button></a><br/>
+    <div class="mb-3">
+        <h1>Event Schedule</h1>
+        {% if permissions.contains(&Permission::from("superuser")) %}
+        <div id="schedule-operations">
+            <button type="button" class="btn btn-primary mb-2" id="populate-schedule">Populate Schedule</button>
+            <button type="button" class="btn btn-primary mb-2" id="clear-schedule">Clear Schedule</button>
+            <button type="button" class="btn btn-primary mb-2" id="add-room">Add Room</button>
+            <button type="button" class="btn btn-primary mb-2" id="add-session">Add Session</button>
+            <a href="/unconf_timeslots" class="btn btn-primary mb-2" id="config-timeslots">Timeslot Configuration</a>
+        </div>
+        {% endif %}
     </div>
-    {% endif %}
-    <div id="controls">
-        <div>
-            <label for="view-selector" id="view-selector-label">Choose view: </label>
-            <select name="view-selector" id="view-selector">
-                <option value="time">Time-based</option>
-                <option value="room">Room-based</option>
-            </select>
+    <div id="controls" class="mb-3">
+        <div class="row">
+            <div class="col-md-3">
+                <label for="view-selector" class="form-label">Choose view:</label>
+                <select name="view-selector" class="form-select" id="view-selector">
+                    <option value="time">Time-based</option>
+                    <option value="room">Room-based</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="room-selector" class="form-label" id="room-selector-label">Choose room:</label>
+                <select name="room-selector" class="form-select" id="room-selector">
+                    <!-- Options will be populated dynamically -->
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="time-selector" class="form-label" id="time-selector-label">Choose time:</label>
+                <select name="time-selector" class="form-select" id="time-selector">
+                    <!-- Options will be populated dynamically -->
+                </select>
+            </div>
         </div>
     </div>
-    <div class="schedule-container">
+    <div class="schedule-container{% if permissions.contains(&Permission::from("superuser")) %} admin{% endif %}">
         <div class="time-column">
             <div class="room-header">Time</div>
             <!-- Time slots will be dynamically added here -->
@@ -96,37 +125,57 @@
         <!-- Room columns will be dynamically added here -->
     </div>
 </div>
-<div id="overlay" class="overlay"></div>
-    <div id="popup" class="popup">
-        <h2>Add a Room</h2>
-        <form id="addRoomForm">
-            <div class="form-field">
-                <label class="addRoom" for="room-name">Room Name:</label>
-                <input type="text" id="room-name" name="room-name" required>
+<!-- Bootstrap Modals -->
+<div class="modal fade" id="addRoomModal" tabindex="-1" aria-labelledby="addRoomModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addRoomModalLabel">Add a Room</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="form-field">
-                <label class="addRoom" for="room-location">Room Location:</label>
-                <input type="text" id="room-location" name="room-location" required>
+            <div class="modal-body">
+                <form id="addRoomForm">
+                    <div class="mb-3">
+                        <label for="room-name" class="form-label">Room Name:</label>
+                        <input type="text" class="form-control" id="room-name" name="room-name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="room-location" class="form-label">Room Location:</label>
+                        <input type="text" class="form-control" id="room-location" name="room-location" required>
+                    </div>
+                </form>
             </div>
-            <button type="submit" id="submit-room-btn">Save</button>
-            <button type="button" id="cancelRoomButton">Cancel</button>
-        </form>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" form="addRoomForm" class="btn btn-primary" id="submit-room-btn">Save</button>
+            </div>
+        </div>
     </div>
 </div>
-<div id="overlay-add-session" class="overlay"></div>
-    <div id="popup-add-session" class="popup">
-        <h2>Add a Session</h2>
-        <form id="addSessionForm">
-            <div class="form-field">
-                <label class="addSession" for="sessions" id="sessions-label">Session:</label>
-                <select name="sessions" id="sessions">
-                    {% for session in unpopulated_sessions %}
-                        <option value={{ session.id.unwrap() }}>{{ session.title }}</option>
-                    {% endfor %}
-                </select>
+
+<div class="modal fade" id="addSessionModal" tabindex="-1" aria-labelledby="addSessionModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addSessionModalLabel">Add a Session</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <button type="submit" id="submit-session-btn">Save</button>
-            <button type="button" id="cancelSessionButton">Cancel</button>
-        </form>
+            <div class="modal-body">
+                <form id="addSessionForm">
+                    <div class="mb-3">
+                        <label for="sessions" class="form-label">Session:</label>
+                        <select name="sessions" class="form-select" id="sessions">
+                            {% for session in unpopulated_sessions %}
+                                <option value={{ session.id.unwrap() }}>{{ session.title }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" form="addSessionForm" class="btn btn-primary" id="submit-session-btn">Save</button>
+            </div>
+        </div>
     </div>
 </div>

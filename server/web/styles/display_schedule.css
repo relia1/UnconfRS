@@ -6,7 +6,10 @@
 }
 
 .row-column {
+    width: fit-content;
     min-width: 50px;
+    max-width: 200px;
+    flex: 0 0 auto;
 }
 
 .row-column, .column {
@@ -27,6 +30,23 @@
     display: flex;
     justify-content: center;
     align-items: center;
+}
+
+.row-label {
+    overflow: hidden;
+    white-space: nowrap;
+    cursor: help;
+    position: relative;
+    width: 100%;
+    text-align: center;
+    padding: 0 5px;
+}
+
+.row-label .room-name {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .column-header {
@@ -93,6 +113,10 @@ select {
     color: white;
 }
 
+#room-selector, #time-selector, #room-selector-label, #time-selector-label {
+    display: none;
+}
+
 @media (max-width: 768px) {
     .schedule-container {
         flex-direction: row;
@@ -113,20 +137,7 @@ select {
         display: block;
     }
 
-    #room-selector {
-        display: inline-block;
-    }
-
-    #room-selector-label {
-        display: inline-block;
-        margin-right: 10px;
-    }
-
-    #time-selector {
-        display: inline-block;
-    }
-
-    #time-selector-label {
+    #room-selector, #time-selector, #room-selector-label, #time-selector-label {
         display: inline-block;
         margin-right: 10px;
     }

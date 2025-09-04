@@ -3,37 +3,62 @@
 {% block title %}Users{% endblock %}
 
 {% block content %}
-    <form id="register" style="margin-top: 10px">
-        <div class="form-field">
-            <div>
-                <label for="fname">First Name:</label>
-                <input type="text" id="fname" name="fname" required/>
-            </div>
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="mb-3">User Management</h1>
+            <button id="add-user" class="btn btn-primary mb-4">Add New User</button>
+        </div>
+    </div>
+</div>
 
-            <div>
-                <label for="lname">Last Name:</label>
-                <input type="text" id="lname" name="lname" required/>
+<!-- Bootstrap Modal -->
+<div class="modal fade" id="userModal" tabindex="-1" aria-labelledby="userModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="userModalLabel">Add New User</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-
-            <div>
-                <label for="email">Email:</label>
-                <input type="text" id="email" name="email" required/>
+            <div class="modal-body">
+                <form id="userForm">
+                    <div class="mb-3">
+                        <label for="fname" class="form-label">First Name:</label>
+                        <input type="text" class="form-control" id="fname" name="fname" required/>
+                    </div>
+                    <div class="mb-3">
+                        <label for="lname" class="form-label">Last Name:</label>
+                        <input type="text" class="form-control" id="lname" name="lname" required/>
+                    </div>
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Email:</label>
+                        <input type="email" class="form-control" id="email" name="email" required/>
+                    </div>
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Password:</label>
+                        <input type="password" class="form-control" id="password" name="password" required/>
+                    </div>
+                    <div class="mb-3">
+                        <label for="confirm-password" class="form-label">Confirm Password:</label>
+                        <input type="password" class="form-control" id="confirm-password" name="confirm-password" required/>
+                    </div>
+                </form>
             </div>
-
-            <div>
-                <label for="password">Password:</label>
-                <input type="password" id="password" name="password" required/>
-            </div>
-
-            <div>
-                <label for="confirm-password">Confirm Password</label>
-                <input type="password" id="confirm-password" name="confirm-password" required/>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" form="userForm" class="btn btn-primary">Add User</button>
             </div>
         </div>
-        <button type="submit">Submit</button>
-    </form>
+    </div>
+</div>
+
 <script>
-    document.getElementById('register').addEventListener('submit', (e) => {
+    document.getElementById('add-user').addEventListener('click', function() {
+        const modal = new bootstrap.Modal(document.getElementById('userModal'));
+        modal.show();
+    });
+
+    document.getElementById('userForm').addEventListener('submit', function(e) {
         e.preventDefault();
         const fname = document.getElementById('fname').value;
         const lname = document.getElementById('lname').value;
@@ -64,6 +89,8 @@
         .then(data => {
             if (data.ok) {
                 alert('Registration successful');
+                document.getElementById('userForm').reset();
+                bootstrap.Modal.getInstance(document.getElementById('userModal')).hide();
             } else {
                 alert('Invalid Registration');
             }

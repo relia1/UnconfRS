@@ -3,35 +3,42 @@
 {% block title %}Registration{% endblock %}
 
 {% block content %}
-    <form id="register" style="margin-top: 10px">
-        <div class="form-field">
-            <div>
-                <label for="fname">First Name:</label>
-                <input type="text" id="fname" name="fname" required/>
-            </div>
-
-            <div>
-                <label for="lname">Last Name:</label>
-                <input type="text" id="lname" name="lname" required/>
-            </div>
-
-            <div>
-                <label for="email">Email:</label>
-                <input type="text" id="email" name="email" required/>
-            </div>
-
-            <div>
-                <label for="password">Password:</label>
-                <input type="password" id="password" name="password" required/>
-            </div>
-
-            <div>
-                <label for="confirm-password">Confirm Password</label>
-                <input type="password" id="confirm-password" name="confirm-password" required/>
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-6 col-lg-5">
+                <div class="card mt-5">
+                    <div class="card-body">
+                        <h2 class="card-title text-center mb-4">Registration</h2>
+                        <form id="register">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="fname" class="form-label">First Name:</label>
+                                    <input type="text" class="form-control" id="fname" name="fname" required/>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="lname" class="form-label">Last Name:</label>
+                                    <input type="text" class="form-control" id="lname" name="lname" required/>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="email" class="form-label">Email:</label>
+                                <input type="email" class="form-control" id="email" name="email" required/>
+                            </div>
+                            <div class="mb-3">
+                                <label for="password" class="form-label">Password:</label>
+                                <input type="password" class="form-control" id="password" name="password" required/>
+                            </div>
+                            <div class="mb-3">
+                                <label for="confirm-password" class="form-label">Confirm Password:</label>
+                                <input type="password" class="form-control" id="confirm-password" name="confirm-password" required/>
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100">Submit</button>
+                        </form>
+                    </div>
+                </div>
             </div>
         </div>
-        <button type="submit">Submit</button>
-    </form>
+    </div>
 <script>
     document.getElementById('register').addEventListener('submit', (e) => {
         e.preventDefault();
@@ -64,6 +71,7 @@
         .then(data => {
             if (data.ok) {
                 alert('Registration successful');
+                window.location.href = '/login';
             } else {
                 alert('Invalid Registration');
             }

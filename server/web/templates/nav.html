@@ -1,40 +1,40 @@
-<nav class="navbar">
-    <div class="container">
-        <div class="logo">
-            <a href="/">UnconfRS</a>
-        </div>
-        <ul class="nav-links">
-            <li>
-                <a class="active" href="/">Home</a>
-            </li>
-            <li>
-                <a href="/sessions">Sessions</a>
-            </li>
-            <li>
-                <a href="/unconf_schedule">Schedule</a>
-            </li>
-            {% if permissions.contains(&Permission::from("superuser")) %}
-            <li>
-                <a href="/config">Config</a>
-            </li>
-            {% endif %}
-            {% if permissions.contains(&Permission::from("superuser")) %}
-            <li>
-                <a href="/users">Users</a>
-            </li>
-            {% endif %}
-            <li>
-            {% if is_authenticated %}
-                <a id="logout" href="#">Logout</a>
-            {% else %}
-                <a href="/login">Login</a>
-            {% endif %}
-            </li>
-        </ul>
-        <div class="menu-toggle" id="mobile-menu">
-            <span class="bar"></span>
-            <span class="bar"></span>
-            <span class="bar"></span>
+<nav class="navbar navbar-expand-lg navbar-light bg-light shadow-sm">
+    <div class="container-fluid">
+        <a class="navbar-brand fw-bold text-primary" href="/">UnconfRS</a>
+        
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav ms-auto">
+                <li class="nav-item">
+                    <a class="nav-link" href="/">Home</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/sessions">Sessions</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/unconf_schedule">Schedule</a>
+                </li>
+                {% if permissions.contains(&Permission::from("superuser")) %}
+                <li class="nav-item">
+                    <a class="nav-link" href="/config">Config</a>
+                </li>
+                {% endif %}
+                {% if permissions.contains(&Permission::from("superuser")) %}
+                <li class="nav-item">
+                    <a class="nav-link" href="/users">Users</a>
+                </li>
+                {% endif %}
+                <li class="nav-item">
+                {% if is_authenticated %}
+                    <a class="nav-link" id="logout" href="#">Logout</a>
+                {% else %}
+                    <a class="nav-link" href="/login">Login</a>
+                {% endif %}
+                </li>
+            </ul>
         </div>
     </div>
 </nav>

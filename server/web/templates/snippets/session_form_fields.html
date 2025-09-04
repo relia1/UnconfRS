@@ -1,41 +1,41 @@
 {% if permissions.contains(&Permission::from("superuser")) || permissions.contains(&Permission::from("staff")) %}
-    <div class="form-field">
-        <label for="title">Title:</label>
-        <input type="text" id="title" name="title" required>
+    <div class="mb-3">
+        <label for="title" class="form-label">Title:</label>
+        <input type="text" class="form-control" id="title" name="title" required>
     </div>
-    <div class="form-field">
-        <label for="sessionContent">Content:</label>
-        <textarea id="sessionContent" name="sessionContent" required></textarea>
+    <div class="mb-3">
+        <label for="sessionContent" class="form-label">Content:</label>
+        <textarea class="form-control" id="sessionContent" name="sessionContent" rows="4" required></textarea>
     </div>
-    <div class="form-field">
-        <label for="tagSelect">Tag (optional):</label>
-        <select id="tagSelect" name="tagSelect">
+    <div class="mb-3">
+        <label for="tagSelect" class="form-label">Tag (optional):</label>
+        <select class="form-select" id="tagSelect" name="tagSelect">
             <option value="">No tag</option>
             {% for tag in tags %}
             <option value="{{ tag.id }}">{{ tag.tag_name }}</option>
             {% endfor %}
         </select>
     </div>
-    <div class="form-field">
-        <label for="onBehalfOfUserCheckbox">Add session on behalf of another user:</label>
-        <input type="checkbox" id="onBehalfOfUserCheckbox" name="onBehalfOfUserCheckbox">
+    <div class="mb-3 form-check">
+        <input type="checkbox" class="form-check-input" id="onBehalfOfUserCheckbox" name="onBehalfOfUserCheckbox">
+        <label class="form-check-label" for="onBehalfOfUserCheckbox">Add session on behalf of another user</label>
     </div>
-    <div class="form-field" id=emailField>
-        <label for="email">Email of the user:</label>
-        <input type="email" id="email" name="email">
+    <div class="mb-3" id="emailField" style="display: none;">
+        <label for="email" class="form-label">Email of the user:</label>
+        <input type="email" class="form-control" id="email" name="email">
     </div>
 {% else %}
-    <div class="form-field">
-        <label for="title">Title:</label>
-        <input type="text" id="title" name="title" required>
+    <div class="mb-3">
+        <label for="title" class="form-label">Title:</label>
+        <input type="text" class="form-control" id="title" name="title" required>
     </div>
-    <div class="form-field">
-        <label for="sessionContent">Content:</label>
-        <textarea id="sessionContent" name="sessionContent" required></textarea>
+    <div class="mb-3">
+        <label for="sessionContent" class="form-label">Content:</label>
+        <textarea class="form-control" id="sessionContent" name="sessionContent" rows="4" required></textarea>
     </div>
-    <div class="form-field">
-        <label for="tagSelect">Tag (optional):</label>
-        <select id="tagSelect" name="tagSelect">
+    <div class="mb-3">
+        <label for="tagSelect" class="form-label">Tag (optional):</label>
+        <select class="form-select" id="tagSelect" name="tagSelect">
             <option value="">No tag</option>
             {% for tag in tags %}
             <option value="{{ tag.id }}">{{ tag.tag_name }}</option>

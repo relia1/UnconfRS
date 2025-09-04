@@ -67,6 +67,74 @@ document.addEventListener('DOMContentLoaded', function () {
     numOfRooms = rooms.length;
     numOfTimeslots = timeslots.length;
 
+    // Populate room and time selectors
+    function populateSelectors() {
+        const roomSelector = document.getElementById('room-selector');
+        const timeSelector = document.getElementById('time-selector');
+
+        // Populate room selector
+        roomSelector.innerHTML = '';
+        rooms.forEach(room => {
+            const option       = document.createElement('option');
+            option.value       = room.id;
+            option.textContent = room.name;
+            roomSelector.appendChild(option);
+        });
+
+        // Populate time selector
+        timeSelector.innerHTML = '';
+        timeslots.forEach(slot => {
+            const option       = document.createElement('option');
+            option.value       = slot.start.substring(0, 5);
+            option.textContent = slot.start.substring(0, 5);
+            timeSelector.appendChild(option);
+        });
+    }
+
+    // Show/hide selectors based on view and screen size
+    function updateSelectorVisibility() {
+        const view                  = document.getElementById('view-selector').value;
+        const roomSelectorContainer = document.getElementById('room-selector').parentElement;
+        const timeSelectorContainer = document.getElementById('time-selector').parentElement;
+
+        if (window.innerWidth <= 768) {
+            if (view === 'time') {
+                roomSelectorContainer.style.display = 'block';
+                timeSelectorContainer.style.display = 'none';
+            } else {
+                roomSelectorContainer.style.display = 'none';
+                timeSelectorContainer.style.display = 'block';
+            }
+        } else {
+            roomSelectorContainer.style.display = 'none';
+            timeSelectorContainer.style.display = 'none';
+        }
+    }
+
+    // Handle room selector change
+    function handleRoomChange() {
+        const selectedRoomId = document.getElementById('room-selector').value;
+        document.querySelectorAll('.column').forEach(column => {
+            column.classList.remove('active');
+        });
+        const selectedColumn = document.querySelector(`.column[data-room-id="${selectedRoomId}"]`);
+        if (selectedColumn) {
+            selectedColumn.classList.add('active');
+        }
+    }
+
+    // Handle time selector change
+    function handleTimeChange() {
+        const selectedTime = document.getElementById('time-selector').value;
+        document.querySelectorAll('.column').forEach(column => {
+            column.classList.remove('active');
+        });
+        const selectedColumn = document.querySelector(`.column[data-time="${selectedTime}"]`);
+        if (selectedColumn) {
+            selectedColumn.classList.add('active');
+        }
+    }
+
     function createEventBlock(event, displayType) {
         const div     = document.createElement('div');
         div.className = 'event-block';
@@ -115,6 +183,27 @@ document.addEventListener('DOMContentLoaded', function () {
     function updateView() {
         const view = document.getElementById('view-selector').value;
         view === 'time' ? generateTimeBasedView() : generateRoomBasedView();
+        updateSelectorVisibility();
+
+        // Initialize Bootstrap tooltips after view is updated
+        setTimeout(() => {
+            // Dispose existing tooltips first
+            const existingTooltips = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+            existingTooltips.forEach(element => {
+                const tooltip = bootstrap.Tooltip.getInstance(element);
+                if (tooltip) {
+                    tooltip.dispose();
+                }
+            });
+
+            // Initialize new tooltips
+            const tooltipTriggerList = document.querySelectorAll(
+                '.row-label[data-bs-toggle="tooltip"]');
+            console.log('Initializing tooltips for', tooltipTriggerList.length, 'elements');
+            tooltipTriggerList.forEach(element => {
+                new bootstrap.Tooltip(element);
+            });
+        }, 100);
     }
 
     function generateTimeBasedView() {
@@ -151,6 +240,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
             if (index === 0) {
                 column.classList.add('active');
+                // Set the room selector to match the active room
+                document.getElementById('room-selector').value = room.id;
             }
         });
 
@@ -179,7 +270,15 @@ document.addEventListener('DOMContentLoaded', function () {
         rooms.forEach(room => {
             const rowLabel = document.createElement('div');
             rowLabel.className = 'row-label';
-            rowLabel.textContent = room.name;
+
+            const roomNameSpan       = document.createElement('span');
+            roomNameSpan.className   = 'room-name';
+            roomNameSpan.textContent = room.name;
+            rowLabel.appendChild(roomNameSpan);
+
+            rowLabel.setAttribute('data-bs-toggle', 'tooltip');
+            rowLabel.setAttribute('data-bs-placement', 'right');
+            rowLabel.setAttribute('data-bs-title', room.name);
             rowColumn.appendChild(rowLabel);
         });
 
@@ -195,6 +294,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
             if (index === 0) {
                 column.classList.add('active');
+                // Set the time selector to match the active timeslot
+                document.getElementById('time-selector').value = slot.start.substring(0, 5);
             }
         });
 
@@ -208,7 +309,12 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // Initialize view selector handler and initial view
+    // Initialize selectors and event listeners
+    populateSelectors();
     document.getElementById('view-selector').addEventListener('change', updateView);
+    document.getElementById('room-selector').addEventListener('change', handleRoomChange);
+    document.getElementById('time-selector').addEventListener('change', handleTimeChange);
+    window.addEventListener('resize', updateSelectorVisibility);
+    
     updateView();
 });

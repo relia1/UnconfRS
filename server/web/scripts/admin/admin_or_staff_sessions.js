@@ -21,10 +21,9 @@ document.addEventListener('DOMContentLoaded', function() {
             {data: 'tags'},
             {
                 data:           null,
-                defaultContent: '<button class="del-btn btn-action"' +
-                                    ' id="deleteSessionButton">Delete</button><button class="edit-btn btn-action"' +
-                                    ' id="editSessionButton">Edit</button><button class="upvote-btn btn-action"' +
-                                    ' id="upvoteSessionButton">Upvote</button>',
+                defaultContent: '<button class="del-btn btn btn-danger btn-sm me-1">Delete</button>' +
+                                    '<button class="edit-btn btn btn-primary btn-sm me-1">Edit</button>' +
+                                    '<button class="upvote-btn btn btn-success btn-sm">Upvote</button>',
                 orderable:      false,
             },
             {data: 'content', visible: false},
@@ -87,11 +86,28 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     table.on('click', '.edit-btn', async function(e) {
-        var data         = table.row($(this).closest('tr')).data();
+        var data      = table.row($(this).closest('tr')).data();
         currentSessionId = data.session_id;
-        currentUserId    = data.user_id;
+        currentUserId = data.user_id;
         console.log('Editing session with id: ' + data.session_id);
-        showPopup(true, data);
+
+        // Populate form with existing data
+        document.getElementById('title').value          = data.title;
+        document.getElementById('sessionContent').value = data.content;
+
+        // Set current tag in dropdown
+        const tagSelect = document.getElementById('tagSelect');
+        if (data.tags === '') {
+            tagSelect.value = '';
+            currentTagId    = null;
+        } else {
+            currentTagId    =
+                parseInt(Array.from(tagSelect.options).find(opt => opt.text === data.tags).value);
+            tagSelect.value = currentTagId;
+        }
+
+        const modal = new bootstrap.Modal(document.getElementById('sessionModal'));
+        modal.show();
     });
 
     table.on('click', '.upvote-btn', async function(e) {
@@ -212,7 +228,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
 
                 alert('Session updated successfully!');
-                closePopup();
+                bootstrap.Modal.getInstance(document.getElementById('sessionModal')).hide();
             } catch (error) {
                 console.log('Error updating session: ', error);
                 alert('There was an error updating the session. Please try again.');
@@ -238,8 +254,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (!response.ok) {
                         throw new Error(`HTTP error! status: ${response.status}`);
                     }
+
+                    alert('Session submitted successfully!');
+                    bootstrap.Modal.getInstance(document.getElementById('sessionModal')).hide();
                 } catch (error) {
                     console.log('Error submitting session: ', error);
+                    alert('There was an error submitting the session. Please try again.');
+                    return;
                 }
                 location.reload();
             } else {
@@ -260,8 +281,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (!response.ok) {
                         throw new Error(`HTTP error! status: ${response.status}`);
                     }
+
+                    alert('Session submitted successfully!');
+                    bootstrap.Modal.getInstance(document.getElementById('sessionModal')).hide();
                 } catch (error) {
                     console.log('Error submitting session: ', error);
+                    alert('There was an error submitting the session. Please try again.');
+                    return;
                 }
                 location.reload();
             }
@@ -283,7 +309,12 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     document.querySelector('#add-session').addEventListener('click', async function(data) {
-        await showPopup(false);
+        const modal = new bootstrap.Modal(document.getElementById('sessionModal'));
+        document.getElementById('sessionForm').reset();
+        currentSessionId = null;
+        currentUserId    = null;
+        currentTagId     = null;
+        modal.show();
     });
 });
 
@@ -294,54 +325,6 @@ function format(data) {
     );
 }
 
-/* Popup functions */
-async function showPopup(isEdit, data = null) {
-    const popup           = document.getElementById('popup');
-    const overlay         = document.getElementById('overlay');
-    popup.style.display   = 'block';
-    overlay.style.display = 'block';
-
-    if (isEdit && data) {
-        document.getElementById('title').value          = data.title;
-        document.getElementById('sessionContent').value = data.content;
-        currentSessionId                                = data.session_id;
-        currentUserId                                   = data.user_id;
-
-        // Set current tag in dropdown
-        const tagSelect = document.getElementById('tagSelect');
-        if (data.tags === '') {
-            tagSelect.value = '';
-            currentTagId    = null;
-        } else {
-            currentTagId    =
-                parseInt(Array.from(tagSelect.options).find(opt => opt.text === data.tags).value);
-            tagSelect.value = currentTagId;
-        }
-    } else {
-        document.getElementById('sessionForm').reset();
-        currentSessionId = null;
-        currentUserId    = null;
-        currentTagId     = null;
-    }
-
-    document.querySelector('#cancelButton').addEventListener('click', closePopup);
-    document.querySelector('#overlay').addEventListener('click', closePopup);
-}
-
-function closePopup() {
-    const popup      = document.getElementById('popup');
-    const overlay    = document.getElementById('overlay');
-    const emailField = document.getElementById('emailField');
-    const emailInput = document.getElementById('email');
-
-    popup.style.display      = 'none';
-    overlay.style.display    = 'none';
-    emailField.style.display = 'none';
-    emailInput.removeAttribute('required');
-
-    document.querySelector('#cancelButton').removeEventListener('click', closePopup);
-    document.querySelector('#overlay').removeEventListener('click', closePopup);
-}
 
 /* Voting functions */
 async function hasVoted(sessionId) {
