@@ -251,7 +251,10 @@ pub async fn schedule_generate(db_pool: &Pool<Postgres>) -> Result<Schedule, Sch
 
             Ok(schedule)
         }
-        Err(e) => Err(ScheduleErr::IoError(e.to_string())),
+        Err(e) => {
+            tracing::error!("Error generating schedule {:?}", e);
+            Err(ScheduleErr::IoError(e.to_string()))
+        },
     }
 }
 

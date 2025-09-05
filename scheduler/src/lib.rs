@@ -504,7 +504,8 @@ impl SchedulerData {
         let mut best_score = self.improve();
         let mut best_data = self.clone();
 
-        for _ in 0..restarts {
+        for i in 0..restarts {
+            tracing::info!("On iteration {} out of {}", i, restarts);
             *self = unmodified_data.clone();
             let new_score = self.improve();
             if new_score < best_score {

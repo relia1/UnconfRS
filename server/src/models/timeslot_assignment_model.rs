@@ -180,6 +180,7 @@ pub async fn assign_sessions_to_timeslots(
 
     match SchedulingMethod::new() {
         SchedulingMethod::Original => {
+            tracing::info!("Using original scheduling method");
             let pairings: Vec<(TimeslotAssignmentSessionAdd, i32)> = free_roomtimes
                 .into_iter()
                 .zip(free_sessions.copied())
@@ -190,6 +191,7 @@ pub async fn assign_sessions_to_timeslots(
             original_scheduling(db_pool, pairings).await
         },
         SchedulingMethod::LocalSearch => {
+            tracing::info!("Using localsearch scheduling method");
             let scheduling_data = SessionAssignmentData {
                 already_assigned_room_time_associations: all_assigned_sessions,
                 available_room_time_associations: free_roomtimes,
@@ -204,7 +206,15 @@ pub async fn assign_sessions_to_timeslots(
                     .collect(),
             };
 
-            local_search_scheduling(db_pool, scheduling_data).await
+            match local_search_scheduling(db_pool, scheduling_data).await {
+                Ok(_) => {
+                    Ok(())
+                },
+                Err(e) => {
+                    tracing::info!("Error generating schedule {:?}", e);
+                    Err(Box::new(ScheduleErr::IoError(e.to_string())))
+                },
+            }
         },
     }
 }
@@ -232,17 +242,23 @@ pub async fn local_search_scheduling(db_pool: &Pool<Postgres>, scheduling_data: 
     let num_rooms = rooms.len();
     let num_timeslots = timeslots.len();
 
+    tracing::info!("Getting session data");
     let session_and_votes: Vec<SessionData> = sqlx::query_as!(
         SessionData,
-        "SELECT uv.session_id, COALESCE(COUNT(*)::INTEGER, 0) as \"num_votes!\", st.tag_id, s.user_id as speaker_id, ARRAY[]::INTEGER[] as \"speaker_votes!\" \
-         from user_votes uv \
-         LEFT JOIN session_tags st ON st.session_id = uv.session_id \
-         LEFT JOIN sessions s ON s.id = uv.session_id \
-         GROUP BY uv.session_id, st.tag_id, s.user_id"
+        "SELECT uv.session_id as \"session_id!\", \
+        COALESCE(COUNT(*)::INTEGER, 0) as \"num_votes!\", \
+        st.tag_id as \"tag_id?\", \
+        s.user_id as \"speaker_id?\", \
+        ARRAY[]::INTEGER[] as \"speaker_votes!\" \
+        from user_votes uv \
+        LEFT JOIN session_tags st ON st.session_id = uv.session_id \
+        LEFT JOIN sessions s ON s.id = uv.session_id \
+        GROUP BY uv.session_id, st.tag_id, s.user_id"
     )
         .fetch_all(db_pool)
         .await?;
 
+    tracing::info!("Getting unassigned sessions");
     let unassigned_sessions: Vec<SessionData> = scheduling_data.unassigned_sessions
         .iter()
         .map(|&UnassignedSession { session_id, tag_id }| {
@@ -313,6 +329,7 @@ pub async fn local_search_scheduling(db_pool: &Pool<Postgres>, scheduling_data: 
         }
     }
 
+    tracing::info!("Starting scheduler");
     let start = Instant::now();
     let current_score = scheduler_data.improve_with_restarts(20);
     let best_scheduler_data = &scheduler_data;

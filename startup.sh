@@ -11,14 +11,14 @@ ADMIN_NAME=${ADMIN_NAME:-Admin User}
 if [ ! -d "/var/lib/postgresql/data/base" ]; then
     echo "Initializing PostgreSQL database..."
     /usr/lib/postgresql/*/bin/initdb -D /var/lib/postgresql/data --auth-local=trust --auth-host=trust --username=appuser
-    
+
     # Start PostgreSQL temporarily to set up database
     /usr/lib/postgresql/*/bin/pg_ctl -D /var/lib/postgresql/data -l /var/lib/postgresql/data/logfile -w start
 
     # Create postgres user and database (no password needed with trust auth)
     /usr/lib/postgresql/*/bin/psql -h localhost -d template1 -c "CREATE USER postgres SUPERUSER;"
     /usr/lib/postgresql/*/bin/createdb -h localhost -O postgres db
-    
+
     # Stop PostgreSQL
     /usr/lib/postgresql/*/bin/pg_ctl -D /var/lib/postgresql/data -w stop
 fi
@@ -38,6 +38,7 @@ export CONTAINER=true
 export RUST_LOG=info
 export SCRIPTS_DIR=/scripts
 export STYLES_DIR=/styles
+export SCHEDULING_METHOD=localsearch
 
 # Export initialization variables so the app can use them
 export UNCONFERENCE_PASSWORD

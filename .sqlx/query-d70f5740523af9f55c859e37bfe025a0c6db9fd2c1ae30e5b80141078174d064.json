@@ -1,11 +1,11 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT uv.session_id, COALESCE(COUNT(*)::INTEGER, 0) as \"num_votes!\", st.tag_id, s.user_id as speaker_id, ARRAY[]::INTEGER[] as \"speaker_votes!\" from user_votes uv LEFT JOIN session_tags st ON st.session_id = uv.session_id LEFT JOIN sessions s ON s.id = uv.session_id GROUP BY uv.session_id, st.tag_id, s.user_id",
+  "query": "SELECT uv.session_id as \"session_id!\", COALESCE(COUNT(*)::INTEGER, 0) as \"num_votes!\", st.tag_id as \"tag_id?\", s.user_id as \"speaker_id?\", ARRAY[]::INTEGER[] as \"speaker_votes!\" from user_votes uv LEFT JOIN session_tags st ON st.session_id = uv.session_id LEFT JOIN sessions s ON s.id = uv.session_id GROUP BY uv.session_id, st.tag_id, s.user_id",
   "describe": {
     "columns": [
       {
         "ordinal": 0,
-        "name": "session_id",
+        "name": "session_id!",
         "type_info": "Int4"
       },
       {
@@ -15,12 +15,12 @@
       },
       {
         "ordinal": 2,
-        "name": "tag_id",
+        "name": "tag_id?",
         "type_info": "Int4"
       },
       {
         "ordinal": 3,
-        "name": "speaker_id",
+        "name": "speaker_id?",
         "type_info": "Int4"
       },
       {
@@ -40,5 +40,5 @@
       null
     ]
   },
-  "hash": "7f0cf5c298bcfaa2f7e6f3858a8d27ab2825b9d2bd4665f6a844f2b7fd5c0ed7"
+  "hash": "d70f5740523af9f55c859e37bfe025a0c6db9fd2c1ae30e5b80141078174d064"
 }

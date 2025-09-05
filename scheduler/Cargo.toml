@@ -9,6 +9,7 @@ sqlx.workspace = true
 itertools = "0.14.0"
 rayon = "1.10.0"
 num-format = "0.4.4"
+tracing = "0.1.41"
 
 [dev-dependencies]
 approx = "0.5.1"
