@@ -32,7 +32,7 @@ document.addEventListener('DOMContentLoaded', function() {
         searching: true,
         ordering:  true,
         paging:    true,
-        responsive: true,
+        responsive: { details: false },
         order:     [[1, 'asc']],
     });
 
