@@ -62,12 +62,14 @@
 
     {% block content %}
     <div class="container-fluid">
-        <div class="row mb-4">
-            <div class="col-12">
-                <h1 class="mb-3">Submit a Session</h1>
-                <button id="add-session" class="btn btn-primary mb-4">Submit a Session</button>
+        {% if is_authenticated %}
+            <div class="row mb-4">
+                <div class="col-12">
+                    <h1 class="mb-3">Submit a Session</h1>
+                    <button id="add-session" class="btn btn-primary mb-4">Submit a Session</button>
+                </div>
             </div>
-        </div>
+        {% endif %}
         
         <div class="row">
             <div class="col-12">

@@ -263,14 +263,16 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    document.querySelector('#add-session').addEventListener('click', async function(data) {
-        const modal = new bootstrap.Modal(document.getElementById('sessionModal'));
-        document.getElementById('sessionForm').reset();
-        currentSessionId = null;
-        currentUserId    = null;
-        currentTagId     = null;
-        modal.show();
-    });
+    {% if is_authenticated %}
+        document.querySelector('#add-session').addEventListener('click', async function(data) {
+            const modal = new bootstrap.Modal(document.getElementById('sessionModal'));
+            document.getElementById('sessionForm').reset();
+            currentSessionId = null;
+            currentUserId    = null;
+            currentTagId     = null;
+            modal.show();
+        });
+    {% endif %}
 });
 
 function format(data) {
