@@ -1,3 +1,6 @@
+> [!WARNING]
+> Some documentation might not represent the current state of this repository.
+
 # unconfrs: Unconference Webapp in Rust
 Robert Elia 2025
 
