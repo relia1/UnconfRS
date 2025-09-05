@@ -10,7 +10,7 @@ use serde_json::Value;
 use server::{
     config::AppState,
     models::auth_model::Backend,
-    models::auth_model::RegistrationRequest,
+    models::auth_model::RegistrationRequestWithRole,
     models::room_model::{rooms_add, CreateRoomsForm, Room},
     models::timeslot_model::{timeslots_add, TimeslotForm, TimeslotRequest},
 };
@@ -159,13 +159,14 @@ impl Params {
 
     async fn generate_users(&self, backend: &Backend) -> Result<(), Box<dyn Error>> {
         for _ in 1..=self.users {
-            let user = RegistrationRequest::new(
+            let user = RegistrationRequestWithRole::new(
                 FirstName(EN).fake(),
                 LastName(EN).fake(),
                 SafeEmail(EN).fake(),
                 String::from("password"),
+                String::from("user"),
             );
-            backend.register(user).await?;
+            backend.register_with_role(user).await?;
         }
         Ok(())
     }

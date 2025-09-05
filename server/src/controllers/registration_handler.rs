@@ -1,5 +1,5 @@
 use crate::middleware::auth::{AuthInfo, AuthSessionLayer};
-use crate::models::auth_model::{Permission, RegistrationRequest, RegistrationResponse};
+use crate::models::auth_model::{Permission, RegistrationRequest, RegistrationRequestWithRole, RegistrationResponse};
 use askama::Template;
 use axum::response::IntoResponse;
 use axum::{http::StatusCode, response::Html, response::Response, Extension, Json};
@@ -63,7 +63,7 @@ pub async fn registration_handler(
 pub(crate) async fn staff_registers_user_handler(
     auth_session: AuthSessionLayer,
     Extension(auth_info): Extension<AuthInfo>,
-    Json(user_info): Json<RegistrationRequest>,
+    Json(user_info): Json<RegistrationRequestWithRole>,
 ) -> impl IntoResponse {
     let is_staff_or_admin = auth_info.is_staff_or_admin;
     if !is_staff_or_admin {
@@ -76,7 +76,7 @@ pub(crate) async fn staff_registers_user_handler(
         );
     }
     tracing::debug!("user_info: {:?}", user_info.fname);
-    match auth_session.backend.register(user_info).await {
+    match auth_session.backend.register_with_role(user_info).await {
         Ok(()) => {
             (
                 StatusCode::CREATED,

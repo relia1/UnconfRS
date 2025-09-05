@@ -14,6 +14,15 @@ pub struct RegistrationRequest {
     pub(crate) password: String,
 }
 
+#[derive(Deserialize)]
+pub struct RegistrationRequestWithRole {
+    pub(crate) fname: String,
+    pub(crate) lname: String,
+    pub(crate) email: String,
+    pub(crate) password: String,
+    pub(crate) role: String,
+}
+
 impl RegistrationRequest {
     pub fn new(fname: String, lname: String, email: String, password: String) -> Self {
         Self {
@@ -21,6 +30,28 @@ impl RegistrationRequest {
             lname,
             email,
             password,
+        }
+    }
+
+    pub fn with_role(self, role: String) -> RegistrationRequestWithRole {
+        RegistrationRequestWithRole {
+            fname: self.fname,
+            lname: self.lname,
+            email: self.email,
+            password: self.password,
+            role,
+        }
+    }
+}
+
+impl RegistrationRequestWithRole {
+    pub fn new(fname: String, lname: String, email: String, password: String, role: String) -> Self {
+        Self {
+            fname,
+            lname,
+            email,
+            password,
+            role,
         }
     }       
 }
@@ -119,7 +150,7 @@ impl Backend {
         Ok((has_superuser_or_staff_perms, permissions))
     }
 
-    pub async fn register(&self, new_user: RegistrationRequest) -> Result<(), Box<dyn Error>> {
+    pub async fn register_with_role(&self, new_user: RegistrationRequestWithRole) -> Result<(), Box<dyn Error>> {
         let password_hash = bcrypt::hash(&new_user.password, bcrypt::DEFAULT_COST)?;
         let user: User = sqlx::query_as!(
             User,
@@ -132,14 +163,27 @@ impl Backend {
             .fetch_one(&self.db_pool)
             .await?;
 
+        let role = new_user.role;
+
+        let valid_roles = ["user", "facilitator", "admin"];
+        if !valid_roles.contains(&role.as_str()) {
+            return Err("Invalid role specified".into());
+        }
+
         sqlx::query!(
-            "INSERT INTO users_groups (user_id, group_id) VALUES ($1, (SELECT id FROM groups WHERE name = 'user'))",
+            "INSERT INTO users_groups (user_id, group_id) VALUES ($1, (SELECT id FROM groups WHERE name = $2))",
             user.id,
+            role,
         )
             .execute(&self.db_pool)
             .await?;
 
         Ok(())
+    }
+
+    pub async fn register(&self, new_user: RegistrationRequest) -> Result<(), Box<dyn Error>> {
+        let registration_request = new_user.with_role(String::from("user"));
+        self.register_with_role(registration_request).await
     }
 }
 

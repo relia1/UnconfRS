@@ -22,7 +22,7 @@
                     <a class="nav-link" href="/config">Config</a>
                 </li>
                 {% endif %}
-                {% if permissions.contains(&Permission::from("superuser")) %}
+                {% if permissions.contains(&Permission::from("superuser")) || permissions.contains(&Permission::from("staff")) %}
                 <li class="nav-item">
                     <a class="nav-link" href="/users">Users</a>
                 </li>

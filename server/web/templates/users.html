@@ -42,6 +42,16 @@
                         <label for="confirm-password" class="form-label">Confirm Password:</label>
                         <input type="password" class="form-control" id="confirm-password" name="confirm-password" required/>
                     </div>
+                    {% if permissions.contains(&Permission::from("superuser")) %}
+                    <div class="mb-3">
+                        <label for="role" class="form-label">Role:</label>
+                        <select class="form-control" id="role" name="role">
+                            <option value="user">User</option>
+                            <option value="facilitator">Facilitator</option>
+                            <option value="admin">Admin</option>
+                        </select>
+                    </div>
+                    {% endif %}
                 </form>
             </div>
             <div class="modal-footer">
@@ -71,11 +81,15 @@
             return;
         }
 
+        const roleSelect = document.getElementById('role');
+        const role = roleSelect ? roleSelect.value : 'user';
+
         const payload = {
             fname,
             lname,
             email,
             password,
+            role
         };
 
         fetch('/api/v1/registration_on_user_behalf', {
