@@ -39,7 +39,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Add event listener for opening and closing details
-    table.on('click', 'td.dt-control', function(e) {
+    table.on('click', 'tr', function(e) {
         let tr = e.target.closest('tr');
         let row = table.row(tr);
 
