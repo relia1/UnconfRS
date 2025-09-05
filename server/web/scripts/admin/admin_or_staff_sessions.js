@@ -9,22 +9,24 @@ document.addEventListener('DOMContentLoaded', function() {
     let table = new DataTable('.sessionsTable', {
         columns:    [
             {
-                data:           null,
-                className:      'dt-control',
+                data: null,
+                className: 'dt-control',
                 defaultContent: '',
-                orderable:      false,
+                orderable: false,
+                responsivePriority: 1,
             },
             {data: 'session_id', visible: false},
-            {data: 'title'},
-            {data: 'name'},
-            {data: 'email'},
-            {data: 'tags'},
+            {data: 'title', responsivePriority: 2},
+            {data: 'name', responsivePriority: 6},
+            {data: 'email', responsivePriority: 5},
+            {data: 'tags', responsivePriority: 4},
             {
-                data:           null,
+                data: null,
                 defaultContent: '<button class="del-btn btn btn-danger btn-sm me-1">Delete</button>' +
                                     '<button class="edit-btn btn btn-primary btn-sm me-1">Edit</button>' +
                                     '<button class="upvote-btn btn btn-success btn-sm">Upvote</button>',
-                orderable:      false,
+                orderable: false,
+                responsivePriority: 3,
             },
             {data: 'content', visible: false},
             {data: 'user_id', visible: false},
