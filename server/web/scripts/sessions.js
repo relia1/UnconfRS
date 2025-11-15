@@ -22,9 +22,26 @@ document.addEventListener('DOMContentLoaded', function() {
             {data: 'tags', responsivePriority: 4},
             {
                 data: null,
-                defaultContent: '<button class="del-btn btn btn-danger btn-sm me-1">Delete</button>' +
-                                    '<button class="edit-btn btn btn-primary btn-sm me-1">Edit</button>' +
-                                    '<button class="upvote-btn btn btn-success btn-sm">Upvote</button>',
+                render: function(data, type, row) {
+                    if (!{{ is_authenticated }}) {
+                        return '';
+                    }
+
+                    let buttons = '';
+
+                    // Show Edit and Delete buttons if they are the one who created the session
+                    if (current_user_id && current_user_id === Number(row.user_id)) {
+                        buttons += '<button class="del-btn btn btn-danger btn-sm me-1">Delete</button>';
+                        buttons += '<button class="edit-btn btn btn-primary btn-sm me-1">Edit</button>';
+                    }
+
+                    // Show Vote/Unvote depending on whether they have voted for a session or not
+                    const hasVotedForSession = current_users_voted_sessions.includes(Number(row.session_id));
+                    const voteButtonText = hasVotedForSession ? 'Unvote' : 'Vote';
+                    const voteButtonClass = hasVotedForSession ? 'btn-warning' : 'btn-success';
+                    buttons += `<button class="vote-btn btn ${voteButtonClass} btn-sm">${voteButtonText}</button>`;
+                    return buttons;
+                },
                 orderable: false,
                 responsivePriority: 3,
             },
@@ -53,7 +70,10 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     table.on('click', '.del-btn', async function(e) {
+        e.stopPropagation();
+        const button = this;
         if (confirm('Are you sure you want to delete this session?')) {
+            setButtonLoading(button);
             let row = table.row($(this).closest('tr'));
             let data = row.data();
             console.log('Deleting session with id: ' + data.session_id);
@@ -74,6 +94,7 @@ document.addEventListener('DOMContentLoaded', function() {
                  it from the table */
                 row.remove().draw(false);
             } catch (error) {
+                restoreButton(button);
                 console.error('Error deleting session:', error);
                 if (error.message.match(/foreign key constraint/)) {
                     alert('This session cannot be deleted because it is associated with a' +
@@ -88,6 +109,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     table.on('click', '.edit-btn', async function(e) {
+        e.stopPropagation();
         var data = table.row($(this).closest('tr')).data();
         currentSessionId = data.session_id;
         currentUserId = data.user_id;
@@ -112,13 +134,18 @@ document.addEventListener('DOMContentLoaded', function() {
         modal.show();
     });
 
-    table.on('click', '.upvote-btn', async function(e) {
-        var data = table.row($(this).closest('tr')).data();
+    table.on('click', '.vote-btn', async function(e) {
+        e.stopPropagation();
+        const data = table.row($(this).closest('tr')).data();
+        const button = this;
         currentSessionId = Number(data.session_id);
         currentUserId    = Number(data.user_id);
         let response;
+        const isVoting = !await hasVoted(currentSessionId);
 
-        if (!await hasVoted(currentSessionId)) {
+        setButtonLoading(button);
+
+        if (isVoting) {
             try {
                 response = await fetch(`/api/v1/sessions/${currentSessionId}/increment`, {
                     method:  'PUT',
@@ -132,11 +159,17 @@ document.addEventListener('DOMContentLoaded', function() {
                     throw new Error(error.error);
                 }
 
-                alert('Session upvoted successfully');
                 await setVotesVal(currentSessionId);
+
+                // Restore button with new text and style
+                restoreButton(button, 'Unvote', 'vote-btn btn btn-warning btn-sm');
             } catch (error) {
-                console.error('Error upvoting session:', error);
-                alert('There was an error upvoting the session. Please try again.');
+                console.error('Error voting for session:', error);
+
+                // Restore button to original state
+                restoreButton(button);
+
+                alert('There was an error voting for the session. Please try again.');
             }
         } else {
             try {
@@ -152,10 +185,16 @@ document.addEventListener('DOMContentLoaded', function() {
                     throw new Error(error.error);
                 }
 
-                alert('Session unvoted successfully');
                 await setVotesVal(currentSessionId);
+
+                // Restore button with new text and style
+                restoreButton(button, 'Vote', 'vote-btn btn btn-success btn-sm');
             } catch (error) {
                 console.error('Error removing vote for session:', error);
+
+                // Restore button to original state
+                restoreButton(button);
+
                 alert('There was an error removing the vote for the session. Please try again.');
             }
         }
@@ -163,10 +202,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
     document.getElementById('sessionForm').addEventListener('submit', async function(event) {
         event.preventDefault();
+        const button = document.querySelector('button[type="submit"]');
         const title    = document.getElementById('title').value;
         const content  = document.getElementById('sessionContent').value;
         const newTagId = parseInt(document.getElementById('tagSelect').value) ?? null;
         const isEdit   = currentSessionId !== null;
+        setButtonLoading(button);
 
         let response;
         if (isEdit) {
@@ -224,14 +265,17 @@ document.addEventListener('DOMContentLoaded', function() {
                         const tagError = await tagResponse.json();
                         console.error('Error updating tag:', tagError);
                         alert('There was an error updating the tag. Please try again.');
+                        restoreButton(button);
                         return;
                     }
                 }
 
                 alert('Session updated successfully!');
+                restoreButton(button);
                 bootstrap.Modal.getInstance(document.getElementById('sessionModal')).hide();
             } catch (error) {
                 console.log('Error updating session: ', error);
+                restoreButton(button);
                 alert('There was an error updating the session. Please try again.');
             }
             location.reload();
@@ -255,9 +299,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
 
                 alert('Session submitted successfully!');
+                restoreButton(button);
                 bootstrap.Modal.getInstance(document.getElementById('sessionModal')).hide();
             } catch (error) {
                 console.log('Error submitting session: ', error);
+                restoreButton(button);
                 alert('There was an error submitting the session. Please try again.');
                 return;
             }

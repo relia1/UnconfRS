@@ -51,6 +51,8 @@
     <script src="https://cdn.datatables.net/v/dt/jq-3.7.0/dt-2.1.5/r-3.0.3/sl-2.0.5/datatables.min.js"></script>
     <script>
         let current_users_voted_sessions = {{ current_users_voted_sessions|json }};
+        let current_user_id = {{ current_user_id|json }};
+        {% include "scripts/utils.js" %}
         {% if permissions.contains(&Permission::from("superuser")) || permissions.contains(&Permission::from("staff")) %}
             {% include "scripts/admin/admin_or_staff_sessions.js" %}
         {% else %}
@@ -84,7 +86,7 @@
                         <th>Name</th>
                         <th>Email</th>
                         <th>Tag</th>
-                        <th>Delete Session</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>

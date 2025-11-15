@@ -252,6 +252,7 @@ struct SessionsTemplate {
     is_authenticated: bool,
     permissions: HashSet<Permission>,
     tags: Vec<Tag>,
+    current_user_id: Option<i32>,
 }
 
 impl SessionsTemplate {
@@ -347,10 +348,10 @@ pub(crate) async fn session_handler(
     let permissions = auth_info.permissions;
     let app_state_lock = app_state.read().await;
     let write_lock = &app_state_lock.unconf_data.read().await.unconf_db;
-    let current_users_voted_sessions = if let Some(user) = auth_session.user.clone() {
-        get_sessions_user_voted_for(write_lock, user.id).await.unwrap_or(Vec::<i32>::new())
+    let (current_users_voted_sessions, current_user_id) = if let Some(user) = auth_session.user.clone() {
+        (get_sessions_user_voted_for(write_lock, user.id).await.unwrap_or(Vec::<i32>::new()), Some(user.id))
     } else {
-        Vec::<i32>::new()
+        (Vec::<i32>::new(), None)
     };
     let tags = get_all_tags(&write_lock.clone()).await.unwrap_or_default();
     let sessions_with_user_info = combine_session_and_user(&write_lock.clone()).await;
@@ -365,6 +366,7 @@ pub(crate) async fn session_handler(
                 is_authenticated,
                 permissions,
                 tags,
+                current_user_id,
             };
 
             match template.render() {
