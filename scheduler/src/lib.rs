@@ -1,5 +1,5 @@
 use rand::prelude::IteratorRandom;
-use std::cmp::max;
+use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 
 #[derive(Debug, Clone)]
@@ -302,32 +302,33 @@ impl SchedulerData {
 
     fn penalize_same_topic_time_slots(&self) -> i32 {
         // Iterate through the rows of timeslots
-        // For each timeslot row calculate their penalty
-        // Within each row only keep values that have session_ids and tag_ids
-        // For each session in the row check if any after it have the same tag_id
-        // If they have the same tag_id add to the penalty the product of the two
-        // Sum the penalties for each of the rows
-        self.schedule_rows
-            .iter()
-            .map(|timeslot| {
-                let assigned_sessions: Vec<&RoomTimeAssignment> = timeslot.schedule_items
-                    .iter()
-                    .filter(|session_assignment| session_assignment.session_id.is_some() && session_assignment.tag_id.is_some())
-                    .collect();
+        // For each timeslot, group sessions by their tag_id
+        // Track the total votes and count of sessions for each tag
+        // Calculate the penalty as votes * (count - 1)
+        // Sum all tag penalties within the timeslot
+        // Sum the timeslot penalties
 
-                let mut penalty = 0;
-                for i in 0..assigned_sessions.len() {
-                    for j in (i + 1)..assigned_sessions.len() {
-                        if assigned_sessions[i].tag_id == assigned_sessions[j].tag_id {
-                            // Apply penalty based on the product of votes for sessions with same tag
-                            // Make sure if a session has 0 votes that a penalty is still applied
-                            penalty += max(assigned_sessions[i].num_votes, 1) * max(assigned_sessions[j].num_votes, 1);
-                        }
-                    }
+        // HashMap<tag_id, (total votes for tag_id in this timeslot, number of sessions with this tag_id)>
+        let mut tag_counts = HashMap::new();
+        let mut penalty = 0;
+
+        for timeslot in &self.schedule_rows {
+            tag_counts.clear();
+
+            for session in &timeslot.schedule_items {
+                if let (Some(_), Some(tag_id)) = (session.session_id, session.tag_id) {
+                    let entry = tag_counts.entry(tag_id).or_insert((0, 0));
+                    entry.0 += session.num_votes;
+                    entry.1 += 1;
                 }
-                penalty
-            })
-            .sum()
+            }
+
+            penalty += tag_counts.values()
+                .map(|(votes, count)| votes * (count - 1))
+                .sum::<i32>();
+        }
+
+        penalty
     }
 
     fn penalize_speaker_voting_conflicts(&self) -> i32 {
