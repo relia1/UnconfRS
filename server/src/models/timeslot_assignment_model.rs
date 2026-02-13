@@ -6,10 +6,13 @@ use chrono::NaiveTime;
 use scheduler::{RoomTimeAssignment, ScheduleRow, SchedulerData, SessionData};
 use serde::{Deserialize, Serialize};
 use sqlx::{Pool, Postgres};
-use std::collections::HashSet;
-use std::env::var;
-use std::error::Error;
-use std::time::Instant;
+use std::{
+    collections::HashSet,
+    env::var,
+    error::Error,
+    sync::{atomic::{AtomicBool, Ordering}, Arc},
+    time::{Duration, Instant}
+};
 use tracing::info;
 use utoipa::ToSchema;
 
@@ -331,27 +334,35 @@ pub async fn local_search_scheduling(db_pool: &Pool<Postgres>, scheduling_data: 
 
     tracing::info!("Starting scheduler");
     let start = Instant::now();
-    let current_score = scheduler_data.improve_with_restarts(20);
+
+    let stop_flag = Arc::new(AtomicBool::new(false));
+
+    // Run the scheduler on a blocking thread to prevent blocking futures
+    let handle = tokio::task::spawn_blocking({
+        let stop_flag = stop_flag.clone();
+        move || {
+            let score = scheduler_data.improve_with_restarts(40, stop_flag);
+            (score, scheduler_data)
+        }
+    });
+
+    // After 60 seconds update the stop_flag AtomicBoolean so the scheduler won't do additional iterations
+    tokio::spawn({
+        async move {
+            tokio::time::sleep(Duration::from_secs(60)).await;
+            stop_flag.store(true, Ordering::Relaxed);
+        }
+    });
+
+    let (current_score, scheduler_data) = handle.await?;
+
     let best_scheduler_data = &scheduler_data;
 
-    let formatted_schedule = best_scheduler_data.schedule_rows
-        .iter()
-        .map(|row| {
-            row.schedule_items
-                .iter()
-                .map(|session| session.num_votes.to_string())
-                .collect::<Vec<_>>()
-                .join(", ")
-        })
-        .collect::<Vec<_>>()
-        .join("\n");
-
-    tracing::info!("formatted schedule:\n {}", formatted_schedule);
-    tracing::info!("current unassigned {:?}", best_scheduler_data.unassigned_sessions);
+    tracing::debug!("current unassigned {:?}", best_scheduler_data.unassigned_sessions);
 
     let duration = start.elapsed();
-    tracing::trace!("scheduling_data: {:?}", best_scheduler_data);
-    tracing::trace!("duration: {:?}", duration);
+    tracing::info!("scheduling_data:\n{}", best_scheduler_data);
+    tracing::info!("duration: {:?}", duration);
     tracing::trace!("best score: {:?}", current_score);
 
     for schedule_row in &best_scheduler_data.schedule_rows {

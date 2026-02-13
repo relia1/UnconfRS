@@ -1,6 +1,9 @@
 use rand::prelude::IteratorRandom;
-use std::collections::HashMap;
-use std::fmt::{Display, Formatter};
+use std::{
+    collections::HashMap,
+    fmt::{Display, Formatter},
+    sync::{atomic::{AtomicBool, Ordering}, Arc}
+};
 
 #[derive(Debug, Clone)]
 pub struct SessionData {
@@ -108,7 +111,7 @@ impl SchedulerData {
         }
     }
 
-    pub fn improve(&mut self) -> f32 {
+    pub fn improve(&mut self, stop_flag: Arc<AtomicBool>) -> f32 {
         use rand::{seq::IndexedRandom, Rng};
         let mut rng = rand::rng();
 
@@ -120,7 +123,13 @@ impl SchedulerData {
 
         let mut best_score = current_score;
         let mut best_action: Option<SwapAction> = None;
-        for _ in 0..max_iterations {
+        for search_iter in 0..max_iterations {
+            // Received an indication to stop, so return the current_score
+            if stop_flag.load(Ordering::Relaxed) {
+                tracing::info!("Stopping current iteration of the scheduler");
+                return current_score;
+            }
+
             // Get only the swappable positions
             let swappable_sessions: Vec<(usize, usize)> = self.get_swappable_sessions();
 
@@ -197,14 +206,13 @@ impl SchedulerData {
             match best_action.as_ref() {
                 Some(action) => {
                     self.apply_action(action);
+                    best_action = None;
                     current_score = best_score;
                 },
                 None => {
                     continue;
                 },
             }
-
-            assert!(best_score >= current_score);
         }
 
         current_score
@@ -497,18 +505,24 @@ impl SchedulerData {
     ///
     /// # Parameters
     /// - `restarts`: Number of times to restart the improvement process
+    /// - `stop_flag`: Signals the function to stop early and return the best results so far
     ///
     /// # Returns
     /// The best score found across all restarts
-    pub fn improve_with_restarts(&mut self, restarts: usize) -> f32 {
+    pub fn improve_with_restarts(&mut self, restarts: usize, stop_flag: Arc<AtomicBool>) -> f32 {
         let unmodified_data = self.clone();
-        let mut best_score = self.improve();
+        let mut best_score = f32::MAX;
         let mut best_data = self.clone();
 
         for i in 0..restarts {
-            tracing::info!("On iteration {} out of {}", i, restarts);
+            if stop_flag.load(Ordering::Relaxed) {
+                tracing::info!("Cancelled after {} restarts", i + 1);
+                break;
+            }
+
+            tracing::debug!("On iteration {} out of {}", i + 1, restarts);
             *self = unmodified_data.clone();
-            let new_score = self.improve();
+            let new_score = self.improve(stop_flag.clone());
             if new_score < best_score {
                 best_score = new_score;
                 best_data = self.clone();

@@ -3,6 +3,7 @@ use num_format::{Locale, ToFormattedString};
 use rayon::prelude::*;
 use scheduler::utils::*;
 use scheduler::SessionData;
+use std::sync::{atomic::AtomicBool, Arc};
 
 type ScheduleAssignment = Vec<((Option<i32>, i32, Option<i32>), (usize, usize))>;
 struct BruteForceResults {
@@ -39,10 +40,11 @@ fn run_scheduler(data: &scheduler::SchedulerData, iterations: usize) -> Schedule
     let mut best_schedule = data.clone();
     let mut best_score: Option<f32> = None;
     let mut scores = Vec::new();
+    let stop_flag = Arc::new(AtomicBool::new(false));
 
     for _ in 0..iterations {
         let mut schedule_data = data.clone();
-        let score = schedule_data.improve();
+        let score = schedule_data.improve(stop_flag.clone());
         if worst_score.is_none() {
             worst_score = Some(score);
             best_score = Some(score);
