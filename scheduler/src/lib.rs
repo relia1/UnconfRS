@@ -133,7 +133,7 @@ impl SchedulerData {
             // Get only the swappable positions
             let swappable_sessions: Vec<(usize, usize)> = self.get_swappable_sessions();
 
-            let coin_flip = rng.random_bool(1.0);
+            let coin_flip = rng.random_bool(0.5);
             if coin_flip {
 
                 // Try all pair swaps between swappable positions within the schedule and the unassigned
@@ -184,16 +184,37 @@ impl SchedulerData {
                 let total_sessions_len = unassgned_sessions_len + swappable_sessions_len;
                 let chance_random_session_is_unassigned = unassgned_sessions_len as f64 / total_sessions_len as f64;
 
-                if !self.unassigned_sessions.is_empty() && rng.random_bool(chance_random_session_is_unassigned) {
+                let action = if !self.unassigned_sessions.is_empty() && rng.random_bool(chance_random_session_is_unassigned) {
                     // Swap with unassigned session
                     let unassigned_idx = rng.random_range(0..self.unassigned_sessions.len());
-                    let action = SwapAction::FromUnassigned(pos1, unassigned_idx);
-                    self.apply_action(&action);
+                    SwapAction::FromUnassigned(pos1, unassigned_idx)
                 } else {
                     // Swap with another session in the schedule
                     let pos2 = *swappable_sessions.choose(&mut rng).unwrap();
-                    let action = SwapAction::FromSchedule(pos1, pos2);
-                    self.apply_action(&action);
+                    SwapAction::FromSchedule(pos1, pos2)
+                };
+
+                self.apply_action(&action);
+                let new_score = self.score();
+                self.reverse_action(&action);
+
+                // If the random move led to an improved score accept it, otherwise accept it with
+                // the probability based on the temperature. The temperature is based on how much
+                // progress through the iterations and an offset to ensure worse moves aren't
+                // accepted late
+                if new_score < best_score {
+                    best_score = new_score;
+                    best_action = Some(action);
+                } else {
+                    // Setting a temperature offset ensures worse moves aren't accepted for the
+                    // last 25% of the iterations
+                    let temperature_offset = 0.25;
+                    let progress_through_iterations = search_iter as f64 / max_iterations as f64;
+                    let temperature = (1.0 - (progress_through_iterations + temperature_offset)).max(0.0);
+                    if rng.random_bool(temperature) {
+                        best_action = Some(action);
+                        best_score = new_score;
+                    }
                 }
             }
 
